@@ -88,8 +88,18 @@ async function runCoreAudit() {
       body: JSON.stringify(loginPayload)
     });
     const loginData = await loginRes.json();
-    const loginToken = loginData.accessToken;
     addLog(4, 'Login', `${API_BASE}/auth/login`, 'POST', loginPayload, loginData, loginRes.status);
+
+    // 4.5 Verify Login OTP
+    const loginOtpPayload = { email, otp: loginData.loginOtp };
+    const loginOtpRes = await fetch(`${API_BASE}/auth/verify-login-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(loginOtpPayload)
+    });
+    const loginOtpData = await loginOtpRes.json();
+    const loginToken = loginOtpData.accessToken;
+    addLog(4.5, 'Verify Login OTP', `${API_BASE}/auth/verify-login-otp`, 'POST', loginOtpPayload, loginOtpData, loginOtpRes.status);
 
     // 5. Google Login (Simulated)
     const googleRes = await fetch(`${API_BASE}/auth/oauth-callback?provider=google`, {

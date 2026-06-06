@@ -1,6 +1,6 @@
 # SignFlow Storage & Path Audit Report
 
-Date: 2026-06-06T18:18:45.829Z
+Date: 2026-06-06T18:59:05.076Z
 
 ## Document Uploads Validation
 
@@ -35,11 +35,15 @@ Date: 2026-06-06T18:18:45.829Z
 | VIT_AP_DSA_Lab_Assignment_Lab_Task_5_v1 (1).pdf | `uploads/file-1780732573747.pdf` | ✅ YES | [Link](/uploads/file-1780732573747.pdf) | Active |
 | VIT_AP_DSA_Lab_Assignment_Lab_Task_5_v1 (1).pdf | `uploads/finalized-1780763774786-VIT_AP_DSA_Lab_Assignment_Lab_Task_5_v1 (1).pdf` | ✅ YES | [Link](/uploads/finalized-1780763774786-VIT_AP_DSA_Lab_Assignment_Lab_Task_5_v1 (1).pdf) | Active |
 | test_contract.pdf | `uploads/finalized-1780761815018-test_contract.pdf` | ✅ YES | [Link](/uploads/finalized-1780761815018-test_contract.pdf) | Active |
-| test-certificate.pdf | `uploads/file-1780768089254.pdf` | ❌ NO | [Link](/uploads/file-1780768089254.pdf) | Broken (404) |
+| temp_audit.pdf | `uploads/file-1780770208522.pdf` | ✅ YES | [Link](/uploads/file-1780770208522.pdf) | Active |
+| temp_audit.pdf | `uploads/file-1780770271806.pdf` | ✅ YES | [Link](/uploads/file-1780770271806.pdf) | Active |
+| temp_audit.pdf | `uploads/file-1780770310720.pdf` | ✅ YES | [Link](/uploads/file-1780770310720.pdf) | Active |
+| temp_audit.pdf | `uploads/finalized-1780770328404-temp_audit.pdf` | ✅ YES | [Link](/uploads/finalized-1780770328404-temp_audit.pdf) | Active |
+| test-certificate.pdf | `uploads/finalized-1780771045905-test-certificate.pdf` | ❌ NO | [Link](/uploads/finalized-1780771045905-test-certificate.pdf) | Broken (404) |
 
 ### Statistics
-- **Total documents in DB:** 30
-- **Files present on disk:** 29
+- **Total documents in DB:** 34
+- **Files present on disk:** 33
 - **Files missing (404/Ephemeral loss):** 1
 
 ## Root Cause & Recommendations

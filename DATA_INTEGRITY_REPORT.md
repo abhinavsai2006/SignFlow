@@ -1,6 +1,6 @@
 # SignFlow — Data Integrity Report
 
-Date: 2026-06-06T18:22:41.763Z
+Date: 2026-06-06T18:59:10.086Z
 
 ## 1. Duplicate Users Check
 ✅ No duplicate email addresses found in Users collection.
@@ -9,7 +9,8 @@ Date: 2026-06-06T18:22:41.763Z
 ✅ No orphaned documents found (All documents have valid owners).
 
 ## 3. Missing File Paths Check
-✅ All document records point to valid files on disk.
+❌ Found **1** document records pointing to non-existent files:
+- ID: `6a246898dac4406df78ee399` | Name: `test-certificate.pdf` | Path: `uploads/finalized-1780771045905-test-certificate.pdf`
 
 ## 4. Invalid Signature Field References
 ✅ No orphaned signature fields found.
@@ -20,7 +21,7 @@ Date: 2026-06-06T18:22:41.763Z
 
 ## 6. Sessions & Verification Records Overview
 - Users with pending email verification OTPs: **0**
-- Users with pending login OTPs: **0**
+- Users with pending login OTPs: **2**
 
 ## 7. Action Plan & Integrity Status
 ✅ **INTEGRITY PASS:** No critical relational database errors detected.
