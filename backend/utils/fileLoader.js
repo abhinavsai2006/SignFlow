@@ -28,12 +28,18 @@ export const readPdfBytes = async (pathOrUrl) => {
 
   // Resolve local path
   let resolvedPath = pathOrUrl;
+  
   if (!path.isAbsolute(resolvedPath)) {
-    // If running from backend directory vs root directory
-    resolvedPath = path.resolve(resolvedPath);
-    if (!fs.existsSync(resolvedPath)) {
-      // Try resolving relative to backend directory if not found in cwd
-      resolvedPath = path.join(__dirname, '..', pathOrUrl);
+    // If it's an uploads path and we are in production with Railway Volume
+    if (resolvedPath.startsWith('uploads/') && process.env.NODE_ENV === 'production') {
+      resolvedPath = path.join('/data', resolvedPath);
+    } else {
+      // If running from backend directory vs root directory
+      resolvedPath = path.resolve(resolvedPath);
+      if (!fs.existsSync(resolvedPath)) {
+        // Try resolving relative to backend directory if not found in cwd
+        resolvedPath = path.join(__dirname, '..', pathOrUrl);
+      }
     }
   }
 

@@ -30,7 +30,18 @@ const PORT = process.env.PORT || 8080;
 // ─── Startup Environment Diagnostics ─────────────────────────────────────────
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('  SignFlow — Backend Starting');
-console.log(`  NODE_ENV      : ${process.env.NODE_ENV || 'development'}`);
+console.log("NODE_ENV", process.env.NODE_ENV);
+
+console.log(
+  "RESEND KEYS IN ENV:",
+  Object.keys(process.env).filter(key => key.includes("RESEND"))
+);
+
+console.log(
+  "RESEND RAW:",
+  process.env.RESEND_API_KEY
+);
+
 console.log(`  PORT          : ${PORT}`);
 console.log(`  MONGODB_URI   : ${process.env.MONGODB_URI ? '✓ Set' : '✗ MISSING — server will fail to connect!'}`);
 console.log(`  JWT_SECRET    : ${process.env.JWT_SECRET ? '✓ Set' : '✗ MISSING — using insecure fallback!'}`);
@@ -114,7 +125,8 @@ const generalLimiter = rateLimit({
 });
 
 // Serve static files from uploads directory (supports custom persistent volume path)
-const uploadsPath = process.env.PERSISTENT_VOLUME_PATH || path.join(__dirname, 'uploads');
+const isProd = process.env.NODE_ENV === 'production';
+const uploadsPath = isProd ? '/data/uploads' : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

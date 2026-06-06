@@ -701,8 +701,9 @@ router.post('/finalize', protect, async (req, res) => {
       return res.status(400).json({ message: 'Please sign all placed placeholders before finalization.' });
     }
 
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(__dirname, '../uploads');
+    // Use /data/uploads in production
+    const isProd = process.env.NODE_ENV === 'production';
+    const uploadsDir = isProd ? '/data/uploads' : path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -743,8 +744,8 @@ router.post('/finalize', protect, async (req, res) => {
       });
     }
 
-    // Upload to Cloudflare R2 if credentials are set, otherwise defaults to local path fallback
-    const targetPath = await uploadToR2(finalizedPath, relativeFilename, 'application/pdf');
+    // Use local volume instead of R2
+    const targetPath = `uploads/${relativeFilename}`;
 
     // Update main model database keys
     document.originalPath = targetPath;

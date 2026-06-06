@@ -119,8 +119,8 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'Uploaded file is empty (0 bytes) on disk', path: pathString });
     }
 
-    // Upload local file to Cloudflare R2 if credentials are set, otherwise defaults to local path fallback
-    const targetPath = await uploadToR2(pathString, req.file.originalname, req.file.mimetype);
+    // Use local storage / Railway volume instead of R2
+    const targetPath = `uploads/${req.file.filename}`;
 
     const document = await Document.create({
       ownerId: req.user._id,

@@ -7,7 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Support Railway Persistent Volumes via custom env path or fallback to local uploads directory
-const uploadDir = process.env.PERSISTENT_VOLUME_PATH || path.join(__dirname, '..', 'uploads');
+const isProd = process.env.NODE_ENV === 'production';
+const uploadDir = isProd ? '/data/uploads' : path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
