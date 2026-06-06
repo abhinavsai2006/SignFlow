@@ -3,6 +3,11 @@ import crypto from 'crypto';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import User from '../models/User.js';
 import SignatureField from '../models/SignatureField.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Draws all signed fields onto their respective pages in a PDF document.
@@ -315,25 +320,40 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
  * Loads the pristine original PDF, embeds signatures, appends certificate, and returns PDF bytes.
  */
 export const generateFinalizedPdf = async (document, fields) => {
-  const originalPath = document.versions[0]?.path || document.originalPath;
-  if (!fs.existsSync(originalPath)) {
-    throw new Error(`Original PDF file not found at: ${originalPath}`);
+  // Resolve the original file path - handle both absolute and relative paths
+  let originalPath = document.versions[0]?.path || document.originalPath;
+  
+  // If path is relative (starts with 'uploads/'), make it absolute
+  if (!path.isAbsolute(originalPath)) {
+    originalPath = path.join(__dirname, '../', originalPath);
   }
 
-  const pdfBytes = fs.readFileSync(originalPath);
-  const pdfDoc = await PDFDocument.load(pdfBytes);
+  console.log('[PDF Service] Attempting to load PDF from:', originalPath);
+  console.log('[PDF Service] File exists:', fs.existsSync(originalPath));
 
-  // 1. Draw signature blocks on appropriate pages
-  await embedSignaturesToPdf(pdfDoc, fields);
+  if (!fs.existsSync(originalPath)) {
+    throw new Error(`Original PDF file not found at: ${originalPath} (resolved from: ${document.versions[0]?.path || document.originalPath})`);
+  }
 
-  // 2. Save document temporarily to compute checksum of signed content only (preshared hash)
-  const signedOnlyBytes = await pdfDoc.save();
-  const sha256Checksum = crypto.createHash('sha256').update(signedOnlyBytes).digest('hex');
+  try {
+    const pdfBytes = fs.readFileSync(originalPath);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
 
-  // 3. Append Certificate page
-  await generateCertificatePage(pdfDoc, document, fields, sha256Checksum);
+    // 1. Draw signature blocks on appropriate pages
+    await embedSignaturesToPdf(pdfDoc, fields);
 
-  // 4. Save and return final byte buffer
-  const finalBytes = await pdfDoc.save();
-  return { finalBytes, sha256Checksum };
+    // 2. Save document temporarily to compute checksum of signed content only (preshared hash)
+    const signedOnlyBytes = await pdfDoc.save();
+    const sha256Checksum = crypto.createHash('sha256').update(signedOnlyBytes).digest('hex');
+
+    // 3. Append Certificate page
+    await generateCertificatePage(pdfDoc, document, fields, sha256Checksum);
+
+    // 4. Save and return final byte buffer
+    const finalBytes = await pdfDoc.save();
+    return { finalBytes, sha256Checksum };
+  } catch (error) {
+    console.error('[PDF Service] Error processing PDF:', error.message);
+    throw error;
+  }
 };

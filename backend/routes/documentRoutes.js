@@ -16,8 +16,13 @@ import {
   sendAuditReportGeneratedEmail
 } from '../middleware/emailService.js';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -254,8 +259,13 @@ router.get('/:id/download', protect, async (req, res) => {
       const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
       finalBytes = compiledBytes;
     } else {
-      const originalPath = document.versions[0]?.path || document.originalPath;
+      let originalPath = document.versions[0]?.path || document.originalPath;
+      // Resolve relative paths
+      if (!path.isAbsolute(originalPath)) {
+        originalPath = path.join(__dirname, '../', originalPath);
+      }
       if (!fs.existsSync(originalPath)) {
+        console.error('[Document Download] File not found at:', originalPath);
         return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
       }
       finalBytes = fs.readFileSync(originalPath);

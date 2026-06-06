@@ -18,6 +18,11 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
 import crypto from 'crypto';
 import { generateFinalizedPdf } from '../services/pdfService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -694,34 +699,86 @@ router.post('/finalize', protect, async (req, res) => {
       return res.status(400).json({ message: 'Please sign all placed placeholders before finalization.' });
     }
 
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
     // Use centralized PDF service to finalize
-    const { finalBytes, sha256Checksum } = await generateFinalizedPdf(document, fields);
+    let finalBytes, sha256Checksum;
+    try {
+      const result = await generateFinalizedPdf(document, fields);
+      finalBytes = result.finalBytes;
+      sha256Checksum = result.sha256Checksum;
+    } catch (pdfError) {
+      console.error('[Finalize] PDF generation failed:', pdfError.message);
+      console.error('[Finalize] Document details:', {
+        documentId,
+        filename: document.filename,
+        originalPath: document.originalPath,
+        fileExists: document.originalPath ? fs.existsSync(document.originalPath) : false
+      });
+      return res.status(400).json({ 
+        message: 'Failed to generate finalized PDF',
+        error: pdfError.message,
+        details: 'Check that the original file exists and all signature values are complete'
+      });
+    }
 
-    // Save finalized document to disk
-    const finalizedPath = `uploads/finalized-${Date.now()}-${document.filename}`;
-    fs.writeFileSync(finalizedPath, finalBytes);
+    // Save finalized document to disk with absolute path
+    const timestamp = Date.now();
+    const relativeFilename = `finalized-${timestamp}-${document.filename}`;
+    const finalizedPath = path.join(uploadsDir, relativeFilename);
+    const relativePath = `uploads/${relativeFilename}`;
+    
+    try {
+      fs.writeFileSync(finalizedPath, finalBytes);
+    } catch (writeError) {
+      console.error('[Finalize] File write failed:', writeError.message);
+      return res.status(500).json({ 
+        message: 'Failed to save finalized PDF',
+        error: writeError.message
+      });
+    }
 
-    // Update main model database keys
-    document.originalPath = finalizedPath;
+    // Update main model database keys - store RELATIVE path for HTTP serving
+    document.originalPath = relativePath;
     document.status = 'Signed';
     document.sha256Checksum = sha256Checksum;
-    await document.save();
+    
+    try {
+      await document.save();
+    } catch (dbError) {
+      console.error('[Finalize] Database save failed:', dbError.message);
+      // Cleanup the file since DB save failed
+      fs.unlinkSync(finalizedPath);
+      return res.status(500).json({ 
+        message: 'Failed to update document record',
+        error: dbError.message
+      });
+    }
 
     // Log the action to Audit Trail
-    await logAuditEvent(document._id, req.user._id, 'Finalize', req);
+    try {
+      await logAuditEvent(document._id, req.user._id, 'Finalize', req);
+    } catch (auditError) {
+      console.error('[Finalize] Audit logging failed (non-critical):', auditError.message);
+      // Don't fail the entire request for audit logging
+    }
 
     // Retrieve owner info for the email notification
     const owner = await User.findById(document.ownerId);
 
-    // Send completion email to document owner
+    // Send completion email to document owner - with error handling
     const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
     if (owner) {
-      await sendCompletionEmail(owner.email, document.filename, downloadUrl, owner.name);
-      // Also send allSignersCompleted and downloadReady as distinct notifications
+      sendCompletionEmail(owner.email, document.filename, downloadUrl, owner.name)
+        .catch(err => console.error('[Finalize] Completion email failed:', err.message));
       sendAllSignersCompletedEmail(owner.email, owner.name, document.filename, downloadUrl)
-        .catch(err => console.error('[Sig] All signers completed email failed:', err.message));
+        .catch(err => console.error('[Finalize] All signers completed email failed:', err.message));
       sendDownloadReadyEmail(owner.email, owner.name, document.filename, downloadUrl)
-        .catch(err => console.error('[Sig] Download ready email failed:', err.message));
+        .catch(err => console.error('[Finalize] Download ready email failed:', err.message));
     }
 
     // Send completed email to all signers
@@ -731,19 +788,27 @@ router.post('/finalize', protect, async (req, res) => {
       for (const signerEmail of distinctSigners) {
         const fieldsForSigner = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.toLowerCase());
         const signerName = fieldsForSigner[0]?.signerName || fieldsForSigner[0]?.userId?.name || signerEmail.split('@')[0];
-        await sendCompletedSignerEmail(signerEmail, signerName, document.filename, shareUrl);
+        sendCompletedSignerEmail(signerEmail, signerName, document.filename, shareUrl)
+          .catch(err => console.error(`[Finalize] Signer email to ${signerEmail} failed:`, err.message));
       }
-    } catch (err) {
-      console.error('Failed to send signer completion emails:', err);
+    } catch (signerEmailError) {
+      console.error('[Finalize] Failed to send signer emails:', signerEmailError.message);
+      // Don't fail the entire request for signer emails
     }
 
     res.json({ 
       message: 'PDF finalized with Certificate of Completion and cryptographic stamp.', 
       document,
-      sha256Checksum: sha256Checksum
+      sha256Checksum: sha256Checksum,
+      downloadUrl: `/${relativePath}`
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to finalize PDF document', error: error.message });
+    console.error('[Finalize] Unexpected error:', error);
+    res.status(500).json({ 
+      message: 'Failed to finalize PDF document', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -760,11 +825,18 @@ router.post('/verify/:documentId', async (req, res) => {
       return res.status(400).json({ valid: false, message: 'Document has not been finalized yet. No hash available.' });
     }
 
-    if (!fs.existsSync(document.originalPath)) {
+    // Resolve file path - handle both absolute and relative paths
+    let filePath = document.originalPath;
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.join(__dirname, '../', filePath);
+    }
+
+    if (!fs.existsSync(filePath)) {
+      console.error('[Verify] File not found at:', filePath, '(original:', document.originalPath, ')');
       return res.status(404).json({ valid: false, message: 'Finalized file not found on disk.' });
     }
 
-    const fileBytes = fs.readFileSync(document.originalPath);
+    const fileBytes = fs.readFileSync(filePath);
     const computedHash = crypto.createHash('sha256').update(fileBytes).digest('hex');
     const valid = computedHash === document.sha256Checksum;
 
@@ -789,6 +861,7 @@ router.post('/verify/:documentId', async (req, res) => {
       verificationId: `SF-${document._id.toString().slice(-8).toUpperCase()}`
     });
   } catch (error) {
+    console.error('[Verify] Verification failed:', error.message);
     res.status(500).json({ message: 'Verification failed', error: error.message });
   }
 });

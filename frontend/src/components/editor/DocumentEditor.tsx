@@ -1169,6 +1169,8 @@ export default function DocumentEditor() {
 
       const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
       const pdfUrl = `${backendBase}/${docResponse.data.originalPath}`;
+      console.log('[DocumentEditor] Loading PDF from:', pdfUrl);
+      
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
@@ -1180,8 +1182,13 @@ export default function DocumentEditor() {
 
       fetchAuditLogs();
       fetchRecipients();
-    } catch (error) {
-      console.error('Error loading document/PDF:', error);
+    } catch (error: any) {
+      console.error('[DocumentEditor] Error loading document/PDF:', {
+        message: error.message,
+        name: error.name,
+        pdfError: error.pdfError,
+        fullError: error
+      });
     } finally {
       setIsLoading(false);
     }
@@ -1898,13 +1905,29 @@ export default function DocumentEditor() {
 
     try {
       setIsFinalizing(true);
+      console.log('[DocumentEditor] Starting PDF finalization for document:', id);
+      
       const response = await api.post('/signatures/finalize', { documentId: id });
+      
+      console.log('[DocumentEditor] PDF finalized successfully:', response.data);
       setDocument(response.data.document);
       alert('Document finalized and signed successfully! You can download the completed PDF.');
       fetchAuditLogs();
     } catch (err: any) {
-      console.error('Failed to finalize PDF:', err);
-      alert(err.response?.data?.message || 'Failed to finalize PDF document');
+      console.error('[DocumentEditor] Finalize error details:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        error: err.response?.data?.error,
+        details: err.response?.data?.details,
+        fullError: err.message
+      });
+      
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          'Failed to finalize PDF document';
+      const details = err.response?.data?.details;
+      
+      alert(details ? `${errorMessage}\n\n${details}` : errorMessage);
     } finally {
       setIsFinalizing(false);
     }
