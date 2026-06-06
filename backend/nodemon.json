@@ -1,0 +1,12 @@
+{
+  "ignore": [
+    "uploads",
+    "uploads/*",
+    "uploads/**/*",
+    "test-routing.js",
+    "test-mongo.js",
+    "*.log",
+    "node_modules"
+  ],
+  "delay": "2000"
+}

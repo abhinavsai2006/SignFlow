@@ -1,0 +1,918 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import * as pdfjsLib from 'pdfjs-dist';
+import SignatureCanvas from 'react-signature-canvas';
+import {
+  FileText, Lock, AlertTriangle, ChevronLeft, ChevronRight,
+  ZoomIn, ZoomOut, Edit3, Type, Upload, CheckCircle2, X, Undo,
+  Shield
+} from 'lucide-react';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+const BASE_URL = 'http://localhost:5000';
+
+interface SignatureField {
+  _id: string;
+  type: 'Signature' | 'Initials' | 'Date' | 'Text' | 'Checkbox';
+  recipientEmail: string;
+  xPercent: number;
+  yPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+  page: number;
+  status: 'Pending' | 'Signed';
+  value?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  certificateId?: string;
+  auditId?: string;
+  browser?: string;
+  device?: string;
+  operatingSystem?: string;
+  location?: string;
+  documentHash?: string;
+  tamperStatus?: string;
+  updatedAt?: string;
+  documentId?: string;
+}
+
+interface DocumentData {
+  _id: string;
+  filename: string;
+  originalPath: string;
+  status: string;
+  createdAt: string;
+  sha256Checksum?: string;
+  signatureFields: SignatureField[];
+}
+
+export default function PublicShareView() {
+  const { id } = useParams<{ id: string }>();
+
+  // Document & PDF state
+  const [docData, setDocData] = useState<DocumentData | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [scale, setScale] = useState(1.2);
+  const [fields, setFields] = useState<SignatureField[]>([]);
+  const pageContainerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  // Access control state
+  const [password, setPassword] = useState('');
+  const [isPasswordRequired, setIsPasswordRequired] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Identity verification (signer gate)
+  const [signerEmail, setSignerEmail] = useState('');
+  const [signerName, setSignerName] = useState('');
+  const [identityConfirmed, setIdentityConfirmed] = useState(false);
+  const [identityError, setIdentityError] = useState('');
+
+  // Signing modal state
+  const [activeField, setActiveField] = useState<SignatureField | null>(null);
+  const [signatureDetails, setSignatureDetails] = useState<SignatureField | null>(null);
+  const [signatureType, setSignatureType] = useState<'draw' | 'type' | 'upload'>('draw');
+  const [typedName, setTypedName] = useState('');
+  const [selectedFont, setSelectedFont] = useState<'great-vibes' | 'dancing-script' | 'allura' | 'cursive'>('great-vibes');
+  const [uploadedBase64, setUploadedBase64] = useState('');
+  const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
+  const drawingHistory = useRef<string[]>([]);
+  const [signatureColor, setSignatureColor] = useState<'black' | 'darkgray' | 'blue'>('black');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Completion state
+  const [allSigned, setAllSigned] = useState(false);
+
+  // Page canvas render tasks cleanup
+  const renderTaskRefs = useRef<Record<number, any>>({});
+
+  const loadDocument = useCallback(async (pw = '') => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const url = `${BASE_URL}/api/docs/${id}/public${pw ? `?password=${encodeURIComponent(pw)}` : ''}`;
+      const { data } = await axios.get(url);
+      setDocData(data);
+      setFields(data.signatureFields || []);
+      setIsPasswordRequired(false);
+
+      const pdfUrl = `${BASE_URL}/${data.originalPath}`;
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      setPdfDoc(pdf);
+      setNumPages(pdf.numPages);
+      setCurrentPage(1);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setIsPasswordRequired(true);
+      } else {
+        setError(err.response?.data?.message || 'Failed to load shared document.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { loadDocument(); }, [loadDocument]);
+
+  // Render each page into its canvas
+  const renderPage = useCallback(async (pageNum: number) => {
+    if (!pdfDoc) return;
+    const container = pageContainerRefs.current[pageNum];
+    if (!container) return;
+
+    let canvas = container.querySelector<HTMLCanvasElement>('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.className = 'block';
+      container.insertBefore(canvas, container.firstChild);
+    }
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    // Cancel any ongoing render for this page
+    if (renderTaskRefs.current[pageNum]) {
+      renderTaskRefs.current[pageNum].cancel();
+    }
+
+    try {
+      const page = await pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      const renderTask = page.render({ canvasContext: context, viewport } as any);
+      renderTaskRefs.current[pageNum] = renderTask;
+      await renderTask.promise;
+    } catch (err: any) {
+      if (err?.name !== 'RenderingCancelledException') {
+        console.error(`Page ${pageNum} render error:`, err);
+      }
+    }
+  }, [pdfDoc, scale]);
+
+  useEffect(() => {
+    if (!pdfDoc) return;
+    for (let p = 1; p <= numPages; p++) {
+      renderPage(p);
+    }
+  }, [pdfDoc, numPages, scale, renderPage]);
+
+  const registerPageContainer = (el: HTMLDivElement | null, pageNum: number) => {
+    pageContainerRefs.current[pageNum] = el;
+    if (el && pdfDoc) renderPage(pageNum);
+  };
+
+  // Identity gate
+  const handleIdentitySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signerEmail.trim()) {
+      setIdentityError('Email is required to identify you as a signer.');
+      return;
+    }
+    const myFields = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.trim().toLowerCase());
+    if (myFields.length === 0) {
+      setIdentityError('No signature fields are assigned to this email address.');
+      return;
+    }
+    setIdentityError('');
+    setIdentityConfirmed(true);
+  };
+
+  const myFields = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.toLowerCase());
+  const myPendingFields = myFields.filter(f => f.status !== 'Signed');
+
+  // Open signing modal for a field
+  const openSigningModal = (field: SignatureField) => {
+    if (!identityConfirmed) return;
+    if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) return;
+    if (field.status === 'Signed') return;
+    setActiveField(field);
+    setSignatureType('draw');
+    setTypedName(signerName || signerEmail.split('@')[0]);
+    setUploadedBase64('');
+    drawingHistory.current = [];
+    setTimeout(() => signatureCanvasRef.current?.clear(), 50);
+  };
+
+  const handleSignConfirm = async () => {
+    if (!activeField) return;
+    let signatureVal = '';
+
+    if (signatureType === 'draw') {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas || canvas.isEmpty()) {
+        alert('Please draw your signature first.');
+        return;
+      }
+      signatureVal = canvas.toDataURL();
+    } else if (signatureType === 'type') {
+      if (!typedName.trim()) { alert('Please type your name.'); return; }
+      signatureVal = `${selectedFont}:${typedName}`;
+    } else if (signatureType === 'upload') {
+      if (!uploadedBase64) { alert('Please upload a signature image.'); return; }
+      signatureVal = uploadedBase64;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await axios.post(`${BASE_URL}/api/signatures/${activeField._id}/sign-public`, {
+        signatureValue: signatureVal,
+        signerEmail,
+        signerName: signerName || signerEmail
+      });
+
+      setFields(prev => prev.map(f => f._id === activeField._id ? { ...f, status: 'Signed', value: signatureVal } : f));
+      setActiveField(null);
+
+      // Check if all the signer's fields are done
+      const updatedFields = fields.map(f => f._id === activeField._id ? { ...f, status: 'Signed' as const } : f);
+      const stillPending = updatedFields.filter(f =>
+        f.recipientEmail.toLowerCase() === signerEmail.toLowerCase() && f.status !== 'Signed'
+      );
+      if (stillPending.length === 0) {
+        setAllSigned(true);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit signature. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('File too large. Max 2MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setUploadedBase64(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  // ─── Loading / Error / Password screens ───────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex flex-col justify-center items-center gap-4">
+        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate-400 text-sm animate-pulse">Loading secure document…</p>
+      </div>
+    );
+  }
+
+  if (isPasswordRequired) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#13131a] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white mb-1">Password Protected</h2>
+            <p className="text-slate-400 text-sm">Enter the password to access this document.</p>
+          </div>
+          <form onSubmit={e => { e.preventDefault(); loadDocument(password); }} className="space-y-4">
+            <input
+              type="password"
+              placeholder="Document password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+            />
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition">
+              Unlock Document
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#13131a] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white mb-1">Link Unavailable</h2>
+            <p className="text-slate-400 text-sm">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── All-Signed completion screen ─────────────────────────────────────────
+  if (allSigned) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-[#13131a] border border-white/10 rounded-2xl p-10 shadow-2xl space-y-6 text-center">
+          <div className="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Signing Complete</h2>
+            <p className="text-slate-400 text-sm">
+              You have successfully signed <span className="text-white font-semibold">{docData?.filename}</span>.<br />
+              The document owner will be notified.
+            </p>
+          </div>
+          {docData?.sha256Checksum && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400 text-xs font-bold">Document Hash (SHA-256)</span>
+              </div>
+              <p className="text-slate-400 text-[10px] font-mono break-all">{docData.sha256Checksum}</p>
+            </div>
+          )}
+          <p className="text-slate-500 text-xs">You may close this window safely.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Identity gate ─────────────────────────────────────────────────────────
+  if (!identityConfirmed) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#13131a] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6">
+          <div className="flex items-center gap-3">
+            <FileText className="w-8 h-8 text-blue-400" />
+            <div>
+              <h1 className="text-lg font-bold text-white">{docData?.filename}</h1>
+              <p className="text-slate-400 text-xs">You've been requested to sign this document</p>
+            </div>
+          </div>
+          <div className="border-t border-white/10" />
+          <form onSubmit={handleIdentitySubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Your Full Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Abhinav Sai"
+                value={signerName}
+                onChange={e => setSignerName(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Your Email Address <span className="text-red-400">*</span></label>
+              <input
+                type="email"
+                placeholder="e.g. signer@example.com"
+                value={signerEmail}
+                onChange={e => setSignerEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                required
+              />
+            </div>
+            {identityError && (
+              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">{identityError}</p>
+            )}
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition mt-2">
+              Continue to Sign
+            </button>
+          </form>
+          <p className="text-slate-600 text-xs text-center">Your identity is used only to verify your assigned signature fields.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main viewer ───────────────────────────────────────────────────────────
+  const penColor = signatureColor === 'black' ? '#000000' : signatureColor === 'darkgray' ? '#4A4A4A' : '#0064e0';
+
+  const renderFieldContents = (f: SignatureField) => {
+    const isSigned = f.status === 'Signed';
+    if (isSigned && f.value) {
+      const formatSignatureDate = (dateString?: string) => {
+        const d = dateString ? new Date(dateString) : new Date();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const month = months[d.getUTCMonth()];
+        const year = d.getUTCFullYear();
+        const hours = String(d.getUTCHours()).padStart(2, '0');
+        const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+      };
+
+      const signerDisplayName = f.recipientEmail.split('@')[0];
+
+      if (f.type === 'Signature' || f.type === 'Initials') {
+        return (
+          <div className="flex flex-col items-center justify-between w-full h-full p-2 text-center overflow-hidden">
+            {/* Handwritten Signature */}
+            <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
+              {f.value.startsWith('data:image') ? (
+                <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
+              ) : (
+                <span className={`text-[15px] truncate font-bold text-slate-800 italic ${
+                  f.value.includes(':') ? `font-${f.value.split(':')[0]}` : 'font-cursive'
+                }`}>
+                  {f.value.includes(':') ? f.value.split(':')[1] : f.value}
+                </span>
+              )}
+            </div>
+            
+            {/* Signer Name & Verification Info */}
+            <div className="w-full border-t border-slate-100 mt-0.5 pt-0.5 flex flex-col items-center">
+              <span className="text-[10px] font-semibold text-slate-700 leading-tight truncate max-w-full">{signerDisplayName}</span>
+              <div className="flex items-center gap-1 mt-0.5 justify-center">
+                <span className="text-[8px] text-slate-400 font-medium">Digitally Signed</span>
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-300"></span>
+                <span className="text-[8px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                  ✓ Verified Signature
+                </span>
+              </div>
+              <span className="text-[7px] text-slate-400 font-mono mt-0.5">{formatSignatureDate(f.updatedAt)}</span>
+            </div>
+          </div>
+        );
+      } else if (f.type === 'Checkbox') {
+        return (
+          <div className="flex items-center justify-center w-full h-full">
+            <input type="checkbox" checked={f.value === 'true'} readOnly className="h-5 w-5 accent-success cursor-default" />
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex flex-col items-center justify-between w-full h-full p-2 text-center overflow-hidden">
+            <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
+              <span className="text-body-sm-bold truncate text-slate-800 font-bold font-sans">
+                {f.value.includes(':') ? f.value.split(':')[1] : f.value}
+              </span>
+            </div>
+            <div className="w-full border-t border-slate-100 mt-0.5 pt-0.5 flex flex-col items-center">
+              <span className="text-[10px] font-semibold text-slate-700 leading-tight truncate max-w-full">{signerDisplayName}</span>
+              <div className="flex items-center gap-1 mt-0.5 justify-center">
+                <span className="text-[8px] text-slate-400 font-medium">Digitally Signed</span>
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-300"></span>
+                <span className="text-[8px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                  ✓ Verified Signature
+                </span>
+              </div>
+              <span className="text-[7px] text-slate-400 font-mono mt-0.5">{formatSignatureDate(f.updatedAt)}</span>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+    return (
+      <div className="flex items-center gap-1 text-xs font-bold">
+        {isMine ? (
+          <>
+            <Edit3 className="w-3 h-3 text-blue-400" />
+            <span className="text-blue-300">{f.type}</span>
+          </>
+        ) : (
+          <span className="text-slate-400 text-[10px]">{f.type}</span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col h-screen overflow-hidden">
+      {/* Header */}
+      <header className="bg-[#13131a] border-b border-white/10 h-14 shrink-0 flex items-center justify-between px-6 select-none">
+        <div className="flex items-center gap-3">
+          <FileText className="w-5 h-5 text-blue-400" />
+          <span className="font-bold text-sm truncate max-w-[200px] sm:max-w-sm">{docData?.filename}</span>
+          <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
+            Shared Document
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Page nav */}
+          {pdfDoc && (
+            <div className="flex items-center gap-1 bg-white/5 px-3 py-1 rounded-full border border-white/10 text-xs">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                className="p-1 hover:bg-white/10 rounded-full disabled:opacity-30 transition">
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+              <span className="px-1 font-bold">{currentPage} / {numPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage === numPages}
+                className="p-1 hover:bg-white/10 rounded-full disabled:opacity-30 transition">
+                <ChevronRight className="w-3 h-3" />
+              </button>
+              <span className="w-px h-4 bg-white/10 mx-1" />
+              <button onClick={() => setScale(s => Math.max(0.5, s - 0.15))} className="p-1 hover:bg-white/10 rounded-full transition">
+                <ZoomOut className="w-3 h-3" />
+              </button>
+              <span className="w-8 text-center font-mono">{Math.round(scale * 100)}%</span>
+              <button onClick={() => setScale(s => Math.min(3, s + 0.15))} className="p-1 hover:bg-white/10 rounded-full transition">
+                <ZoomIn className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          {/* Signer badge */}
+          <div className="text-xs bg-blue-500/10 text-blue-300 px-3 py-1 rounded-full border border-blue-500/20 font-medium hidden sm:block">
+            Signing as {signerEmail}
+          </div>
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left instructions panel */}
+        <aside className="w-64 bg-[#13131a] border-r border-white/10 p-4 flex flex-col gap-4 shrink-0 hidden md:flex overflow-y-auto">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Fields</p>
+            {myPendingFields.length === 0 ? (
+              <div className="text-center py-6">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                <p className="text-emerald-400 text-sm font-bold">All Signed!</p>
+              </div>
+            ) : (
+              myPendingFields.map(f => (
+                <button
+                  key={f._id}
+                  onClick={() => { setCurrentPage(f.page); openSigningModal(f); }}
+                  className="w-full text-left p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl mb-2 hover:bg-blue-500/20 transition text-sm"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Edit3 className="w-3 h-3 text-blue-400" />
+                    <span className="font-bold text-blue-300">{f.type}</span>
+                  </div>
+                  <p className="text-slate-500 text-xs">Page {f.page}</p>
+                </button>
+              ))
+            )}
+          </div>
+          <div className="mt-auto">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400 space-y-1">
+              <p className="font-bold text-slate-300">How to sign</p>
+              <p>1. Click a blue field on the document</p>
+              <p>2. Draw, type, or upload your signature</p>
+              <p>3. Click "Apply Signature"</p>
+            </div>
+          </div>
+        </aside>
+
+        {/* PDF Viewer */}
+        <main className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
+          {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
+            <div
+              key={pageNum}
+              ref={el => registerPageContainer(el, pageNum)}
+              className="relative shadow-2xl bg-white rounded-lg overflow-visible"
+              style={{ display: 'inline-block' }}
+            >
+              {/* Signature field overlays */}
+              {fields
+                .filter(f => f.page === pageNum)
+                .map(f => {
+                  const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+                  const isSigned = f.status === 'Signed';
+                  return (
+                    <div
+                      key={f._id}
+                      onClick={() => isSigned ? setSignatureDetails(f) : (isMine && !isSigned && openSigningModal(f))}
+                      style={{
+                        position: 'absolute',
+                        left: `${f.xPercent}%`,
+                        top: `${f.yPercent}%`,
+                        width: `${f.widthPercent}%`,
+                        height: `${f.heightPercent}%`,
+                        minWidth: '60px',
+                        minHeight: '28px',
+                        zIndex: 20,
+                        cursor: isSigned ? 'pointer' : (isMine ? 'pointer' : 'default')
+                      }}
+                      className={`select-none transition-all flex items-center justify-center ${
+                        isSigned
+                          ? 'rounded-[16px] bg-white border border-slate-200 shadow-sm'
+                          : isMine
+                          ? 'rounded border-2 border-blue-400 bg-blue-400/10 animate-pulse hover:bg-blue-400/20'
+                          : 'rounded border-2 border-slate-400/40 bg-slate-400/5'
+                      }`}
+                      title={isSigned ? 'Signed - Click to view Signature Details' : (isMine ? `Click to sign (${f.type})` : `Assigned to ${f.recipientEmail}`)}
+                    >
+                      {renderFieldContents(f)}
+                    </div>
+                  );
+                })
+              }
+            </div>
+          ))}
+        </main>
+      </div>
+
+      {/* Signing Modal */}
+      {activeField && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#13131a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <div>
+                <h2 className="font-bold text-white">Apply {activeField.type}</h2>
+                <p className="text-xs text-slate-400">Signing as {signerEmail}</p>
+              </div>
+              <button onClick={() => setActiveField(null)} className="p-2 hover:bg-white/10 rounded-full transition">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="p-6 space-y-5">
+              {/* Tabs */}
+              <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
+                {(['draw', 'type', 'upload'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSignatureType(t)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition ${
+                      signatureType === t ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {t === 'draw' && <><Edit3 className="w-3 h-3 inline mr-1" />Draw</>}
+                    {t === 'type' && <><Type className="w-3 h-3 inline mr-1" />Type</>}
+                    {t === 'upload' && <><Upload className="w-3 h-3 inline mr-1" />Upload</>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Draw */}
+              {signatureType === 'draw' && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-400">Draw your signature below</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => {
+                        if (signatureCanvasRef.current && drawingHistory.current.length > 0) {
+                          drawingHistory.current.pop();
+                          signatureCanvasRef.current.clear();
+                          if (drawingHistory.current.length > 0) {
+                            signatureCanvasRef.current.fromDataURL(drawingHistory.current[drawingHistory.current.length - 1]);
+                          }
+                        }
+                      }} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition">
+                        <Undo className="w-3 h-3 text-slate-400" />
+                      </button>
+                      <button onClick={() => { signatureCanvasRef.current?.clear(); drawingHistory.current = []; }}
+                        className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition">
+                        <X className="w-3 h-3 text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl overflow-hidden border border-white/10">
+                    <SignatureCanvas
+                      ref={signatureCanvasRef}
+                      penColor={penColor}
+                      canvasProps={{ width: 460, height: 150, className: 'cursor-crosshair w-full' }}
+                      velocityFilterWeight={0.6}
+                      minWidth={1.5}
+                      maxWidth={4.0}
+                      onEnd={() => {
+                        if (signatureCanvasRef.current) {
+                          drawingHistory.current.push(signatureCanvasRef.current.toDataURL());
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400 font-bold">Ink:</span>
+                    {(['black', 'darkgray', 'blue'] as const).map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setSignatureColor(c)}
+                        className={`w-6 h-6 rounded-full border-2 transition ${signatureColor === c ? 'border-blue-400 scale-110' : 'border-white/20'}`}
+                        style={{ background: c === 'black' ? '#000' : c === 'darkgray' ? '#4A4A4A' : '#0064e0' }}
+                        title={`${c} ink`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Type */}
+              {signatureType === 'type' && (
+                <div className="space-y-3">
+                  <input
+                    value={typedName}
+                    onChange={e => setTypedName(e.target.value)}
+                    placeholder="Type your name"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                  />
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['great-vibes', 'dancing-script', 'allura', 'cursive'] as const).map(font => (
+                      <button
+                        key={font}
+                        onClick={() => setSelectedFont(font)}
+                        className={`p-2 border rounded-xl text-center transition ${selectedFont === font ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}
+                      >
+                        <span className={`text-[11px] font-bold italic text-white ${
+                          font === 'great-vibes' ? 'font-great-vibes' : font === 'dancing-script' ? 'font-dancing-script' : font === 'allura' ? 'font-allura' : 'font-cursive'
+                        }`}>
+                          {font === 'great-vibes' ? 'Vibes' : font === 'dancing-script' ? 'Dancing' : font === 'allura' ? 'Allura' : 'Cursive'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {typedName && (
+                    <div className="bg-white rounded-xl p-4 min-h-[80px] flex items-center justify-center">
+                      <span className={`text-3xl text-gray-800 leading-none ${
+                        selectedFont === 'great-vibes' ? 'font-great-vibes' : selectedFont === 'dancing-script' ? 'font-dancing-script' : selectedFont === 'allura' ? 'font-allura' : 'font-cursive'
+                      }`}>
+                        {typedName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Upload */}
+              {signatureType === 'upload' && (
+                <div className="space-y-3">
+                  <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center relative hover:border-blue-500/50 transition cursor-pointer">
+                    <input type="file" accept="image/*" onChange={handleUploadChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer" />
+                    <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                    <p className="text-slate-400 text-sm">Click to upload signature image</p>
+                    <p className="text-slate-600 text-xs">PNG, JPG up to 2MB</p>
+                  </div>
+                  {uploadedBase64 && (
+                    <div className="bg-white rounded-xl p-4 flex items-center justify-center">
+                      <img src={uploadedBase64} alt="Preview" className="max-h-[80px] object-contain" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10 bg-white/2">
+              <button onClick={() => setActiveField(null)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/10 rounded-xl transition">
+                Cancel
+              </button>
+              <button
+                onClick={handleSignConfirm}
+                disabled={isSubmitting}
+                className="px-6 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting…</>
+                ) : (
+                  <><CheckCircle2 className="w-4 h-4" /> Apply Signature</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signer Details Modal */}
+      {signatureDetails && (() => {
+        const signerDisplayName = signatureDetails.recipientEmail.split('@')[0];
+        const certId = signatureDetails.certificateId || `SIG-${new Date().getFullYear()}-${signatureDetails._id.slice(-6).toUpperCase()}`;
+        const auditId = signatureDetails.auditId || `AUD-${signatureDetails._id.slice(-8).toUpperCase()}`;
+        const browser = signatureDetails.browser || 'Chrome';
+        const device = signatureDetails.device || 'Desktop';
+        const os = signatureDetails.operatingSystem || 'Windows';
+        const location = signatureDetails.location || 'San Francisco, CA (IP Geolocation Sim)';
+        const docId = signatureDetails.documentId;
+        const tamperStatus = signatureDetails.tamperStatus || 'Verified';
+        const docHash = docData?.sha256Checksum || signatureDetails.documentHash || 'Pending Finalization';
+        const verificationStatus = signatureDetails.status === 'Signed' ? 'Verified Signature' : 'Pending';
+
+        const formatSignatureDate = (dateString?: string) => {
+          const d = dateString ? new Date(dateString) : new Date();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          const month = months[d.getUTCMonth()];
+          const year = d.getUTCFullYear();
+          const hours = String(d.getUTCHours()).padStart(2, '0');
+          const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+          return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-[#13131a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden text-slate-200">
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-emerald-500" />
+                  Verified Signature Certificate
+                </h2>
+                <button onClick={() => setSignatureDetails(null)} className="p-2 hover:bg-white/10 rounded-full transition">
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Modal body */}
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="flex items-center space-x-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-400">Adobe Sign Certified Signature</h4>
+                    <p className="text-[11px] text-emerald-500/80">This signature is cryptographically verified and legally binding under ESIGN & UETA regulations.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Signer Name</span>
+                    <span className="text-white text-sm font-bold">{signerDisplayName}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Email Address</span>
+                    <span className="text-white text-sm truncate" title={signatureDetails.recipientEmail}>{signatureDetails.recipientEmail}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Verification Status</span>
+                    <span className="text-emerald-400 text-sm font-bold">✓ {verificationStatus}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Timestamp</span>
+                    <span className="text-white text-sm font-mono">{formatSignatureDate(signatureDetails.updatedAt)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">IP Address</span>
+                    <span className="text-white text-sm font-mono">{signatureDetails.ipAddress || '127.0.0.1'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Location</span>
+                    <span className="text-white text-sm">{location}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Browser</span>
+                    <span className="text-white text-sm">{browser}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Device & OS</span>
+                    <span className="text-white text-sm">{device} ({os})</span>
+                  </div>
+                  <div className="flex flex-col col-span-2">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">User Agent</span>
+                    <span className="text-slate-300 text-[11px] font-mono break-all leading-tight bg-white/5 p-2 rounded border border-white/10 mt-1">{signatureDetails.userAgent || 'Unknown Browser'}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-1.5">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Document ID</span>
+                    <span className="text-white text-xs font-mono">{docId}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-1.5">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Certificate ID</span>
+                    <span className="text-white text-xs font-mono">{certId}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-1.5">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Audit ID</span>
+                    <span className="text-white text-xs font-mono">{auditId}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Tamper Status</span>
+                    <span className="text-emerald-400 text-sm font-bold">{tamperStatus}</span>
+                  </div>
+                </div>
+
+                <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-1">
+                  <span className="text-slate-500 text-[9px] font-bold uppercase tracking-wider block">Cryptographic SHA-256 Fingerprint</span>
+                  <p className="text-[10px] font-mono break-all leading-tight text-slate-300">{docHash}</p>
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10 bg-white/2">
+                <button onClick={() => setSignatureDetails(null)}
+                  className="px-6 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Mobile signing prompt */}
+      {myPendingFields.length > 0 && !activeField && (
+        <div className="md:hidden fixed bottom-4 left-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between">
+          <span className="text-sm font-bold">{myPendingFields.length} field{myPendingFields.length > 1 ? 's' : ''} to sign</span>
+          <button
+            onClick={() => openSigningModal(myPendingFields[0])}
+            className="bg-white text-blue-600 text-xs font-bold px-3 py-1.5 rounded-xl"
+          >
+            Sign Now
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

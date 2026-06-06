@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { Lock, Mail, User as UserIcon, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../../utils/api';
+import MetaButton from '../ui/MetaButton';
+import MetaInput from '../ui/MetaInput';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -27,8 +28,8 @@ export default function Register() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/register', data);
-      localStorage.setItem('token', response.data.token);
+      const response = await api.post('/auth/register', data);
+      localStorage.setItem('token', response.data.accessToken);
       localStorage.setItem('user', JSON.stringify(response.data));
       navigate('/dashboard');
     } catch (err: any) {
@@ -39,87 +40,55 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl p-8 overflow-hidden relative">
-        <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-pink-400 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob"></div>
-        <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-purple-400 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob animation-delay-2000"></div>
-
-        <div className="relative z-10 text-center mb-8">
-          <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2">Create Account</h2>
-          <p className="text-white/70 text-sm">Join us to start signing documents</p>
+    <div className="min-h-screen flex items-center justify-center bg-canvas p-6">
+      <div className="w-full max-w-[480px]">
+        
+        <div className="text-center mb-section-sm">
+          <h1 className="text-display-lg text-ink-deep mb-xs tracking-tight">Create Account</h1>
+          <p className="text-subtitle-md text-slate">Join us to start signing documents</p>
         </div>
 
         {error && (
-          <div className="relative z-10 bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-xl mb-6 text-sm text-center">
+          <div className="bg-critical/10 border border-critical-strong text-critical-strong px-md py-sm rounded-lg mb-xl text-body-sm-bold text-center">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="relative z-10 space-y-5">
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <UserIcon className="h-5 w-5 text-white/50" />
-              </div>
-              <input
-                {...register("name")}
-                type="text"
-                placeholder="Full Name"
-                className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-pink-400 focus:border-transparent text-white placeholder-white/50 transition-all outline-none"
-              />
-            </div>
-            {errors.name && <p className="mt-1 text-sm text-red-300 ml-1">{errors.name.message}</p>}
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-xl">
+          <MetaInput
+            {...register("name")}
+            type="text"
+            placeholder="Full Name"
+            error={errors.name?.message}
+          />
 
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-white/50" />
-              </div>
-              <input
-                {...register("email")}
-                type="email"
-                placeholder="Email address"
-                className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-pink-400 focus:border-transparent text-white placeholder-white/50 transition-all outline-none"
-              />
-            </div>
-            {errors.email && <p className="mt-1 text-sm text-red-300 ml-1">{errors.email.message}</p>}
-          </div>
+          <MetaInput
+            {...register("email")}
+            type="email"
+            placeholder="Email address"
+            error={errors.email?.message}
+          />
 
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-white/50" />
-              </div>
-              <input
-                {...register("password")}
-                type="password"
-                placeholder="Password"
-                className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-pink-400 focus:border-transparent text-white placeholder-white/50 transition-all outline-none"
-              />
-            </div>
-            {errors.password && <p className="mt-1 text-sm text-red-300 ml-1">{errors.password.message}</p>}
-          </div>
+          <MetaInput
+            {...register("password")}
+            type="password"
+            placeholder="Password"
+            error={errors.password?.message}
+          />
 
-          <button
+          <MetaButton
             type="submit"
-            disabled={isLoading}
-            className="w-full group relative flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-pink-500 transition-all shadow-lg overflow-hidden"
+            variant="primary"
+            isLoading={isLoading}
+            className="w-full"
           >
-            {isLoading ? (
-              <Loader2 className="animate-spin h-5 w-5 text-white" />
-            ) : (
-              <>
-                Sign Up
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </>
-            )}
-          </button>
+            Sign Up
+          </MetaButton>
         </form>
 
-        <p className="relative z-10 mt-8 text-center text-sm text-white/70">
+        <p className="mt-section text-center text-body-md text-slate">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-white hover:text-pink-300 transition-colors">
+          <Link to="/login" className="text-link-md text-meta-link hover:underline">
             Sign in
           </Link>
         </p>

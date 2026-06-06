@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
-import axios from 'axios';
-import { UploadCloud, File as FileIcon, X, Loader2 } from 'lucide-react';
+import api from '../../utils/api';
+import { UploadCloud, File as FileIcon, X } from 'lucide-react';
+import MetaButton from '../ui/MetaButton';
 
 interface UploadDropzoneProps {
   onUploadSuccess: (document: any) => void;
+  workspaceId?: string;
 }
 
-export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps) {
+export default function UploadDropzone({ onUploadSuccess, workspaceId }: UploadDropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -67,13 +69,14 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
     
     const formData = new FormData();
     formData.append('file', file);
+    if (workspaceId) {
+      formData.append('workspaceId', workspaceId);
+    }
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/docs/upload', formData, {
+      const response = await api.post('/docs/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'multipart/form-data'
         }
       });
       
@@ -87,13 +90,13 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-8">
+    <div className="w-full">
       {!file ? (
         <div
-          className={`relative border-2 border-dashed rounded-3xl p-12 text-center transition-all ${
+          className={`relative border rounded-xxxl p-xxl text-center transition-all cursor-pointer ${
             dragActive 
-              ? 'border-pink-400 bg-pink-500/10' 
-              : 'border-white/20 hover:border-purple-400 hover:bg-white/5 bg-white/5 backdrop-blur-md'
+              ? 'border-fb-blue bg-fb-blue/5' 
+              : 'border-hairline-soft hover:border-hairline bg-surface-soft'
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -108,50 +111,49 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
             className="hidden"
             onChange={handleChange}
           />
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="p-4 bg-white/10 rounded-full">
-              <UploadCloud className="w-10 h-10 text-pink-300" />
+          <div className="flex flex-col items-center justify-center space-y-md py-xl">
+            <div className="p-sm bg-canvas rounded-circle shadow-sm border border-hairline-soft">
+              <UploadCloud className="w-8 h-8 text-ink" />
             </div>
             <div>
-              <p className="text-xl font-semibold text-white">Click or drag document to upload</p>
-              <p className="text-sm text-white/50 mt-1">Only PDF documents up to 10MB are supported</p>
+              <p className="text-heading-sm text-ink-deep mb-xxs">Click or drag document to upload</p>
+              <p className="text-body-sm text-slate">Only PDF documents up to 10MB are supported</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 relative">
+        <div className="bg-canvas border border-hairline-soft rounded-xxxl p-xxl relative">
           <button 
             onClick={() => setFile(null)}
-            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            className="absolute top-xl right-xl p-xs bg-surface-soft hover:bg-hairline-soft rounded-circle transition-colors"
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-4 h-4 text-ink-deep" />
           </button>
           
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl">
-              <FileIcon className="w-8 h-8 text-white" />
+          <div className="flex items-center space-x-md mb-xl pr-xl">
+            <div className="p-md bg-surface-soft rounded-xl border border-hairline-soft">
+              <FileIcon className="w-8 h-8 text-primary" />
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-white font-medium truncate">{file.name}</p>
-              <p className="text-white/50 text-sm">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="text-subtitle-md text-ink-deep truncate">{file.name}</p>
+              <p className="text-body-sm text-slate">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
           </div>
           
-          <button
-            onClick={handleUpload}
-            disabled={isUploading}
-            className="w-full flex justify-center items-center py-3 px-4 rounded-xl text-white font-semibold bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isUploading ? (
-              <Loader2 className="animate-spin h-5 w-5 mr-2" />
-            ) : null}
-            {isUploading ? 'Uploading...' : 'Upload Document'}
-          </button>
+          <div className="flex justify-end">
+            <MetaButton
+              onClick={handleUpload}
+              variant="buy-cta"
+              isLoading={isUploading}
+            >
+              {isUploading ? 'Uploading...' : 'Upload Document'}
+            </MetaButton>
+          </div>
         </div>
       )}
       
       {error && (
-        <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-100 text-sm text-center">
+        <div className="mt-md bg-critical/10 border border-critical-strong text-critical-strong px-md py-sm rounded-lg text-body-sm-bold text-center">
           {error}
         </div>
       )}

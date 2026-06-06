@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: mongo:6.0
+    container_name: signflow-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: signflow-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGODB_URI=mongodb://db:27017/doc-sign-app
+      - PORT=5000
+      - JWT_SECRET=production_secret_jwt_signflow
+      - REFRESH_SECRET=production_secret_refresh_signflow
+      - STRIPE_SECRET_KEY=sk_test_mock_stripe_key
+    depends_on:
+      - db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: signflow-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  mongo-data:
