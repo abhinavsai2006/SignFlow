@@ -97,14 +97,14 @@ export default function Login() {
 
         <div className="mt-xl grid grid-cols-2 gap-md pt-md border-t border-hairline-soft">
           <MetaButton
-            onClick={() => window.location.href = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api')}/auth/google`}
+            onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || ''}/auth/google`}
             variant="secondary"
             className="w-full flex items-center justify-center font-bold"
           >
             Sign in with Google
           </MetaButton>
           <MetaButton
-            onClick={() => window.location.href = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api')}/auth/github`}
+            onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || ''}/auth/github`}
             variant="secondary"
             className="w-full flex items-center justify-center font-bold"
           >

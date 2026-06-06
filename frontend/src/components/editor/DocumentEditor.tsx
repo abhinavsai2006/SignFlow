@@ -1131,7 +1131,8 @@ export default function DocumentEditor() {
 
       setSharingEnabled(docResponse.data.sharingEnabled || false);
       setSharePassword(docResponse.data.sharePassword || '');
-      setGeneratedShareUrl(`http://localhost:5177/share/${id}`);
+      const frontendUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+      setGeneratedShareUrl(`${frontendUrl}/share/${id}`);
       setShareOneTimeOnly(docResponse.data.shareOneTimeOnly || false);
       if (docResponse.data.shareExpiresAt) {
         setShareExpiresAt(new Date(docResponse.data.shareExpiresAt).toISOString().split('T')[0]);
@@ -1155,7 +1156,7 @@ export default function DocumentEditor() {
       setHistory([formattedFields]);
       setHistoryIndex(0);
 
-      const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+      const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
       const pdfUrl = `${backendBase}/${docResponse.data.originalPath}`;
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
