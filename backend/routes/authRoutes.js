@@ -142,15 +142,16 @@ router.post('/login', async (req, res) => {
       user.loginOtpExpire = loginOtpExpire;
       await user.save();
 
-      console.log("OTP GENERATED:", loginOtp);
-      console.log("OTP STORED:", user.email);
-      console.log("OTP EMAIL TRIGGERED");
-      
-      // Send Login OTP Email via Resend
-      sendLoginOtpEmail(user.email, user.name, loginOtp)
-        .catch(err => console.error('[Auth] Login OTP email failed:', err.message));
+      console.log("OTP_GENERATED:", loginOtp);
+      console.log("OTP_STORED:", user.email);
 
-      res.json({
+      // Send the actual OTP email
+      console.log("OTP_SENT: triggering Resend for", user.email);
+      sendLoginOtpEmail(user.email, user.name, loginOtp)
+        .catch(err => console.error('[Auth] Failed to send login OTP email:', err));
+
+      return res.json({ 
+        message: 'OTP sent to your email address',
         requiresOtp: true,
         email: user.email,
         loginOtp // Returned for simulated UI auto-filling/testing
@@ -253,6 +254,8 @@ router.post('/verify-login-otp', async (req, res) => {
     if (user.loginOtpExpire && new Date(user.loginOtpExpire) < new Date()) {
       return res.status(401).json({ message: 'Verification code has expired. Please log in again.' });
     }
+
+    console.log("OTP_VERIFIED:", user.email);
 
     // Clear OTP fields
     user.loginOtp = undefined;

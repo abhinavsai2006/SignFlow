@@ -122,7 +122,8 @@ export default function PublicShareView() {
       setFields(data.signatureFields || []);
       setIsPasswordRequired(false);
 
-      const pdfUrl = `${BASE_URL}/${data.originalPath}`;
+      const encodedPath = data.originalPath.split('/').map((part: string) => encodeURIComponent(part)).join('/');
+      const pdfUrl = `${BASE_URL}/${encodedPath}`;
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);

@@ -1171,7 +1171,8 @@ export default function DocumentEditor() {
       setHistoryIndex(0);
 
       const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
-      const pdfUrl = `${backendBase}/${docResponse.data.originalPath}`;
+      const encodedPath = docResponse.data.originalPath.split('/').map((part: string) => encodeURIComponent(part)).join('/');
+      const pdfUrl = `${backendBase}/${encodedPath}`;
       console.log('[DocumentEditor] Loading PDF from:', pdfUrl);
       
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
