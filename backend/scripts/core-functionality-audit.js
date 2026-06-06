@@ -21,7 +21,7 @@ const API_BASE = `http://localhost:${PORT}/api`;
 
 async function runCoreAudit() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  SIGNFLOW AI — CORE FUNCTIONALITY AUDIT RUNNER');
+  console.log('  SIGNFLOW — CORE FUNCTIONALITY AUDIT RUNNER');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   await mongoose.connect(process.env.MONGODB_URI);
@@ -32,7 +32,7 @@ async function runCoreAudit() {
   const SignatureField = mongoose.model('SignatureField');
   const AuditLog = mongoose.model('AuditLog');
 
-  let report = `# SignFlow AI — Core Functionality Report\n\n`;
+  let report = `# SignFlow — Core Functionality Report\n\n`;
   report += `Date: ${new Date().toISOString()}\n`;
   report += `Target API: \`${API_BASE}\`\n\n`;
   report += `This report lists the verified HTTP requests, responses, and status codes for the 15 core application workflows.\n\n`;

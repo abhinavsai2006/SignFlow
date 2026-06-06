@@ -57,7 +57,7 @@ async function checkDocumentReminders(now) {
         });
 
         const owner = await User.findById(doc.ownerId);
-        const senderName = owner ? owner.name : 'SignFlow AI';
+        const senderName = owner ? owner.name : 'SignFlow';
         const signingUrl = `${FRONTEND_URL}/share/${doc._id}`;
         const expiryDate = doc.expiresAt ? new Date(doc.expiresAt).toLocaleDateString() : 'Soon';
 

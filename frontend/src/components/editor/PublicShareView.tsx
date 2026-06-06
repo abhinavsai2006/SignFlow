@@ -997,7 +997,7 @@ export default function PublicShareView() {
                 <div className="flex items-center space-x-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
                   <div>
-                    <h4 className="text-sm font-bold text-emerald-400">SignFlow AI Verified Signature</h4>
+                    <h4 className="text-sm font-bold text-emerald-400">SignFlow Verified Signature</h4>
                     <p className="text-[11px] text-emerald-500/80">This signature is cryptographically verified and legally binding under ESIGN & UETA regulations.</p>
                   </div>
                 </div>

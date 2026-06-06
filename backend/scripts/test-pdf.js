@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runTest() {
-  console.log('--- SIGNFLOW AI PDF AUDIT ---');
+  console.log('--- SIGNFLOW PDF AUDIT ---');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('[+] Connected to database');
@@ -42,7 +42,7 @@ async function runTest() {
     console.log(`[+] PDF successfully generated and saved to: ${outputPath}`);
     console.log(`[+] SHA-256 Checksum: ${result.sha256Checksum}`);
 
-    let report = `# SignFlow AI PDF Audit Report\n\n`;
+    let report = `# SignFlow PDF Audit Report\n\n`;
     report += `- **Document:** ${doc.filename}\n`;
     report += `- **Fields Processed:** ${fields.length}\n`;
     report += `- **Checksum:** ${result.sha256Checksum}\n`;

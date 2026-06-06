@@ -4,7 +4,7 @@ import { PDFDocument } from 'pdf-lib';
 const BASE_URL = 'http://localhost:5000/api';
 
 async function runTests() {
-  console.log('🚀 Starting SignFlow AI Integration Tests...');
+  console.log('🚀 Starting SignFlow Integration Tests...');
 
   const suffix = crypto.randomBytes(4).toString('hex');
   const ownerEmail = `owner_${suffix}@example.com`;

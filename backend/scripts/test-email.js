@@ -9,7 +9,7 @@ const args = process.argv.slice(2);
 const testAll = args.includes('--all');
 
 async function runTests() {
-  console.log('--- SIGNFLOW AI EMAIL TESTING ---');
+  console.log('--- SIGNFLOW EMAIL TESTING ---');
   if (!process.env.RESEND_API_KEY) {
     console.error('ERROR: RESEND_API_KEY is not configured in .env');
     process.exit(1);

@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI STORAGE AUDIT ---');
+  console.log('--- SIGNFLOW STORAGE AUDIT ---');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('[+] Connected to MongoDB');
@@ -20,7 +20,7 @@ async function runAudit() {
     const Document = mongoose.model('Document');
     const documents = await Document.find({});
     
-    let report = `# SignFlow AI Storage & Path Audit Report\n\n`;
+    let report = `# SignFlow Storage & Path Audit Report\n\n`;
     report += `Date: ${new Date().toISOString()}\n\n`;
 
     report += `## Document Uploads Validation\n\n`;

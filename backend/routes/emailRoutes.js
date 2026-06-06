@@ -133,7 +133,7 @@ router.get('/status', protect, async (req, res) => {
     const isCustomKey = process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 're_ZS133hRk_GL6e3sy5X4EF1HgZG3YTs3PA';
     const configurationStatus = process.env.RESEND_API_KEY ? 'Fully Configured' : 'Demo Mode';
     const domainStatus = isCustomKey ? 'Verified (Custom Domain)' : 'Sandbox (onboarding@resend.dev)';
-    const senderInfo = isCustomKey ? 'SignFlow AI <signflow@abhinavsai.com>' : 'SignFlow AI <onboarding@resend.dev>';
+    const senderInfo = isCustomKey ? 'SignFlow <signflow@abhinavsai.com>' : 'SignFlow <onboarding@resend.dev>';
     
     // Retrieve last test email status
     const lastTestEmailLog = await EmailLog.findOne({ template: 'welcome-test' }).sort({ createdAt: -1 });

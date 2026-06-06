@@ -1,4 +1,4 @@
-# SignFlow AI — Proxy Configuration Report
+# SignFlow — Proxy Configuration Report
 
 **Date:** 06 June 2026  
 **Status:** ✅ FIXED

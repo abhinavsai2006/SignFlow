@@ -1,4 +1,4 @@
-# SignFlow AI Public Signer Flow Audit Report
+# SignFlow Public Signer Flow Audit Report
 
 Date: 2026-06-06
 

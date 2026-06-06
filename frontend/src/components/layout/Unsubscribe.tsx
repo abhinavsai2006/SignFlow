@@ -35,7 +35,7 @@ const Unsubscribe = () => {
               <div>
                 <p className="text-body-sm font-semibold text-ink-deep mb-xxs">Are you sure?</p>
                 <p className="text-body-xs text-slate">
-                  You will no longer receive marketing emails from SignFlow AI. Transactional emails
+                  You will no longer receive marketing emails from SignFlow. Transactional emails
                   (signature requests, password resets) will still be sent.
                 </p>
               </div>

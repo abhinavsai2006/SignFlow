@@ -2873,7 +2873,7 @@ export default function DocumentEditor() {
               <div className="flex items-center space-x-md p-md bg-emerald-50 rounded-xl border border-emerald-200">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
                 <div>
-                  <h4 className="text-body-sm-bold font-bold text-emerald-900">SignFlow AI Verified Signature</h4>
+                  <h4 className="text-body-sm-bold font-bold text-emerald-900">SignFlow Verified Signature</h4>
                   <p className="text-[11px] text-emerald-700">This signature is cryptographically verified and legally binding under ESIGN & UETA regulations.</p>
                 </div>
               </div>

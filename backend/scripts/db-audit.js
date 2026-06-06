@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI DATABASE AUDIT ---');
+  console.log('--- SIGNFLOW DATABASE AUDIT ---');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     
@@ -22,7 +22,7 @@ async function runAudit() {
     const Document = mongoose.model('Document');
     const SignatureField = mongoose.model('SignatureField');
     
-    let report = `# SignFlow AI Database Audit Report\n\n`;
+    let report = `# SignFlow Database Audit Report\n\n`;
     report += `Date: ${new Date().toISOString()}\n\n`;
     
     // 1. Orphaned Signature Fields

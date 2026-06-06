@@ -296,7 +296,7 @@ export default function LandingPage() {
     {
       question: 'Are electronic signatures legally binding?',
       answer:
-        'Yes. SignFlow AI complies with the US ESIGN Act, UETA, and EU eIDAS regulations. Electronic signatures created through our platform carry the same legal weight as wet ink signatures in virtually all business contexts.',
+        'Yes. SignFlow complies with the US ESIGN Act, UETA, and EU eIDAS regulations. Electronic signatures created through our platform carry the same legal weight as wet ink signatures in virtually all business contexts.',
     },
     {
       question: 'How does document integrity verification work?',
@@ -304,14 +304,14 @@ export default function LandingPage() {
         'Every signed document receives a unique SHA-256 cryptographic hash. Any modification to the PDF after signing will produce a different hash, immediately flagging the document as tampered. Our public verification endpoint allows anyone to validate a document\'s authenticity.',
     },
     {
-      question: 'Can I use SignFlow AI on mobile devices?',
+      question: 'Can I use SignFlow on mobile devices?',
       answer:
         'Absolutely. The platform is fully responsive and touch-optimized. You can upload documents, place signature fields, draw signatures, and manage workflows from any modern mobile browser.',
     },
     {
       question: 'What happens when all signers complete their signatures?',
       answer:
-        'Once the final signer completes their fields, SignFlow AI automatically finalizes the PDF, embeds all signatures permanently, generates a Certificate of Completion page, computes integrity checksums, and sends the completed document to all parties via email.',
+        'Once the final signer completes their fields, SignFlow automatically finalizes the PDF, embeds all signatures permanently, generates a Certificate of Completion page, computes integrity checksums, and sends the completed document to all parties via email.',
     },
     {
       question: 'How do multi-signer workflows function?',
@@ -626,7 +626,7 @@ export default function LandingPage() {
               </div>
               <h2 className="lp-security-title">Legally traceable and globally compliant</h2>
               <p className="lp-security-desc">
-                SignFlow AI complies with the US Electronic Signatures in Global and National
+                SignFlow complies with the US Electronic Signatures in Global and National
                 Commerce Act (ESIGN), the Uniform Electronic Transactions Act (UETA), and EU
                 eIDAS regulations. Every signature is backed by tamper-evident cryptographic proof.
               </p>
@@ -775,7 +775,7 @@ export default function LandingPage() {
           <div className="lp-cta-banner">
             <h2 className="lp-cta-title">Ready to transform how you sign?</h2>
             <p className="lp-cta-desc">
-              Join thousands of professionals who trust SignFlow AI for secure,
+              Join thousands of professionals who trust SignFlow for secure,
               legally binding electronic signatures.
             </p>
             <div className="lp-cta-actions">
@@ -834,7 +834,7 @@ export default function LandingPage() {
           </div>
 
           <div className="lp-footer-bottom">
-            <span>&copy; {new Date().getFullYear()} SignFlow AI. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} SignFlow. All rights reserved.</span>
             <div className="lp-footer-socials">
               <a href="#twitter" aria-label="Twitter">
                 <svg className="lp-social-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>

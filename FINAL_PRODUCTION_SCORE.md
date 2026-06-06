@@ -1,6 +1,6 @@
 # FINAL PRODUCTION SCORE REPORT
 
-SignFlow AI has been evaluated across 7 categories using a comprehensive static analysis and E2E behavioral audit.
+SignFlow has been evaluated across 7 categories using a comprehensive static analysis and E2E behavioral audit.
 
 ## Overall Production Score: **89 / 100**
 

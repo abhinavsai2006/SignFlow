@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 const API_BASE = `http://localhost:${PORT}/api`;
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI E2E AUDIT ---');
+  console.log('--- SIGNFLOW E2E AUDIT ---');
   let token = '';
   let docId = '';
 

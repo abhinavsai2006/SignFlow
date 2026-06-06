@@ -56,8 +56,8 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
       return resolve({ error: true, message: 'RESEND_API_KEY not configured' });
     }
     const fromAddress = process.env.FROM_EMAIL
-      ? `SignFlow AI <${process.env.FROM_EMAIL}>`
-      : 'SignFlow AI <onboarding@resend.dev>';
+      ? `SignFlow <${process.env.FROM_EMAIL}>`
+      : 'SignFlow <onboarding@resend.dev>';
       
     // Resend Payload Construction
     const postData = JSON.stringify({
@@ -151,11 +151,11 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
 // ============================================================================
 
 export const sendWelcomeEmail = async (email, name) => {
-  return sendResendEmail(email, 'Welcome to SignFlow AI', getWelcomeTemplate(name), 'welcome');
+  return sendResendEmail(email, 'Welcome to SignFlow', getWelcomeTemplate(name), 'welcome');
 };
 
 export const sendVerificationEmail = async (email, name, verificationUrl) => {
-  return sendResendEmail(email, 'Verify your SignFlow AI account', getVerificationTemplate(name, verificationUrl), 'verification');
+  return sendResendEmail(email, 'Verify your SignFlow account', getVerificationTemplate(name, verificationUrl), 'verification');
 };
 
 export const sendVerificationSuccessEmail = async (email, name) => {
@@ -163,7 +163,7 @@ export const sendVerificationSuccessEmail = async (email, name) => {
 };
 
 export const sendPasswordResetEmail = async (email, name, resetUrl) => {
-  return sendResendEmail(email, 'Reset your SignFlow AI password', getPasswordResetTemplate(name, resetUrl), 'password-reset');
+  return sendResendEmail(email, 'Reset your SignFlow password', getPasswordResetTemplate(name, resetUrl), 'password-reset');
 };
 
 export const sendPasswordChangedEmail = async (email, name) => {
@@ -179,18 +179,18 @@ export const sendNewDeviceLoginEmail = async (email, name, device, location, tim
 };
 
 export const sendLoginOtpEmail = async (email, name, otp) => {
-  return sendResendEmail(email, 'Your SignFlow AI Login Verification Code', getLoginOtpTemplate(name, otp), 'login-otp');
+  return sendResendEmail(email, 'Your SignFlow Login Verification Code', getLoginOtpTemplate(name, otp), 'login-otp');
 };
 
 // ============================================================================
 // 2. DOCUMENT WORKFLOW EMAILS
 // ============================================================================
 
-export const sendInviteEmail = async (recipientEmail, recipientName, docName, editUrl, senderName = 'SignFlow AI Owner', expiryDate) => {
+export const sendInviteEmail = async (recipientEmail, recipientName, docName, editUrl, senderName = 'SignFlow Owner', expiryDate) => {
   return sendResendEmail(recipientEmail, `Signature Request: ${docName}`, getSignatureRequestTemplate(senderName, recipientName, docName, editUrl, expiryDate), 'signature-request');
 };
 
-export const sendReminderEmail = async (recipientEmail, recipientName, docName, editUrl, senderName = 'SignFlow AI Owner', expiryDate) => {
+export const sendReminderEmail = async (recipientEmail, recipientName, docName, editUrl, senderName = 'SignFlow Owner', expiryDate) => {
   return sendResendEmail(recipientEmail, `Reminder: Pending Signature on: ${docName}`, getReminderTemplate(recipientName, docName, editUrl, senderName, expiryDate), 'reminder');
 };
 

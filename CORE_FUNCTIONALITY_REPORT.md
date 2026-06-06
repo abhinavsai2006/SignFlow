@@ -1,4 +1,4 @@
-# SignFlow AI — Core Functionality Report
+# SignFlow — Core Functionality Report
 
 Date: 2026-06-06T18:25:24.276Z
 Target API: `http://localhost:5000/api`

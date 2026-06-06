@@ -1,4 +1,4 @@
-# SignFlow AI — Landing Page Viewport Report
+# SignFlow — Landing Page Viewport Report
 
 **Date:** 06 June 2026  
 **Status:** ✅ RESOLVED

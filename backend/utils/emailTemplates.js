@@ -27,12 +27,12 @@ const generatePlainText = ({ title, subtitle, message, ctaText, ctaUrl, detailsC
     text += `Manage Preferences | Unsubscribe\n`;
   }
   
-  text += `© ${new Date().getFullYear()} SignFlow AI. All Rights Reserved.`;
+  text += `© ${new Date().getFullYear()} SignFlow. All Rights Reserved.`;
   return text;
 };
 
 /**
- * Universal HTML Email Generator for SignFlow AI
+ * Universal HTML Email Generator for SignFlow
  */
 export const generateEmailTemplate = ({
   title,
@@ -128,7 +128,7 @@ color:#8595a4;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title} - SignFlow AI</title>
+<title>${title} - SignFlow</title>
 </head>
 
 <body style="margin:0;padding:0;background:#f1f4f7;font-family:Inter,Helvetica,Arial,sans-serif;">
@@ -147,7 +147,7 @@ style="background:#ffffff;border-radius:32px;overflow:hidden;max-width:680px;wid
 <tr>
 <td align="left">
 <h1 style="margin:0;color:#0A1317;font-size:30px;font-weight:700;">
-SignFlow AI
+SignFlow
 </h1>
 
 <p style="margin-top:8px;color:#5d6c7b;font-size:14px;">
@@ -265,7 +265,7 @@ Need Help?
 margin-top:12px;
 color:#ced0d4;
 line-height:1.6;">
-If you have questions regarding this email or the SignFlow AI platform,
+If you have questions regarding this email or the SignFlow platform,
 please contact support or your account administrator.
 </p>
 
@@ -287,7 +287,7 @@ text-align:center;">
 margin:0;
 font-size:12px;
 color:#8595a4;">
-© ${new Date().getFullYear()} SignFlow AI. All Rights Reserved.
+© ${new Date().getFullYear()} SignFlow. All Rights Reserved.
 </p>
 
 <p style="
@@ -303,7 +303,7 @@ font-size:11px;
 line-height:1.7;
 color:#8595a4;">
 This email contains secure information generated through
-SignFlow AI. Electronic signatures completed through SignFlow AI
+SignFlow. Electronic signatures completed through SignFlow
 include audit trails, signer verification, timestamps, and document
 integrity protection mechanisms.
 </p>
@@ -334,15 +334,15 @@ ${unsubscribeHtml}
 
 export const getWelcomeTemplate = (name) => {
   return generateEmailTemplate({
-    title: 'Welcome to SignFlow AI',
-    message: `Hello ${name},<br><br>Welcome to the Future of e-Signatures! We are thrilled to welcome you to SignFlow AI—the enterprise-grade electronic signature platform designed for speed, security, and absolute compliance.<br><br>Get started by uploading your first document or exploring your dashboard.`,
+    title: 'Welcome to SignFlow',
+    message: `Hello ${name},<br><br>Welcome to the Future of e-Signatures! We are thrilled to welcome you to SignFlow—the enterprise-grade electronic signature platform designed for speed, security, and absolute compliance.<br><br>Get started by uploading your first document or exploring your dashboard.`,
     ctaText: 'Go to Dashboard',
     ctaUrl: `${getFrontendUrl()}/dashboard`,
     badgeText: 'NEW ACCOUNT',
     detailsCard: {
       title: 'ACCOUNT INFORMATION',
       fields: [
-         { label: 'WORKSPACE', value: 'SignFlow AI' },
+         { label: 'WORKSPACE', value: 'SignFlow' },
          { label: 'PLAN', value: 'Free Trial' },
          { label: 'STATUS', value: 'Active' }
       ]
@@ -354,7 +354,7 @@ export const getWelcomeTemplate = (name) => {
 export const getVerificationTemplate = (name, url) => {
   return generateEmailTemplate({
     title: 'Verify Your Email',
-    message: `Hello ${name},<br><br>Thank you for signing up for SignFlow AI. To finalize your account setup and unlock all enterprise signature features, please verify your email address.`,
+    message: `Hello ${name},<br><br>Thank you for signing up for SignFlow. To finalize your account setup and unlock all enterprise signature features, please verify your email address.`,
     ctaText: 'Verify Account',
     ctaUrl: url,
     badgeText: 'ACTION REQUIRED'
@@ -382,7 +382,7 @@ export const getLoginOtpTemplate = (name, otp) => {
 export const getPasswordResetTemplate = (name, url) => {
   return generateEmailTemplate({
     title: 'Reset Your Password',
-    message: `Hello ${name},<br><br>We received a request to reset your password for your SignFlow AI account. This link is valid for 1 hour.`,
+    message: `Hello ${name},<br><br>We received a request to reset your password for your SignFlow account. This link is valid for 1 hour.`,
     ctaText: 'Reset Password',
     ctaUrl: url,
     badgeText: 'SECURITY'
@@ -392,7 +392,7 @@ export const getPasswordResetTemplate = (name, url) => {
 export const getPasswordChangedTemplate = (name) => {
   return generateEmailTemplate({
     title: 'Password Changed Successfully',
-    message: `Hello ${name},<br><br>Your SignFlow AI account password has been successfully updated. If you did not make this change, please contact support immediately.`,
+    message: `Hello ${name},<br><br>Your SignFlow account password has been successfully updated. If you did not make this change, please contact support immediately.`,
     ctaText: 'Go to Login',
     ctaUrl: `${getFrontendUrl()}/login`,
     badgeText: 'SECURITY'
@@ -402,7 +402,7 @@ export const getPasswordChangedTemplate = (name) => {
 export const getLoginAlertTemplate = (name, location, time) => {
   return generateEmailTemplate({
     title: 'Login Alert',
-    message: `Hello ${name},<br><br>We noticed a new login to your SignFlow AI account. If this was you, no further action is required.`,
+    message: `Hello ${name},<br><br>We noticed a new login to your SignFlow account. If this was you, no further action is required.`,
     ctaText: 'Review Account Activity',
     ctaUrl: `${getFrontendUrl()}/settings/security`,
     badgeText: 'SECURITY ALERT',
@@ -459,7 +459,7 @@ export const getSignatureRequestTemplate = (senderName, recipientName, docName, 
   });
 };
 
-export const getReminderTemplate = (recipientName, docName, url, senderName = 'SignFlow AI Owner', expiryDate = 'No expiration') => {
+export const getReminderTemplate = (recipientName, docName, url, senderName = 'SignFlow Owner', expiryDate = 'No expiration') => {
   return generateEmailTemplate({
     title: 'Signature Reminder',
     message: `Hello ${recipientName},<br><br>This is a friendly reminder that you have pending fields to complete. Please review and sign the document using the secure link below to complete the transaction.`,
@@ -663,7 +663,7 @@ export const getAuditReportGeneratedTemplate = (name, docName, url) => {
 export const getTeamInviteTemplate = (inviterName, workspaceName, inviteUrl) => {
   return generateEmailTemplate({
     title: 'Invitation to Join Workspace',
-    message: `Hello,<br><br><strong>${inviterName}</strong> has invited you to join the team workspace on SignFlow AI. Click the link below to accept the invitation and begin collaborating on contracts and shared templates.`,
+    message: `Hello,<br><br><strong>${inviterName}</strong> has invited you to join the team workspace on SignFlow. Click the link below to accept the invitation and begin collaborating on contracts and shared templates.`,
     ctaText: 'Accept Invitation',
     ctaUrl: inviteUrl,
     badgeText: 'INVITATION',

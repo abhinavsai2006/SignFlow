@@ -1,4 +1,4 @@
-# SignFlow AI — Security Audit Report
+# SignFlow — Security Audit Report
 
 **Date:** 06 June 2026  
 **Status:** ✅ COMPLETED

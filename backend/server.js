@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 8080;
 
 // ─── Startup Environment Diagnostics ─────────────────────────────────────────
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('  SignFlow AI — Backend Starting');
+console.log('  SignFlow — Backend Starting');
 console.log(`  NODE_ENV      : ${process.env.NODE_ENV || 'development'}`);
 console.log(`  PORT          : ${PORT}`);
 console.log(`  MONGODB_URI   : ${process.env.MONGODB_URI ? '✓ Set' : '✗ MISSING — server will fail to connect!'}`);
@@ -139,7 +139,7 @@ app.get('/health', (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('SignFlow AI Document Signature API is running');
+  res.send('SignFlow Document Signature API is running');
 });
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────

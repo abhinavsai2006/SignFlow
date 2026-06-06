@@ -6,12 +6,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI SECURITY AUDIT ---');
+  console.log('--- SIGNFLOW SECURITY AUDIT ---');
 
   const serverJsPath = path.join(__dirname, '..', 'server.js');
   const serverCode = fs.readFileSync(serverJsPath, 'utf8');
 
-  let report = `# SignFlow AI Security Audit Report\n\n`;
+  let report = `# SignFlow Security Audit Report\n\n`;
   report += `Date: ${new Date().toISOString()}\n\n`;
 
   const checks = [

@@ -6,9 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI PERFORMANCE AUDIT ---');
+  console.log('--- SIGNFLOW PERFORMANCE AUDIT ---');
 
-  let report = `# SignFlow AI Performance Audit Report\n\n`;
+  let report = `# SignFlow Performance Audit Report\n\n`;
   report += `Date: ${new Date().toISOString()}\n\n`;
 
   report += `## Backend Metrics\n`;

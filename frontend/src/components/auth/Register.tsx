@@ -163,7 +163,7 @@ export default function Register() {
 
         <div className="text-center mb-section-sm">
           <h1 className="text-display-lg text-ink-deep mb-xs tracking-tight">Create Account</h1>
-          <p className="text-subtitle-md text-slate">Join SignFlow AI — start signing documents</p>
+          <p className="text-subtitle-md text-slate">Join SignFlow — start signing documents</p>
         </div>
 
         {error && (

@@ -1,6 +1,6 @@
 # CRITICAL ISSUES REPORT
 
-This report details the critical security flaws and system risks discovered during the final production audit of SignFlow AI.
+This report details the critical security flaws and system risks discovered during the final production audit of SignFlow.
 
 ---
 

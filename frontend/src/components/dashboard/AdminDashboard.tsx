@@ -53,7 +53,7 @@ export default function AdminDashboard() {
     <div className="space-y-xl">
       <div>
         <h1 className="text-heading-lg font-bold text-ink-deep mb-xxs">Admin System Management</h1>
-        <p className="text-body-sm text-slate">Monitor SignFlow AI system operations, usage growth, and storage capacity metrics.</p>
+        <p className="text-body-sm text-slate">Monitor SignFlow system operations, usage growth, and storage capacity metrics.</p>
       </div>
 
       {/* Grid statistics */}

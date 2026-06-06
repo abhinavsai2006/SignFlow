@@ -1,4 +1,4 @@
-# Railway configuration for SignFlow AI Backend
+# Railway configuration for SignFlow Backend
 # Tells Railway which directory is the service root and how to build/start it
 
 [build]

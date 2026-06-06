@@ -1,4 +1,4 @@
-# SignFlow AI Email Template Audit
+# SignFlow Email Template Audit
 
 Date: 2026-06-06T15:04:59.684Z
 

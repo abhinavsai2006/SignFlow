@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runAudit() {
-  console.log('--- SIGNFLOW AI DATA INTEGRITY AUDIT ---');
+  console.log('--- SIGNFLOW DATA INTEGRITY AUDIT ---');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('[+] Connected to MongoDB');
@@ -24,7 +24,7 @@ async function runAudit() {
     const SignatureField = mongoose.model('SignatureField');
     const AuditLog = mongoose.model('AuditLog');
 
-    let report = `# SignFlow AI — Data Integrity Report\n\n`;
+    let report = `# SignFlow — Data Integrity Report\n\n`;
     report += `Date: ${new Date().toISOString()}\n\n`;
     
     // 1. Duplicate Users

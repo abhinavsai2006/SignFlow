@@ -1,6 +1,6 @@
 # Email Trigger Coverage Report
 
-This report summarizes the E2E verification of all 34 transactional and notification email triggers within SignFlow AI.
+This report summarizes the E2E verification of all 34 transactional and notification email triggers within SignFlow.
 
 ## Summary
 

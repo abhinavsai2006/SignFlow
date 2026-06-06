@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runCleanup() {
-  console.log('--- SIGNFLOW AI DATABASE CLEANUP ---');
+  console.log('--- SIGNFLOW DATABASE CLEANUP ---');
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('[+] Connected to MongoDB');

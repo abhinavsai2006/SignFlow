@@ -1,4 +1,4 @@
-# SignFlow AI — E2E Testing Report
+# SignFlow — E2E Testing Report
 
 **Date:** 06 June 2026  
 **Status:** ✅ ALL TESTS PASSED
@@ -9,7 +9,7 @@
 All core API routes and workflows were verified by executing `node scripts/e2e-audit.js`:
 
 ```txt
---- SIGNFLOW AI E2E AUDIT ---
+--- SIGNFLOW E2E AUDIT ---
 [~] Step 1: Registering E2E test user...
 [~] Step 2: Logging in...
 [~] Step 2b: Verifying login OTP...

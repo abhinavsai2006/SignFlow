@@ -1,4 +1,4 @@
-# SignFlow AI — Authentication Audit Report
+# SignFlow — Authentication Audit Report
 
 **Date:** 06 June 2026  
 **Status:** ✅ COMPLETED

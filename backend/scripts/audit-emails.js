@@ -26,7 +26,7 @@ const EXPECTED_TEMPLATES = [
 async function runAudit() {
   console.log('Starting Email Template Audit...\n');
   
-  let report = `# SignFlow AI Email Template Audit\n\n`;
+  let report = `# SignFlow Email Template Audit\n\n`;
   report += `Date: ${new Date().toISOString()}\n\n`;
   
   let passed = 0;
@@ -66,7 +66,7 @@ async function runAudit() {
       }
 
       // Validation 3: Essential HTML components
-      if (!html.includes('<html') || !html.includes('SignFlow AI')) {
+      if (!html.includes('<html') || !html.includes('SignFlow')) {
         errors.push('Missing core HTML structure or branding');
       }
 

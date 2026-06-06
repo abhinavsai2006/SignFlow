@@ -1,4 +1,4 @@
-# SignFlow AI Email Trigger Audit Report
+# SignFlow Email Trigger Audit Report
 
 Date: 2026-06-06
 

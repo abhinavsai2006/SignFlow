@@ -33,7 +33,7 @@ function PageLoader() {
           <div className="absolute inset-0 rounded-full border-2 border-brand/20" />
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand animate-spin" />
         </div>
-        <p className="text-body-sm text-slate font-medium">Loading SignFlow AI…</p>
+        <p className="text-body-sm text-slate font-medium">Loading SignFlow…</p>
       </div>
     </div>
   );

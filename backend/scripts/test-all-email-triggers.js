@@ -62,7 +62,7 @@ https.request = function (options, callback) {
 
 async function runAllTriggers() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  SIGNFLOW AI — E2E EMAIL TRIGGER TEST SUITE');
+  console.log('  SIGNFLOW — E2E EMAIL TRIGGER TEST SUITE');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // Connect to MongoDB Atlas
@@ -205,7 +205,7 @@ function generateCoverageReport(results) {
   
   let content = `# Email Trigger Coverage Report
 
-This report summarizes the E2E verification of all 34 transactional and notification email triggers within SignFlow AI.
+This report summarizes the E2E verification of all 34 transactional and notification email triggers within SignFlow.
 
 ## Summary
 

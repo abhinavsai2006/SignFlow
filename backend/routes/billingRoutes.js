@@ -71,7 +71,7 @@ router.post('/checkout', protect, async (req, res) => {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `SignFlow AI ${planName} Subscription`,
+            name: `SignFlow ${planName} Subscription`,
             description: `Upgrade to ${planName} Plan`,
           },
           unit_amount: planName === 'Pro' ? 1500 : planName === 'Business' ? 4500 : 12000,
