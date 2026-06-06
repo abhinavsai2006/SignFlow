@@ -1,322 +1,904 @@
 // Resolve frontend URL at render time so templates work in any environment
 const getFrontendUrl = () => process.env.FRONTEND_URL || 'https://signflow.abhinavsai.com';
 
-const emailWrapper = (title, content) => {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background-color: #f4f6f9;
-      color: #1c1e21;
-      margin: 0;
-      padding: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrapper {
-      width: 100%;
-      background-color: #f4f6f9;
-      padding: 40px 0;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      border: 1px solid #e1e4e8;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    .header {
-      background-color: #0064e0;
-      padding: 32px;
-      text-align: center;
-    }
-    .header h1 {
-      color: #ffffff;
-      margin: 0;
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-    .content {
-      padding: 32px;
-      line-height: 1.6;
-      font-size: 16px;
-    }
-    .footer {
-      background-color: #f8f9fa;
-      padding: 24px 32px;
-      border-top: 1px solid #e1e4e8;
-      text-align: center;
-    }
-    .features-grid {
-      display: table;
-      width: 100%;
-      margin: 20px 0;
-      border-top: 1px solid #e1e4e8;
-      border-bottom: 1px solid #e1e4e8;
-      padding: 16px 0;
-    }
-    .feature-col {
-      display: table-cell;
-      width: 50%;
-      padding: 6px 0;
-      font-size: 12px;
-      color: #4b4f56;
-      font-weight: 600;
-      text-align: left;
-    }
-    .btn {
-      display: inline-block;
-      background-color: #0064e0;
-      color: #ffffff !important;
-      text-decoration: none;
-      padding: 12px 32px;
-      border-radius: 100px;
-      font-weight: 600;
-      margin: 24px 0;
-      text-align: center;
-    }
-    .btn:hover {
-      background-color: #0457cb;
-    }
-    .meta-text {
-      font-size: 11px;
-      color: #90949c;
-      margin-top: 16px;
-    }
-    h2 {
-      color: #1c1e21;
-      font-size: 20px;
-      font-weight: 700;
-      margin-top: 0;
-    }
-    p {
-      margin: 0 0 16px 0;
-    }
-    blockquote {
-      margin: 16px 0;
-      padding: 12px 16px;
-      border-left: 4px solid #0064e0;
-      background-color: #f0f7ff;
-      border-radius: 0 8px 8px 0;
-      font-style: italic;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      <div class="header">
-        <h1>SignFlow AI</h1>
-      </div>
-      <div class="content">
-        ${content}
-      </div>
-      <div class="footer">
-        <div class="features-grid">
-          <div style="display: table-row;">
-            <div class="feature-col">✓ End-to-End Encryption</div>
-            <div class="feature-col">✓ Tamper-Proof Audit Trail</div>
-          </div>
-          <div style="display: table-row;">
-            <div class="feature-col">✓ Identity Verification</div>
-            <div class="feature-col">✓ Legally Binding Signature</div>
-          </div>
-        </div>
-        <p class="meta-text">This is an automated notification from SignFlow AI. All transactions are legally binding and cryptographically signed.</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+/**
+ * Strips HTML to generate a clean plain-text fallback.
+ */
+const generatePlainText = ({ title, subtitle, message, ctaText, ctaUrl, detailsCard, isMarketing }) => {
+  let text = `${title}\n`;
+  if (subtitle) text += `${subtitle}\n\n`;
+  text += `${message.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '')}\n\n`;
+
+  if (detailsCard) {
+    text += `--- ${detailsCard.title || 'DETAILS'} ---\n`;
+    detailsCard.fields.forEach(f => {
+      text += `${f.label}: ${f.value}\n`;
+    });
+    text += `----------------------\n\n`;
+  }
+
+  if (ctaText && ctaUrl) {
+    text += `[ ${ctaText} ]\n${ctaUrl}\n\n`;
+  }
+
+  text += `Security & Compliance:\n✓ Tamper-Proof Audit Trail\n✓ End-to-End Encryption\n✓ Signer Identity Verification\n✓ Legally Binding Electronic Signatures\n✓ Timestamp Verification\n✓ Unique Document Hash Protection\n\n`;
+  
+  if (isMarketing) {
+    text += `Manage Preferences | Unsubscribe\n`;
+  }
+  
+  text += `© ${new Date().getFullYear()} SignFlow AI. All Rights Reserved.`;
+  return text;
 };
 
+/**
+ * Universal HTML Email Generator for SignFlow AI
+ */
+export const generateEmailTemplate = ({
+  title,
+  subtitle,
+  message,
+  ctaText,
+  ctaUrl,
+  badgeText,
+  detailsCard,
+  isMarketing = false
+}) => {
+
+  const badgeHtml = badgeText ? `
+<span style="
+background:#31a24c;
+color:#ffffff;
+padding:8px 16px;
+border-radius:100px;
+font-size:12px;
+font-weight:700;">
+${badgeText}
+</span>` : '';
+
+  let detailsCardHtml = '';
+  if (detailsCard && detailsCard.fields && detailsCard.fields.length > 0) {
+    let fieldsHtml = detailsCard.fields.map((field, index) => {
+      const isLast = index === detailsCard.fields.length - 1;
+      const divider = isLast ? '' : '<hr style="border:none;border-top:1px solid #dee3e9;margin:20px 0;">';
+      return `
+<p style="margin:0;color:#8595a4;font-size:12px;text-transform:uppercase;">
+${field.label}
+</p>
+<p style="
+margin-top:8px;
+font-size:${index === 0 ? '20px' : '16px'};
+font-weight:${index === 0 ? '700' : '600'};
+color:#0A1317;">
+${field.value}
+</p>
+${divider}`;
+    }).join('\n');
+
+    detailsCardHtml = `
+<tr>
+<td style="padding:0 50px 40px 50px;">
+<table width="100%"
+style="
+background:#f8fafc;
+border:1px solid #dee3e9;
+border-radius:24px;
+padding:24px;">
+<tr>
+<td>
+${fieldsHtml}
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+  }
+
+  const ctaHtml = ctaText && ctaUrl ? `
+<tr>
+<td align="center" style="padding:10px 50px 50px 50px;">
+<a href="${ctaUrl}"
+style="
+background:#0064e0;
+color:#ffffff;
+text-decoration:none;
+padding:16px 40px;
+border-radius:100px;
+font-size:16px;
+font-weight:700;
+display:inline-block;">
+${ctaText}
+</a>
+</td>
+</tr>` : '';
+
+  const unsubscribeHtml = isMarketing ? `
+<p style="
+margin-top:20px;
+font-size:11px;
+line-height:1.7;
+color:#8595a4;">
+<a href="${getFrontendUrl()}/unsubscribe" style="color:#8595a4;text-decoration:underline;">Unsubscribe</a> • 
+<a href="${getFrontendUrl()}/preferences" style="color:#8595a4;text-decoration:underline;">Manage Preferences</a>
+</p>
+  ` : '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} - SignFlow AI</title>
+</head>
+
+<body style="margin:0;padding:0;background:#f1f4f7;font-family:Inter,Helvetica,Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f4f7">
+<tr>
+<td align="center" style="padding:40px 20px;">
+
+<table width="680" cellpadding="0" cellspacing="0" border="0"
+style="background:#ffffff;border-radius:32px;overflow:hidden;max-width:680px;width:100%;">
+
+<tr>
+<td style="padding:40px 50px;border-bottom:1px solid #dee3e9;">
+
+<table width="100%">
+<tr>
+<td align="left">
+<h1 style="margin:0;color:#0A1317;font-size:30px;font-weight:700;">
+SignFlow AI
+</h1>
+
+<p style="margin-top:8px;color:#5d6c7b;font-size:14px;">
+Digitally Secure. Legally Trusted.
+</p>
+</td>
+
+<td align="right">
+${badgeHtml}
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td style="padding:60px 50px 40px 50px;">
+
+<h2 style="
+margin:0;
+font-size:36px;
+line-height:1.2;
+font-weight:700;
+color:#0A1317;">
+${title}
+</h2>
+
+<p style="
+font-size:18px;
+line-height:1.7;
+color:#4b4c4f;
+margin-top:20px;">
+${message}
+</p>
+
+</td>
+</tr>
+
+${detailsCardHtml}
+
+${ctaHtml}
+
+<tr>
+<td style="padding:0 50px 50px 50px;">
+
+<table width="100%"
+style="
+background:#ffffff;
+border:1px solid #dee3e9;
+border-radius:24px;">
+
+<tr>
+<td style="padding:30px;">
+
+<h3 style="
+margin:0 0 20px 0;
+font-size:18px;
+color:#0A1317;">
+Security & Compliance
+</h3>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ Tamper-Proof Audit Trail
+</p>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ End-to-End Encryption
+</p>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ Signer Identity Verification
+</p>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ Legally Binding Electronic Signatures
+</p>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ Timestamp Verification
+</p>
+
+<p style="margin:10px 0;color:#4b4c4f;">
+✓ Unique Document Hash Protection
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 50px 50px 50px;">
+
+<table width="100%"
+style="
+background:#0A1317;
+border-radius:24px;
+padding:30px;">
+
+<tr>
+<td>
+
+<h3 style="
+margin:0;
+color:#ffffff;
+font-size:18px;">
+Need Help?
+</h3>
+
+<p style="
+margin-top:12px;
+color:#ced0d4;
+line-height:1.6;">
+If you have questions regarding this email or the SignFlow AI platform,
+please contact support or your account administrator.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td style="
+padding:40px;
+border-top:1px solid #dee3e9;
+text-align:center;">
+
+<p style="
+margin:0;
+font-size:12px;
+color:#8595a4;">
+© ${new Date().getFullYear()} SignFlow AI. All Rights Reserved.
+</p>
+
+<p style="
+margin-top:10px;
+font-size:12px;
+color:#8595a4;">
+Privacy Policy • Terms of Service • Security Center
+</p>
+
+<p style="
+margin-top:20px;
+font-size:11px;
+line-height:1.7;
+color:#8595a4;">
+This email contains secure information generated through
+SignFlow AI. Electronic signatures completed through SignFlow AI
+include audit trails, signer verification, timestamps, and document
+integrity protection mechanisms.
+</p>
+
+${unsubscribeHtml}
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>`;
+
+  const text = generatePlainText({ title, subtitle, message, ctaText, ctaUrl, detailsCard, isMarketing });
+
+  return { html, text };
+};
+
+
+// ============================================================================
+// 1. AUTHENTICATION EMAILS
+// ============================================================================
+
 export const getWelcomeTemplate = (name) => {
-  return emailWrapper(
-    'Welcome to SignFlow AI',
-    `<h2>Welcome to the Future of e-Signatures, ${name}!</h2>
-     <p>We are thrilled to welcome you to SignFlow AI—the enterprise-grade electronic signature platform designed for speed, security, and absolute compliance.</p>
-     <p>With SignFlow AI, you can now:</p>
-     <ul>
-       <li>Prepare and send documents for signing in seconds</li>
-       <li>Track real-time viewer and signing events in an immutable ledger</li>
-       <li>Build fully automated, sequential workflows for multiple signers</li>
-       <li>Verify document integrity with SHA-256 cryptographic check-summing</li>
-     </ul>
-     <p>Ready to get started? Log in to your dashboard to upload your first document.</p>
-     <div style="text-align: center;">
-       <a href="${getFrontendUrl()}/dashboard" class="btn">Go to Dashboard</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Welcome to SignFlow AI',
+    message: `Hello ${name},<br><br>Welcome to the Future of e-Signatures! We are thrilled to welcome you to SignFlow AI—the enterprise-grade electronic signature platform designed for speed, security, and absolute compliance.<br><br>Get started by uploading your first document or exploring your dashboard.`,
+    ctaText: 'Go to Dashboard',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'NEW ACCOUNT',
+    detailsCard: {
+      title: 'ACCOUNT INFORMATION',
+      fields: [
+         { label: 'WORKSPACE', value: 'SignFlow AI' },
+         { label: 'PLAN', value: 'Free Trial' },
+         { label: 'STATUS', value: 'Active' }
+      ]
+    },
+    isMarketing: true
+  });
 };
 
 export const getVerificationTemplate = (name, url) => {
-  return emailWrapper(
-    'Verify your Email Address',
-    `<h2>Verify your Email Address</h2>
-     <p>Hello ${name},</p>
-     <p>Thank you for signing up for SignFlow AI. To finalize your account setup and unlock all enterprise signature features, please verify your email address by clicking the link below:</p>
-     <div style="text-align: center;">
-       <a href="${url}" class="btn">Verify Account</a>
-     </div>
-     <p>If you did not register for this account, you can safely ignore this email.</p>`
-  );
+  return generateEmailTemplate({
+    title: 'Verify Your Email',
+    message: `Hello ${name},<br><br>Thank you for signing up for SignFlow AI. To finalize your account setup and unlock all enterprise signature features, please verify your email address.`,
+    ctaText: 'Verify Account',
+    ctaUrl: url,
+    badgeText: 'ACTION REQUIRED'
+  });
+};
+
+export const getVerificationSuccessTemplate = (name) => {
+  return generateEmailTemplate({
+    title: 'Email Verified Successfully',
+    message: `Hello ${name},<br><br>Your email address has been successfully verified. Your account is now fully active and ready to use.`,
+    ctaText: 'Go to Dashboard',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'VERIFIED'
+  });
 };
 
 export const getPasswordResetTemplate = (name, url) => {
-  return emailWrapper(
-    'Reset your SignFlow AI Password',
-    `<h2>Reset Your Password</h2>
-     <p>Hello ${name},</p>
-     <p>We received a request to reset your password for your SignFlow AI account. Click the button below to configure a new password:</p>
-     <div style="text-align: center;">
-       <a href="${url}" class="btn">Reset Password</a>
-     </div>
-     <p>This password reset link is valid for 1 hour. If you did not request a password reset, please secure your account immediately.</p>`
-  );
+  return generateEmailTemplate({
+    title: 'Reset Your Password',
+    message: `Hello ${name},<br><br>We received a request to reset your password for your SignFlow AI account. This link is valid for 1 hour.`,
+    ctaText: 'Reset Password',
+    ctaUrl: url,
+    badgeText: 'SECURITY'
+  });
 };
 
-export const getSignatureRequestTemplate = (senderName, recipientName, docName, url) => {
-  return emailWrapper(
-    `Signature Request: ${docName}`,
-    `<h2>Signature Request from ${senderName}</h2>
-     <p>Hello ${recipientName},</p>
-     <p><strong>${senderName}</strong> has invited you to review and electronically sign the document: <strong>${docName}</strong>.</p>
-     <p>Please click the button below to open the secure document viewer, inspect the fields, and place your signature. No account registration is required to sign.</p>
-     <div style="text-align: center;">
-       <a href="${url}" class="btn">Review & Sign Document</a>
-     </div>
-     <p>By signing, you agree to execute this agreement electronically under the terms of the ESIGN Act and UETA regulations.</p>`
-  );
+export const getPasswordChangedTemplate = (name) => {
+  return generateEmailTemplate({
+    title: 'Password Changed Successfully',
+    message: `Hello ${name},<br><br>Your SignFlow AI account password has been successfully updated. If you did not make this change, please contact support immediately.`,
+    ctaText: 'Go to Login',
+    ctaUrl: `${getFrontendUrl()}/login`,
+    badgeText: 'SECURITY'
+  });
 };
 
-export const getReminderTemplate = (recipientName, docName, url) => {
-  return emailWrapper(
-    `Reminder: Signature Pending for ${docName}`,
-    `<h2>Signature Reminder</h2>
-     <p>Hello ${recipientName},</p>
-     <p>This is a friendly reminder that you have pending fields to complete on: <strong>${docName}</strong>.</p>
-     <p>Please review and sign the document using the secure link below to complete the transaction:</p>
-     <div style="text-align: center;">
-       <a href="${url}" class="btn">Review & Sign Document</a>
-     </div>`
-  );
+export const getLoginAlertTemplate = (name, location, time) => {
+  return generateEmailTemplate({
+    title: 'Login Alert',
+    message: `Hello ${name},<br><br>We noticed a new login to your SignFlow AI account. If this was you, no further action is required.`,
+    ctaText: 'Review Account Activity',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY ALERT',
+    detailsCard: {
+      title: 'SECURITY EVENT',
+      fields: [
+         { label: 'EVENT', value: 'Account Login' },
+         { label: 'LOCATION', value: location || 'Unknown Location' },
+         { label: 'TIME', value: time || new Date().toLocaleString() }
+      ]
+    }
+  });
+};
+
+export const getNewDeviceLoginTemplate = (name, device, location, time) => {
+  return generateEmailTemplate({
+    title: 'New Device Login',
+    message: `Hello ${name},<br><br>Your account was accessed from a new device. Please verify if this was you.`,
+    ctaText: 'Secure My Account',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY ALERT',
+    detailsCard: {
+      title: 'SECURITY EVENT',
+      fields: [
+         { label: 'EVENT', value: 'New Device Login' },
+         { label: 'DEVICE', value: device || 'Unknown Device' },
+         { label: 'LOCATION', value: location || 'Unknown Location' },
+         { label: 'TIME', value: time || new Date().toLocaleString() }
+      ]
+    }
+  });
+};
+
+
+// ============================================================================
+// 2. DOCUMENT WORKFLOW EMAILS
+// ============================================================================
+
+export const getSignatureRequestTemplate = (senderName, recipientName, docName, url, expiryDate = 'No expiration') => {
+  return generateEmailTemplate({
+    title: 'Document Awaiting Your Signature',
+    message: `Hello ${recipientName},<br><br>You have received a secure document that requires your electronic signature. Review the document carefully and complete the signing process before the expiration date. No account is required.`,
+    ctaText: 'Review & Sign Document',
+    ctaUrl: url,
+    badgeText: 'SIGNATURE REQUIRED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'SENT BY', value: senderName },
+         { label: 'EXPIRY DATE', value: expiryDate }
+      ]
+    }
+  });
+};
+
+export const getReminderTemplate = (recipientName, docName, url, senderName = 'SignFlow AI Owner', expiryDate = 'No expiration') => {
+  return generateEmailTemplate({
+    title: 'Signature Reminder',
+    message: `Hello ${recipientName},<br><br>This is a friendly reminder that you have pending fields to complete. Please review and sign the document using the secure link below to complete the transaction.`,
+    ctaText: 'Review & Sign Document',
+    ctaUrl: url,
+    badgeText: 'REMINDER',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'SENT BY', value: senderName },
+         { label: 'EXPIRY DATE', value: expiryDate }
+      ]
+    }
+  });
 };
 
 export const getViewedTemplate = (ownerName, recipientEmail, docName) => {
-  return emailWrapper(
-    `Document Viewed: ${docName}`,
-    `<h2>Document Viewed</h2>
-     <p>Hello ${ownerName},</p>
-     <p>The recipient <strong>${recipientEmail}</strong> has viewed your document: <strong>${docName}</strong>.</p>
-     <p>We will notify you immediately once they place their signature and complete the process.</p>
-     <div style="text-align: center;">
-       <a href="${getFrontendUrl()}/dashboard" class="btn">View Document Status</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Document Viewed',
+    message: `Hello ${ownerName},<br><br>The recipient <strong>${recipientEmail}</strong> has securely viewed your document. We will notify you immediately once they place their signature and complete the process.`,
+    ctaText: 'View Document Status',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'UPDATE',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'VIEWED BY', value: recipientEmail },
+         { label: 'STATUS', value: 'Viewed - Pending Signature' }
+      ]
+    }
+  });
+};
+
+export const getDocumentSignedTemplate = (ownerName, signerEmail, docName) => {
+  return generateEmailTemplate({
+    title: 'Document Signed',
+    message: `Hello ${ownerName},<br><br>The recipient <strong>${signerEmail}</strong> has placed their electronic signature on your document.`,
+    ctaText: 'View Document',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'UPDATE',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'SIGNED BY', value: signerEmail },
+         { label: 'STATUS', value: 'Partially Signed' }
+      ]
+    }
+  });
+};
+
+export const getAllSignersCompletedTemplate = (ownerName, docName, downloadUrl) => {
+  return generateEmailTemplate({
+    title: 'All Signers Completed',
+    message: `Hello ${ownerName},<br><br>Great news! All required parties have completed and signed the document. It is now cryptographically sealed.`,
+    ctaText: 'Download Final PDF',
+    ctaUrl: downloadUrl,
+    badgeText: 'COMPLETED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'STATUS', value: 'Fully Executed' }
+      ]
+    }
+  });
 };
 
 export const getCompletedOwnerTemplate = (ownerName, docName, downloadUrl) => {
-  return emailWrapper(
-    `Completed: ${docName}`,
-    `<h2>Document Completed & Finalized</h2>
-     <p>Hello ${ownerName},</p>
-     <p>Great news! All parties have completed and signed: <strong>${docName}</strong>.</p>
-     <p>The document is now sealed with a cryptographic signature, audit ledger, and a Certificate of Completion.</p>
-     <div style="text-align: center;">
-       <a href="${downloadUrl}" class="btn">Download Final PDF</a>
-     </div>`
-  );
+  return getAllSignersCompletedTemplate(ownerName, docName, downloadUrl);
 };
 
 export const getCompletedSignerTemplate = (signerName, docName, downloadUrl) => {
-  return emailWrapper(
-    `Copy of Completed Document: ${docName}`,
-    `<h2>Your Copy of the Completed Document</h2>
-     <p>Hello ${signerName},</p>
-     <p>Thank you for signing <strong>${docName}</strong>. The signing process is complete, and a cryptographically verified copy of the final executed document is available below:</p>
-     <div style="text-align: center;">
-       <a href="${downloadUrl}" class="btn">Download Completed PDF</a>
-     </div>`
-  );
-};
-
-export const getRejectedTemplate = (ownerName, rejecterName, docName, reason) => {
-  return emailWrapper(
-    `Declined: ${docName}`,
-    `<h2>Document Declined by Signer</h2>
-     <p>Hello ${ownerName},</p>
-     <p>The recipient <strong>${rejecterName}</strong> has declined to sign your document: <strong>${docName}</strong>.</p>
-     <p><strong>Reason provided:</strong></p>
-     <blockquote>${reason || 'No comments left.'}</blockquote>
-     <div style="text-align: center;">
-       <a href="${getFrontendUrl()}/dashboard" class="btn">View Document</a>
-     </div>`
-  );
-};
-
-export const getShareLinkCreatedTemplate = (ownerName, docName, shareUrl) => {
-  return emailWrapper(
-    `Public Share Link Active: ${docName}`,
-    `<h2>Public Signing Link Created</h2>
-     <p>Hello ${ownerName},</p>
-     <p>A public, secure sharing link has been successfully activated for: <strong>${docName}</strong>.</p>
-     <p>Anyone with access to the link below can review, reject, or sign the document without creating an account:</p>
-     <div style="text-align: center;">
-       <a href="${shareUrl}" class="btn">Public Share Link</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Your Copy of the Completed Document',
+    message: `Hello ${signerName},<br><br>Thank you for signing. The signing process is complete, and a cryptographically verified copy of the final executed document is available for download.`,
+    ctaText: 'Download Completed PDF',
+    ctaUrl: downloadUrl,
+    badgeText: 'COMPLETED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'STATUS', value: 'Fully Executed' }
+      ]
+    }
+  });
 };
 
 export const getDocumentExpiredTemplate = (ownerName, docName) => {
-  return emailWrapper(
-    `Expired: ${docName}`,
-    `<h2>Document Invitation Expired</h2>
-     <p>Hello ${ownerName},</p>
-     <p>Your document invitation <strong>${docName}</strong> has reached its expiration date and is no longer available for signing.</p>
-     <p>If you wish to collect signatures for this document, you can duplicate and resend it from your dashboard.</p>
-     <div style="text-align: center;">
-       <a href="${getFrontendUrl()}/dashboard" class="btn">Manage Documents</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Document Invitation Expired',
+    message: `Hello ${ownerName},<br><br>Your document invitation has reached its expiration date and is no longer available for signing. You can duplicate and resend it from your dashboard.`,
+    ctaText: 'Manage Documents',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'EXPIRED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'STATUS', value: 'Expired' }
+      ]
+    }
+  });
+};
+
+export const getRejectedTemplate = (ownerName, rejecterName, docName, reason) => {
+  return generateEmailTemplate({
+    title: 'Document Declined',
+    message: `Hello ${ownerName},<br><br>The recipient <strong>${rejecterName}</strong> has declined to sign your document.<br><br><strong>Reason:</strong> ${reason || 'No reason provided.'}`,
+    ctaText: 'View Document',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'DECLINED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'DECLINED BY', value: rejecterName },
+         { label: 'STATUS', value: 'Voided' }
+      ]
+    }
+  });
+};
+
+export const getDownloadReadyTemplate = (userName, docName, downloadUrl) => {
+  return generateEmailTemplate({
+    title: 'Document Download Ready',
+    message: `Hello ${userName},<br><br>Your requested document archive is ready for download. Please securely download it using the link below.`,
+    ctaText: 'Download Files',
+    ctaUrl: downloadUrl,
+    badgeText: 'READY',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'ARCHIVE TYPE', value: 'ZIP' }
+      ]
+    }
+  });
+};
+
+export const getShareLinkCreatedTemplate = (ownerName, docName, shareUrl) => {
+  return generateEmailTemplate({
+    title: 'Public Share Link Active',
+    message: `Hello ${ownerName},<br><br>A public, secure sharing link has been successfully activated. Anyone with the link can review, reject, or sign the document.`,
+    ctaText: 'View Public Link',
+    ctaUrl: shareUrl,
+    badgeText: 'ACTIVE',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'TYPE', value: 'Public Link' }
+      ]
+    }
+  });
 };
 
 export const getDocumentCancelledTemplate = (recipientName, docName, cancelerName) => {
-  return emailWrapper(
-    `Cancelled: ${docName}`,
-    `<h2>Document Cancelled</h2>
-     <p>Hello ${recipientName},</p>
-     <p>Please note that <strong>${cancelerName}</strong> has cancelled the document request for: <strong>${docName}</strong>. This document is no longer active and cannot be signed.</p>`
-  );
+  return generateEmailTemplate({
+    title: 'Document Cancelled',
+    message: `Hello ${recipientName},<br><br>Please note that <strong>${cancelerName}</strong> has cancelled the document request. This document is no longer active and cannot be signed.`,
+    ctaText: 'Go to SignFlow',
+    ctaUrl: getFrontendUrl(),
+    badgeText: 'CANCELLED',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'CANCELLED BY', value: cancelerName },
+         { label: 'STATUS', value: 'Cancelled' }
+      ]
+    }
+  });
 };
 
 export const getAuditReportGeneratedTemplate = (name, docName, url) => {
-  return emailWrapper(
-    `Audit Report Generated: ${docName}`,
-    `<h2>Audit Report Generated</h2>
-     <p>Hello ${name},</p>
-     <p>Your requested audit trail ledger and compliance report for document: <strong>${docName}</strong> has been generated successfully.</p>
-     <div style="text-align: center;">
-       <a href="${url}" class="btn">Download Audit Report</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Audit Report Generated',
+    message: `Hello ${name},<br><br>Your requested audit trail ledger and compliance report has been generated successfully.`,
+    ctaText: 'Download Audit Report',
+    ctaUrl: url,
+    badgeText: 'READY',
+    detailsCard: {
+      title: 'DOCUMENT DETAILS',
+      fields: [
+         { label: 'DOCUMENT NAME', value: docName },
+         { label: 'REPORT TYPE', value: 'Compliance Ledger' }
+      ]
+    }
+  });
 };
 
+
+// ============================================================================
+// 3. TEAM & ORGANIZATION EMAILS
+// ============================================================================
+
 export const getTeamInviteTemplate = (inviterName, workspaceName, inviteUrl) => {
-  return emailWrapper(
-    `Invitation to join ${workspaceName}`,
-    `<h2>Join Workspace</h2>
-     <p>Hello,</p>
-     <p><strong>${inviterName}</strong> has invited you to join the team workspace: <strong>${workspaceName}</strong> on SignFlow AI.</p>
-     <p>Click the link below to accept the invitation and begin collaborating on contracts and shared templates:</p>
-     <div style="text-align: center;">
-       <a href="${inviteUrl}" class="btn">Accept Invitation</a>
-     </div>`
-  );
+  return generateEmailTemplate({
+    title: 'Invitation to Join Workspace',
+    message: `Hello,<br><br><strong>${inviterName}</strong> has invited you to join the team workspace on SignFlow AI. Click the link below to accept the invitation and begin collaborating on contracts and shared templates.`,
+    ctaText: 'Accept Invitation',
+    ctaUrl: inviteUrl,
+    badgeText: 'INVITATION',
+    detailsCard: {
+      title: 'WORKSPACE DETAILS',
+      fields: [
+         { label: 'WORKSPACE', value: workspaceName },
+         { label: 'INVITED BY', value: inviterName }
+      ]
+    }
+  });
+};
+
+export const getTeamMemberAddedTemplate = (ownerName, newMemberEmail, workspaceName) => {
+  return generateEmailTemplate({
+    title: 'New Team Member Added',
+    message: `Hello ${ownerName},<br><br>A new member has accepted your invitation and joined your workspace.`,
+    ctaText: 'Manage Team',
+    ctaUrl: `${getFrontendUrl()}/settings/team`,
+    badgeText: 'TEAM UPDATE',
+    detailsCard: {
+      title: 'WORKSPACE DETAILS',
+      fields: [
+         { label: 'WORKSPACE', value: workspaceName },
+         { label: 'NEW MEMBER', value: newMemberEmail }
+      ]
+    }
+  });
+};
+
+export const getRoleChangedTemplate = (userName, newRole, workspaceName) => {
+  return generateEmailTemplate({
+    title: 'Your Role Has Been Updated',
+    message: `Hello ${userName},<br><br>Your permissions and role within the workspace have been updated.`,
+    ctaText: 'View Workspace',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'ROLE UPDATE',
+    detailsCard: {
+      title: 'WORKSPACE DETAILS',
+      fields: [
+         { label: 'WORKSPACE', value: workspaceName },
+         { label: 'NEW ROLE', value: newRole }
+      ]
+    }
+  });
+};
+
+
+// ============================================================================
+// 4. BILLING EMAILS
+// ============================================================================
+
+export const getSubscriptionActivatedTemplate = (name, planName, amount) => {
+  return generateEmailTemplate({
+    title: 'Subscription Activated',
+    message: `Hello ${name},<br><br>Thank you for upgrading! Your subscription is now fully active, granting you access to all premium features.`,
+    ctaText: 'Go to Dashboard',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'ACTIVATED',
+    detailsCard: {
+      title: 'PAYMENT DETAILS',
+      fields: [
+         { label: 'PLAN', value: planName },
+         { label: 'AMOUNT', value: amount },
+         { label: 'STATUS', value: 'Successful' }
+      ]
+    }
+  });
+};
+
+export const getSubscriptionRenewedTemplate = (name, planName, amount) => {
+  return generateEmailTemplate({
+    title: 'Subscription Renewed',
+    message: `Hello ${name},<br><br>Your subscription has been successfully renewed for another cycle.`,
+    ctaText: 'View Billing History',
+    ctaUrl: `${getFrontendUrl()}/settings/billing`,
+    badgeText: 'RENEWED',
+    detailsCard: {
+      title: 'PAYMENT DETAILS',
+      fields: [
+         { label: 'PLAN', value: planName },
+         { label: 'AMOUNT', value: amount },
+         { label: 'STATUS', value: 'Successful' }
+      ]
+    }
+  });
+};
+
+export const getPaymentSuccessfulTemplate = (name, amount, invoiceUrl) => {
+  return generateEmailTemplate({
+    title: 'Payment Successful',
+    message: `Hello ${name},<br><br>We have successfully processed your recent payment.`,
+    ctaText: 'View Invoice',
+    ctaUrl: invoiceUrl,
+    badgeText: 'RECEIPT',
+    detailsCard: {
+      title: 'PAYMENT DETAILS',
+      fields: [
+         { label: 'AMOUNT', value: amount },
+         { label: 'STATUS', value: 'Processed' }
+      ]
+    }
+  });
+};
+
+export const getPaymentFailedTemplate = (name, amount, updateUrl) => {
+  return generateEmailTemplate({
+    title: 'Payment Failed',
+    message: `Hello ${name},<br><br>We were unable to process your recent payment. To avoid service interruption, please update your payment method.`,
+    ctaText: 'Update Payment Method',
+    ctaUrl: updateUrl,
+    badgeText: 'ACTION REQUIRED',
+    detailsCard: {
+      title: 'PAYMENT DETAILS',
+      fields: [
+         { label: 'AMOUNT', value: amount },
+         { label: 'STATUS', value: 'Failed' }
+      ]
+    }
+  });
+};
+
+export const getTrialEndingTemplate = (name, planName, upgradeUrl) => {
+  return generateEmailTemplate({
+    title: 'Trial Ending Soon',
+    message: `Hello ${name},<br><br>Your free trial is coming to an end soon. Upgrade now to ensure uninterrupted access to enterprise signature features.`,
+    ctaText: 'Upgrade Now',
+    ctaUrl: upgradeUrl,
+    badgeText: 'TRIAL ENDING',
+    detailsCard: {
+      title: 'ACCOUNT DETAILS',
+      fields: [
+         { label: 'PLAN', value: planName },
+         { label: 'STATUS', value: 'Trial Ending' }
+      ]
+    },
+    isMarketing: true
+  });
+};
+
+export const getPlanUpgradedTemplate = (name, planName) => {
+  return generateEmailTemplate({
+    title: 'Plan Upgraded',
+    message: `Hello ${name},<br><br>Your account has been successfully upgraded to the ${planName} plan. Enjoy your new premium features!`,
+    ctaText: 'Go to Dashboard',
+    ctaUrl: `${getFrontendUrl()}/dashboard`,
+    badgeText: 'UPGRADED',
+    detailsCard: {
+      title: 'ACCOUNT DETAILS',
+      fields: [
+         { label: 'NEW PLAN', value: planName },
+         { label: 'STATUS', value: 'Active' }
+      ]
+    }
+  });
+};
+
+export const getPlanDowngradedTemplate = (name, planName) => {
+  return generateEmailTemplate({
+    title: 'Plan Downgraded',
+    message: `Hello ${name},<br><br>Your account has been downgraded to the ${planName} plan. Some features may no longer be available.`,
+    ctaText: 'Manage Subscription',
+    ctaUrl: `${getFrontendUrl()}/settings/billing`,
+    badgeText: 'DOWNGRADED',
+    detailsCard: {
+      title: 'ACCOUNT DETAILS',
+      fields: [
+         { label: 'CURRENT PLAN', value: planName },
+         { label: 'STATUS', value: 'Active' }
+      ]
+    }
+  });
+};
+
+
+// ============================================================================
+// 5. SECURITY EMAILS
+// ============================================================================
+
+export const getSecurityAlertTemplate = (name, eventDescription, time) => {
+  return generateEmailTemplate({
+    title: 'Security Alert',
+    message: `Hello ${name},<br><br>A security event was detected on your account. If you did not authorize this action, please secure your account immediately.`,
+    ctaText: 'Secure My Account',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY ALERT',
+    detailsCard: {
+      title: 'SECURITY EVENT',
+      fields: [
+         { label: 'EVENT', value: eventDescription },
+         { label: 'TIME', value: time || new Date().toLocaleString() }
+      ]
+    }
+  });
+};
+
+export const getSuspiciousLoginTemplate = (name, location, device, time) => {
+  return generateEmailTemplate({
+    title: 'Suspicious Login Attempt Blocked',
+    message: `Hello ${name},<br><br>We blocked a suspicious login attempt to your account from an unrecognized device or location.`,
+    ctaText: 'Change Password',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY ALERT',
+    detailsCard: {
+      title: 'SECURITY EVENT',
+      fields: [
+         { label: 'EVENT', value: 'Blocked Login Attempt' },
+         { label: 'LOCATION', value: location || 'Unknown' },
+         { label: 'DEVICE', value: device || 'Unknown' },
+         { label: 'TIME', value: time || new Date().toLocaleString() }
+      ]
+    }
+  });
+};
+
+export const getMfaEnabledTemplate = (name) => {
+  return generateEmailTemplate({
+    title: 'Two-Factor Authentication Enabled',
+    message: `Hello ${name},<br><br>Two-Factor Authentication (2FA/MFA) has been successfully enabled on your account. Your account is now protected with an additional layer of security.`,
+    ctaText: 'Manage Security',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY',
+    detailsCard: {
+      title: 'ACCOUNT DETAILS',
+      fields: [
+         { label: 'MFA STATUS', value: 'Enabled' }
+      ]
+    }
+  });
+};
+
+export const getMfaDisabledTemplate = (name) => {
+  return generateEmailTemplate({
+    title: 'Two-Factor Authentication Disabled',
+    message: `Hello ${name},<br><br>Two-Factor Authentication (2FA/MFA) has been disabled on your account. We strongly recommend keeping MFA enabled to protect your account from unauthorized access.`,
+    ctaText: 'Re-enable MFA',
+    ctaUrl: `${getFrontendUrl()}/settings/security`,
+    badgeText: 'SECURITY ALERT',
+    detailsCard: {
+      title: 'ACCOUNT DETAILS',
+      fields: [
+         { label: 'MFA STATUS', value: 'Disabled' }
+      ]
+    }
+  });
 };

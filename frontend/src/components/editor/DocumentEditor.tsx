@@ -194,7 +194,7 @@ function PdfPage({
         renderTask.cancel();
       }
     };
-  }, [pdfDoc, pageNum, dimensions]);
+  }, [pdfDoc, pageNum, dimensions, scale, rotation]);
 
   return (
     <div
@@ -1139,11 +1139,15 @@ export default function DocumentEditor() {
       }
 
       const sigResponse = await api.get(`/signatures/document/${id}`);
+      
+      const storedUser = localStorage.getItem('user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : null;
+
       // Translate old signature schemas if necessary
       const formattedFields = sigResponse.data.map((sig: any) => ({
         _id: sig._id,
         type: sig.type || 'Signature',
-        recipientEmail: sig.recipientEmail || user?.email || '',
+        recipientEmail: sig.recipientEmail || currentUser?.email || '',
         xPercent: sig.xPercent !== undefined ? sig.xPercent : (sig.x || 35),
         yPercent: sig.yPercent !== undefined ? sig.yPercent : (sig.y || 40),
         widthPercent: sig.widthPercent || 15,
@@ -1174,7 +1178,7 @@ export default function DocumentEditor() {
     } finally {
       setIsLoading(false);
     }
-  }, [id, user, fetchAuditLogs, fetchRecipients]);
+  }, [id, fetchAuditLogs, fetchRecipients]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -1184,10 +1188,20 @@ export default function DocumentEditor() {
     } else {
       const parsedUser = JSON.parse(storedUser);
       Promise.resolve().then(() => {
-        setUser(parsedUser);
+        // Only set user if it's not already set, or if email differs, to prevent loop
+        setUser((prevUser: any) => {
+          if (!prevUser || prevUser.email !== parsedUser.email) {
+            return parsedUser;
+          }
+          return prevUser;
+        });
         setRecipientEmail(parsedUser.email);
-        fetchDocumentAndSignatures();
-        fetchSavedProfiles();
+        
+        // We defer these to prevent synchronous setState lint errors
+        setTimeout(() => {
+          fetchDocumentAndSignatures();
+          fetchSavedProfiles();
+        }, 0);
       });
     }
   }, [id, navigate, fetchDocumentAndSignatures, fetchSavedProfiles]);
@@ -1228,7 +1242,7 @@ export default function DocumentEditor() {
     };
 
     saveLayout();
-  }, [signatures]);
+  }, [signatures, id]);
 
   // Global Fullscreen Change Listener
   useEffect(() => {
