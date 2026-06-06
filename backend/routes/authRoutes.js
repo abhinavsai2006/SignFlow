@@ -4,7 +4,19 @@ import crypto from 'crypto';
 import User from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { sendWelcomeEmail, sendVerificationEmail, sendPasswordResetEmail } from '../middleware/emailService.js';
+import {
+  sendWelcomeEmail,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendVerificationSuccessEmail,
+  sendPasswordChangedEmail,
+  sendLoginAlertEmail,
+  sendNewDeviceLoginEmail,
+  sendSuspiciousLoginEmail,
+  sendMfaEnabledEmail,
+  sendMfaDisabledEmail
+} from '../middleware/emailService.js';
+import useragent from 'useragent';
 
 const router = express.Router();
 
@@ -56,20 +68,33 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
+    // 1. Validate inputs
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ message: 'Name must be at least 2 characters long' });
+    }
+    
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ message: 'Valid email is required' });
+    }
+    
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
-    const userExists = await User.findOne({ email });
+    // 2. Handle duplicate emails securely
+    const userExists = await User.findOne({ email: email.toLowerCase() });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      // Return 400 Bad Request but with a clearer message
+      return res.status(400).json({ message: 'An account with this email already exists' });
     }
 
+    // 3. Generate OTP
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
 
+    // 4. Save to MongoDB
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.toLowerCase(),
       password,
       verificationCode,
       isVerified: false,
@@ -97,7 +122,7 @@ router.post('/register', async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user & get token
+// @desc    Authenticate user & get token (with IP/device change detection)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -112,6 +137,32 @@ router.post('/login', async (req, res) => {
       const refreshToken = await generateRefreshToken(user._id);
       setCookieToken(res, refreshToken);
 
+      // ── Security: IP & Device Change Detection ─────────────────────────────
+      const currentIP = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+      const uaString = req.headers['user-agent'] || '';
+      const agent = useragent.parse(uaString);
+      const currentDevice = `${agent.family} on ${agent.os.family}`;
+      const loginTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+      const ipChanged = user.lastLoginIP && user.lastLoginIP !== currentIP;
+      const deviceChanged = user.lastLoginDevice && user.lastLoginDevice !== currentDevice;
+
+      if (ipChanged || deviceChanged) {
+        // Send the most relevant alert
+        if (deviceChanged) {
+          sendNewDeviceLoginEmail(user.email, user.name, currentDevice, currentIP, loginTime)
+            .catch(err => console.error('[Auth] New device email failed:', err.message));
+        } else {
+          sendLoginAlertEmail(user.email, user.name, currentIP, loginTime)
+            .catch(err => console.error('[Auth] Login alert email failed:', err.message));
+        }
+      }
+
+      // Update stored login tracking fields
+      user.lastLoginIP = currentIP;
+      user.lastLoginDevice = currentDevice;
+      await user.save();
+
       res.json({
         _id: user._id,
         name: user.name,
@@ -120,6 +171,19 @@ router.post('/login', async (req, res) => {
         isVerified: user.isVerified,
       });
     } else {
+      // Failed login — could indicate brute force / suspicious activity
+      if (email) {
+        const targetUser = await User.findOne({ email });
+        if (targetUser) {
+          const loginTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+          const currentIP = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+          const uaString = req.headers['user-agent'] || '';
+          const agent = useragent.parse(uaString);
+          const currentDevice = `${agent.family} on ${agent.os.family}`;
+          sendSuspiciousLoginEmail(targetUser.email, targetUser.name, currentIP, currentDevice, loginTime)
+            .catch(err => console.error('[Auth] Suspicious login email failed:', err.message));
+        }
+      }
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
@@ -145,7 +209,13 @@ router.post('/refresh', async (req, res) => {
       return res.status(403).json({ message: 'Invalid session' });
     }
 
-    // Refresh Token Rotation
+    // Reject expired refresh tokens
+    if (activeSession.expiresAt && new Date(activeSession.expiresAt) < new Date()) {
+      await activeSession.deleteOne();
+      return res.status(403).json({ message: 'Session expired. Please log in again.' });
+    }
+
+    // Refresh Token Rotation — delete old token before issuing new one
     await activeSession.deleteOne();
 
     const user = await User.findById(activeSession.userId);
@@ -164,10 +234,87 @@ router.post('/refresh', async (req, res) => {
         name: user.name,
         email: user.email,
         isVerified: user.isVerified,
+        role: user.role,
+        plan: user.plan,
       },
     });
   } catch (error) {
     res.status(500).json({ message: 'Refresh error', error: error.message });
+  }
+});
+
+// @route   POST /api/auth/verify-login-otp
+// @desc    Verify OTP sent during login (2FA step)
+router.post('/verify-login-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid verification code' });
+    }
+
+    // Check OTP and expiry
+    if (!user.loginOtp || user.loginOtp !== otp) {
+      return res.status(401).json({ message: 'Invalid verification code' });
+    }
+    if (user.loginOtpExpire && new Date(user.loginOtpExpire) < new Date()) {
+      return res.status(401).json({ message: 'Verification code has expired. Please log in again.' });
+    }
+
+    // Clear OTP fields
+    user.loginOtp = undefined;
+    user.loginOtpExpire = undefined;
+    await user.save();
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+    setCookieToken(res, refreshToken);
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      accessToken,
+      isVerified: user.isVerified,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'OTP verification error', error: error.message });
+  }
+});
+
+// @route   POST /api/auth/resend-verification
+// @desc    Resend email verification code
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Security: Don't reveal whether email exists
+      return res.json({ message: 'If an account exists, a new code has been sent.' });
+    }
+
+    if (user.isVerified) {
+      return res.json({ message: 'Email is already verified.' });
+    }
+
+    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.verificationCode = newCode;
+    await user.save();
+
+    sendVerificationEmail(user.email, user.name, `${FRONTEND_URL}/verify-email?code=${newCode}`)
+      .catch(err => console.error('[Auth] Resend verification email failed:', err.message));
+
+    res.json({ message: 'A new verification code has been sent to your email.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Resend verification error', error: error.message });
   }
 });
 
@@ -215,6 +362,11 @@ router.post('/verify-email', protect, async (req, res) => {
       user.isVerified = true;
       user.verificationCode = undefined;
       await user.save();
+
+      // Notify user that verification was successful
+      sendVerificationSuccessEmail(user.email, user.name)
+        .catch(err => console.error('[Auth] Verification success email failed:', err.message));
+
       res.json({ message: 'Email verified successfully', isVerified: true });
     } else {
       res.status(400).json({ message: 'Invalid verification code' });
@@ -272,6 +424,10 @@ router.post('/reset-password/:token', async (req, res) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
+    // Notify user that their password was changed
+    sendPasswordChangedEmail(user.email, user.name)
+      .catch(err => console.error('[Auth] Password changed email failed:', err.message));
+
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Reset password failure', error: error.message });
@@ -324,6 +480,55 @@ router.get('/oauth-callback', async (req, res) => {
     }))}`);
   } catch (err) {
     res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
+  }
+});
+
+// ============================================================================
+// DEMO MFA ENDPOINTS — Student Project
+// Replace with real TOTP/MFA implementation in production
+// ============================================================================
+
+// @route   POST /api/auth/demo/mfa/enable
+// @desc    DEMO FEATURE - Simulates enabling 2FA and sends confirmation email
+router.post('/demo/mfa/enable', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // DEMO FEATURE - Student Project
+    // In production: validate TOTP code from authenticator app before enabling
+    user.mfaEnabled = true;
+    await user.save();
+
+    sendMfaEnabledEmail(user.email, user.name)
+      .catch(err => console.error('[Auth] MFA enabled email failed:', err.message));
+
+    console.log(`[Auth] MFA enabled for user: ${user.email}`);
+    res.json({ message: 'Two-factor authentication enabled successfully', mfaEnabled: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to enable MFA', error: error.message });
+  }
+});
+
+// @route   POST /api/auth/demo/mfa/disable
+// @desc    DEMO FEATURE - Simulates disabling 2FA and sends alert email
+router.post('/demo/mfa/disable', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // DEMO FEATURE - Student Project
+    // In production: require password or backup code confirmation before disabling
+    user.mfaEnabled = false;
+    await user.save();
+
+    sendMfaDisabledEmail(user.email, user.name)
+      .catch(err => console.error('[Auth] MFA disabled email failed:', err.message));
+
+    console.log(`[Auth] MFA disabled for user: ${user.email}`);
+    res.json({ message: 'Two-factor authentication disabled', mfaEnabled: false });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to disable MFA', error: error.message });
   }
 });
 

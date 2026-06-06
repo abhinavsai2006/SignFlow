@@ -2,6 +2,15 @@ import express from 'express';
 import Stripe from 'stripe';
 import User from '../models/User.js';
 import { protect } from '../middleware/authMiddleware.js';
+import {
+  sendSubscriptionActivatedEmail,
+  sendSubscriptionRenewedEmail,
+  sendPaymentSuccessfulEmail,
+  sendPaymentFailedEmail,
+  sendTrialEndingEmail,
+  sendPlanUpgradedEmail,
+  sendPlanDowngradedEmail
+} from '../middleware/emailService.js';
 
 const router = express.Router();
 const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock_stripe_key';
@@ -124,6 +133,97 @@ router.post('/webhook', async (req, res) => {
     res.json({ received: true });
   } catch (err) {
     res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+
+// ============================================================================
+// DEMO BILLING ENDPOINTS — Student Project
+// ============================================================================
+
+// @route   POST /api/billing/demo/activate
+// @desc    DEMO FEATURE - Simulates subscription activation email
+router.post('/demo/activate', protect, async (req, res) => {
+  try {
+    const { planName, amount } = req.body;
+    await sendSubscriptionActivatedEmail(req.user.email, req.user.name, planName || 'Pro', amount || '$15.00');
+    res.json({ message: 'Subscription activated email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send activation email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/renew
+// @desc    DEMO FEATURE - Simulates subscription renewed email
+router.post('/demo/renew', protect, async (req, res) => {
+  try {
+    const { planName, amount } = req.body;
+    await sendSubscriptionRenewedEmail(req.user.email, req.user.name, planName || 'Pro', amount || '$15.00');
+    res.json({ message: 'Subscription renewed email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send renewal email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/payment-success
+// @desc    DEMO FEATURE - Simulates payment successful email
+router.post('/demo/payment-success', protect, async (req, res) => {
+  try {
+    const { amount, invoiceUrl } = req.body;
+    const invUrl = invoiceUrl || `${FRONTEND_URL}/billing/invoices/inv_12345`;
+    await sendPaymentSuccessfulEmail(req.user.email, req.user.name, amount || '$15.00', invUrl);
+    res.json({ message: 'Payment success email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send payment success email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/payment-fail
+// @desc    DEMO FEATURE - Simulates payment failed email
+router.post('/demo/payment-fail', protect, async (req, res) => {
+  try {
+    const { amount, updateUrl } = req.body;
+    const updUrl = updateUrl || `${FRONTEND_URL}/billing/payment-methods`;
+    await sendPaymentFailedEmail(req.user.email, req.user.name, amount || '$15.00', updUrl);
+    res.json({ message: 'Payment failed email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send payment failed email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/trial-ending
+// @desc    DEMO FEATURE - Simulates trial ending email
+router.post('/demo/trial-ending', protect, async (req, res) => {
+  try {
+    const { planName, upgradeUrl } = req.body;
+    const upgUrl = upgradeUrl || `${FRONTEND_URL}/billing`;
+    await sendTrialEndingEmail(req.user.email, req.user.name, planName || 'Free Trial', upgUrl);
+    res.json({ message: 'Trial ending email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send trial ending email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/upgrade
+// @desc    DEMO FEATURE - Simulates upgrade email
+router.post('/demo/upgrade', protect, async (req, res) => {
+  try {
+    const { planName } = req.body;
+    await sendPlanUpgradedEmail(req.user.email, req.user.name, planName || 'Business');
+    res.json({ message: 'Upgrade email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send upgrade email', error: err.message });
+  }
+});
+
+// @route   POST /api/billing/demo/downgrade
+// @desc    DEMO FEATURE - Simulates downgrade email
+router.post('/demo/downgrade', protect, async (req, res) => {
+  try {
+    const { planName } = req.body;
+    await sendPlanDowngradedEmail(req.user.email, req.user.name, planName || 'Free');
+    res.json({ message: 'Downgrade email sent' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to send downgrade email', error: err.message });
   }
 });
 

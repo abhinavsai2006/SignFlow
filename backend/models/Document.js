@@ -87,6 +87,14 @@ const documentSchema = new mongoose.Schema({
   templateName: {
     type: String,
     default: ''
+  },
+  reminderSent: {
+    type: Boolean,
+    default: false
+  },
+  expiredEmailSent: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

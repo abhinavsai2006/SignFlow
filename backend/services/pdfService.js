@@ -188,7 +188,7 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         color: rgb(0.12, 0.635, 0.3)
       });
 
-      const badgeText = '✓ VERIFIED';
+      const badgeText = '[VERIFIED]';
       const badgeTextW = helveticaBold.widthOfTextAtSize(badgeText, badgeH * 0.65);
       page.drawText(badgeText, {
         x: targetX + targetW - badgeW - 5 + (badgeW - badgeTextW) / 2,
@@ -200,6 +200,8 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
     }
   }
 };
+
+import QRCode from 'qrcode';
 
 /**
  * Appends a highly professional, green-themed verified digital signature certificate page.
@@ -215,27 +217,26 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
   const ownerName = owner ? owner.name : 'Unknown Owner';
   const ownerEmail = owner ? owner.email : '';
 
-  // Green trust header bar (Cobalt Blue #0064E0 or Saturated Green #12a34c for Verified)
-  certPage.drawRectangle({ x: 0, y: cH - 90, width: cW, height: 90, color: rgb(0.07, 0.64, 0.38) });
-  certPage.drawText('SignFlow AI', { x: 40, y: cH - 42, size: 22, font: certFont, color: rgb(1, 1, 1) });
-  certPage.drawText('Verified Digital Signature Certificate', { x: 40, y: cH - 60, size: 12, font: certFont, color: rgb(1, 1, 1) });
-  certPage.drawText('Digitally signed and cryptographically protected audit trail', { x: 40, y: cH - 76, size: 9, font: certFontRegular, color: rgb(0.85, 0.96, 0.9) });
+  // Green trust header bar (Adobe Sign style dark blue/green)
+  certPage.drawRectangle({ x: 0, y: cH - 90, width: cW, height: 90, color: rgb(0.01, 0.28, 0.43) }); // Deep Adobe Blue
+  certPage.drawText('SignFlow AI', { x: 40, y: cH - 42, size: 24, font: certFont, color: rgb(1, 1, 1) });
+  certPage.drawText('Final Audit Report & Certificate of Completion', { x: 40, y: cH - 64, size: 14, font: certFont, color: rgb(1, 1, 1) });
 
   // Document details section
-  certPage.drawText('Document Information', { x: 40, y: cH - 120, size: 11, font: certFont, color: rgb(0.1, 0.1, 0.1) });
-  certPage.drawText(`Document Name: ${document.filename}`, { x: 40, y: cH - 136, size: 9, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-  certPage.drawText(`Document ID: ${document._id}`, { x: 40, y: cH - 150, size: 9, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-  certPage.drawText(`Owner: ${ownerName} (${ownerEmail})`, { x: 40, y: cH - 164, size: 9, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-  certPage.drawText(`Completed Date: ${new Date(document.updatedAt || Date.now()).toUTCString()}`, { x: 40, y: cH - 178, size: 9, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+  certPage.drawText('Document Information', { x: 40, y: cH - 120, size: 12, font: certFont, color: rgb(0.1, 0.1, 0.1) });
+  certPage.drawText(`Document Name: ${document.filename}`, { x: 40, y: cH - 138, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  certPage.drawText(`Document ID: ${document._id}`, { x: 40, y: cH - 152, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  certPage.drawText(`Sender: ${ownerName} (${ownerEmail})`, { x: 40, y: cH - 166, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  certPage.drawText(`Completed Date: ${new Date(document.updatedAt || Date.now()).toUTCString()}`, { x: 40, y: cH - 180, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
 
-  // Verification status pills
-  certPage.drawRectangle({ x: 40, y: cH - 212, width: cW - 80, height: 24, color: rgb(0.93, 0.98, 0.95), borderColor: rgb(0.8, 0.92, 0.85), borderWidth: 1 });
-  certPage.drawText('✓ Verified  |  ✓ Tamper Protected  |  ✓ Legally Binding  |  ✓ Audit Trail Complete', { x: 50, y: cH - 204, size: 9, font: certFont, color: rgb(0.07, 0.5, 0.3) });
+  // Verification status pills (Green Ribbon)
+  certPage.drawRectangle({ x: 40, y: cH - 216, width: cW - 80, height: 26, color: rgb(0.93, 0.98, 0.95), borderColor: rgb(0.07, 0.64, 0.38), borderWidth: 1 });
+  certPage.drawText('✓ Verified  |  ✓ Tamper Protected  |  ✓ Legally Binding  |  ✓ Audit Trail Complete', { x: 50, y: cH - 207, size: 9, font: certFont, color: rgb(0.07, 0.5, 0.3) });
 
-  let boxY = cH - 340;
+  let boxY = cH - 350;
   for (const field of fields) {
     if (field.status !== 'Signed') continue;
-    const signerDisplayName = field.signerName || 'Abhinav Sai';
+    const signerDisplayName = field.signerName || 'Signer';
     const signedAt = field.updatedAt ? new Date(field.updatedAt).toUTCString() : new Date().toUTCString();
     
     // Check local dev mode
@@ -256,54 +257,56 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
       x: 40,
       y: boxY,
       width: cW - 80,
-      height: 110,
-      color: rgb(0.98, 0.99, 0.98),
-      borderColor: rgb(0.85, 0.92, 0.88),
+      height: 120,
+      color: rgb(0.98, 0.98, 0.99),
+      borderColor: rgb(0.85, 0.88, 0.92),
       borderWidth: 1
     });
 
-    // Development Mode indicator
-    if (isLocal) {
-      certPage.drawRectangle({ x: cW - 170, y: boxY + 86, width: 80, height: 16, color: rgb(1, 0.95, 0.8), borderColor: rgb(0.9, 0.7, 0.2), borderWidth: 0.5 });
-      certPage.drawText('Development Mode', { x: cW - 165, y: boxY + 91, size: 7, font: certFont, color: rgb(0.7, 0.5, 0) });
-    }
-
     // Column 1: Identity
-    certPage.drawText('Identity Verification', { x: 50, y: boxY + 95, size: 8, font: certFont, color: rgb(0.07, 0.5, 0.3) });
-    certPage.drawText(`Name: ${signerDisplayName}`, { x: 50, y: boxY + 83, size: 8, font: certFontRegular, color: rgb(0.1, 0.1, 0.1) });
-    certPage.drawText(`Email: ${field.recipientEmail}`, { x: 50, y: boxY + 71, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText('Identity Verification', { x: 50, y: boxY + 100, size: 9, font: certFont, color: rgb(0.1, 0.1, 0.1) });
+    certPage.drawText(`Name: ${signerDisplayName}`, { x: 50, y: boxY + 86, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText(`Email: ${field.recipientEmail}`, { x: 50, y: boxY + 72, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
 
     // Column 2: Signing Info
-    certPage.drawText('Signing Information', { x: 220, y: boxY + 95, size: 8, font: certFont, color: rgb(0.07, 0.5, 0.3) });
-    certPage.drawText(`Date/Time: ${signedAt}`, { x: 220, y: boxY + 83, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`IP Address: ${ip}`, { x: 220, y: boxY + 71, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`Location: ${location}`, { x: 220, y: boxY + 59, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`ISP: ${isp}`, { x: 220, y: boxY + 47, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText('Event Information', { x: 220, y: boxY + 100, size: 9, font: certFont, color: rgb(0.1, 0.1, 0.1) });
+    certPage.drawText(`Date/Time: ${signedAt}`, { x: 220, y: boxY + 86, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText(`IP Address: ${ip}`, { x: 220, y: boxY + 72, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText(`Location: ${location}`, { x: 220, y: boxY + 58, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
 
     // Column 3: Device Info
-    certPage.drawText('Device Information', { x: 420, y: boxY + 95, size: 8, font: certFont, color: rgb(0.07, 0.5, 0.3) });
-    certPage.drawText(`Browser: ${browser}`, { x: 420, y: boxY + 83, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`OS: ${os}`, { x: 420, y: boxY + 71, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`Device: ${device}`, { x: 420, y: boxY + 59, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText('Device Information', { x: 400, y: boxY + 100, size: 9, font: certFont, color: rgb(0.1, 0.1, 0.1) });
+    certPage.drawText(`Browser: ${browser}`, { x: 400, y: boxY + 86, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText(`OS: ${os}`, { x: 400, y: boxY + 72, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+    certPage.drawText(`Device: ${device}`, { x: 400, y: boxY + 58, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
+
+    // Generate QR Code for this specific signature
+    try {
+      const qrDataUrl = await QRCode.toDataURL(`https://signflow.abhinavsai.com/verify/${certId}`);
+      const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      const qrImage = await pdfDoc.embedPng(qrImageBytes);
+      certPage.drawImage(qrImage, {
+        x: cW - 100,
+        y: boxY + 50,
+        width: 50,
+        height: 50
+      });
+      certPage.drawText('Scan to Verify', { x: cW - 98, y: boxY + 40, size: 6, font: certFontRegular, color: rgb(0.4, 0.4, 0.4) });
+    } catch (qrErr) {
+      console.error('Failed to generate QR:', qrErr);
+    }
 
     // Security Footer inside card
     certPage.drawLine({ start: { x: 50, y: boxY + 36 }, end: { x: cW - 50, y: boxY + 36 }, thickness: 0.5, color: rgb(0.9, 0.9, 0.9) });
-    certPage.drawText(`Certificate ID: ${certId}   |   Audit ID: ${auditId}   |   Document Integrity: Verified`, { x: 50, y: boxY + 24, size: 7.5, font: certFontRegular, color: rgb(0.1, 0.1, 0.1) });
-    certPage.drawText(`Tamper Protection: Active   |   Verification Status: Passed   |   UETA / ESIGN Compliant`, { x: 50, y: boxY + 14, size: 7.5, font: certFontRegular, color: rgb(0.4, 0.4, 0.4) });
-    certPage.drawText(`SHA-256 Fingerprint: ${docHash}`, { x: 50, y: boxY + 4, size: 7, font: certFontRegular, color: rgb(0.5, 0.5, 0.5) });
+    certPage.drawText(`Signature ID: ${certId}   |   Audit ID: ${auditId}`, { x: 50, y: boxY + 24, size: 7.5, font: certFontRegular, color: rgb(0.1, 0.1, 0.1) });
+    certPage.drawText(`Fingerprint (SHA-256): ${docHash}`, { x: 50, y: boxY + 12, size: 7, font: certFontRegular, color: rgb(0.5, 0.5, 0.5) });
 
-    boxY -= 120;
+    boxY -= 130;
     if (boxY < 80) break;
   }
 
-  // Final SHA-256 Checksum block
-  const hashY = 85;
-  certPage.drawRectangle({ x: 40, y: hashY, width: cW - 80, height: 32, color: rgb(0.96, 0.99, 0.97), borderColor: rgb(0.7, 0.9, 0.75), borderWidth: 1 });
-  certPage.drawText('Final Document Cryptographic Fingerprint (SHA-256):', { x: 48, y: hashY + 20, size: 8, font: certFont, color: rgb(0.07, 0.5, 0.3) });
-  certPage.drawText(sha256Checksum, { x: 48, y: hashY + 6, size: 7.5, font: certFontRegular, color: rgb(0.1, 0.3, 0.1) });
-
-  // Legally Binding disclaimer
-  certPage.drawText('This certificate is generated by SignFlow AI and is legally binding in jurisdictions recognizing electronic signatures.', {
+  // Final Legally Binding disclaimer
+  certPage.drawText('This certificate is generated by SignFlow AI and is legally binding in jurisdictions recognizing electronic signatures (UETA / ESIGN).', {
     x: 40, y: 40, size: 7, font: certFontRegular, color: rgb(0.6, 0.6, 0.6)
   });
 };

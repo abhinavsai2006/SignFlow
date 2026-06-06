@@ -159,16 +159,18 @@ function PdfPage({
         const context = canvas.getContext('2d');
         if (!context) return;
 
+        const dpr = window.devicePixelRatio || 1;
         // Sync drawing surface buffer resolution
-        canvas.width = dimensions.width;
-        canvas.height = dimensions.height;
+        canvas.width = dimensions.width * dpr;
+        canvas.height = dimensions.height * dpr;
 
         // Explicit CSS size matching attributes to prevent Tailwind collapse
         canvas.style.width = `${dimensions.width}px`;
         canvas.style.height = `${dimensions.height}px`;
         canvas.style.display = "block";
 
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.scale(dpr, dpr);
+        context.clearRect(0, 0, dimensions.width, dimensions.height);
 
         const viewport = page.getViewport({ scale, rotation });
 
@@ -922,8 +924,13 @@ function PdfThumbnail({ pdfDoc, pageNum, onClick, isActive }: PdfThumbnailProps)
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        
+        context.scale(dpr, dpr);
 
         const renderContext = {
           canvasContext: context,

@@ -403,7 +403,8 @@ export default function PublicShareView() {
 
   const handleDownloadPublicPDF = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/docs/${id}/public-download`, { responseType: 'blob' });
+      const downloadUrl = `${BASE_URL}/api/docs/${id}/public-download${password ? `?password=${encodeURIComponent(password)}` : ''}`;
+      const response = await axios.get(downloadUrl, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = window.document.createElement('a');

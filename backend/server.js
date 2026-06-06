@@ -1,7 +1,7 @@
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/authRoutes.js';
@@ -16,7 +16,7 @@ import { verifyResendConnection } from './middleware/emailService.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,17 +60,17 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     // Allow any localhost port (local development)
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+    if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
       return callback(null, origin);
     }
 
-    // Allow any *.vercel.app subdomain (Vercel preview deployments)
-    if (origin.endsWith('.vercel.app')) {
+    // Strict regex for Vercel preview deployments (e.g., https://signflow-ai-git-main-username.vercel.app)
+    if (/^https:\/\/([a-zA-Z0-9-]+)\.vercel\.app$/.test(origin)) {
       return callback(null, origin);
     }
 
-    // Allow any *.railway.app subdomain (Railway preview deployments)
-    if (origin.endsWith('.railway.app')) {
+    // Strict regex for Railway preview deployments
+    if (/^https:\/\/([a-zA-Z0-9-]+)\.railway\.app$/.test(origin)) {
       return callback(null, origin);
     }
 
@@ -154,9 +154,13 @@ if (!MONGODB_URI) {
   }
 }
 
+import { startEmailScheduler } from './jobs/emailScheduler.js';
+
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('[+] MongoDB Atlas connected successfully.');
+    // Start the hourly email scheduler after DB is ready
+    startEmailScheduler();
   })
   .catch(err => {
     console.error('[-] MongoDB connection failed:', err.message);

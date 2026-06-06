@@ -2,6 +2,11 @@ import express from 'express';
 import Workspace from '../models/Workspace.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/authMiddleware.js';
+import {
+  sendTeamInviteEmail,
+  sendTeamMemberAddedEmail,
+  sendRoleChangedEmail
+} from '../middleware/emailService.js';
 
 const router = express.Router();
 
@@ -123,6 +128,56 @@ router.delete('/:id/members/:memberUserId', protect, async (req, res) => {
     res.json(updatedWorkspace);
   } catch (error) {
     res.status(500).json({ message: 'Failed to remove workspace member', error: error.message });
+  }
+});
+
+// ============================================================================
+// DEMO WORKSPACE ENDPOINTS — Student Project
+// ============================================================================
+
+// @route   POST /api/workspaces/demo/invite
+// @desc    DEMO FEATURE - Simulates sending workspace invitation email
+router.post('/demo/invite', protect, async (req, res) => {
+  try {
+    const { email, workspaceName } = req.body;
+    if (!email || !workspaceName) {
+      return res.status(400).json({ message: 'Email and workspace name are required' });
+    }
+    const inviteUrl = `${FRONTEND_URL}/workspace/join?ws=${encodeURIComponent(workspaceName)}`;
+    await sendTeamInviteEmail(email, req.user.name, workspaceName, inviteUrl);
+    res.json({ message: 'Demo workspace invite sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Demo invite failed', error: error.message });
+  }
+});
+
+// @route   POST /api/workspaces/demo/add-member
+// @desc    DEMO FEATURE - Simulates adding a team member and notifying owner
+router.post('/demo/add-member', protect, async (req, res) => {
+  try {
+    const { newMemberEmail, workspaceName } = req.body;
+    if (!newMemberEmail || !workspaceName) {
+      return res.status(400).json({ message: 'newMemberEmail and workspaceName are required' });
+    }
+    await sendTeamMemberAddedEmail(req.user.email, req.user.name, newMemberEmail, workspaceName);
+    res.json({ message: 'Demo member added email notification sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Demo add member alert failed', error: error.message });
+  }
+});
+
+// @route   POST /api/workspaces/demo/change-role
+// @desc    DEMO FEATURE - Simulates workspace role change and notifies member
+router.post('/demo/change-role', protect, async (req, res) => {
+  try {
+    const { email, userName, newRole, workspaceName } = req.body;
+    if (!email || !userName || !newRole || !workspaceName) {
+      return res.status(400).json({ message: 'email, userName, newRole, workspaceName are required' });
+    }
+    await sendRoleChangedEmail(email, userName, newRole, workspaceName);
+    res.json({ message: 'Demo role change email sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Demo role change alert failed', error: error.message });
   }
 });
 

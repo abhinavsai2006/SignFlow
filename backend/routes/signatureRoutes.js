@@ -5,7 +5,14 @@ import Document from '../models/Document.js';
 import User from '../models/User.js';
 import AuditLog from '../models/AuditLog.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { sendCompletionEmail, sendInviteEmail, sendCompletedSignerEmail } from '../middleware/emailService.js';
+import {
+  sendCompletionEmail,
+  sendInviteEmail,
+  sendCompletedSignerEmail,
+  sendDocumentSignedEmail,
+  sendAllSignersCompletedEmail,
+  sendDownloadReadyEmail
+} from '../middleware/emailService.js';
 import DocumentRecipient from '../models/DocumentRecipient.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
@@ -603,6 +610,16 @@ router.put('/:id/sign', protect, async (req, res) => {
         recipient.status = 'Signed';
         await recipient.save();
 
+        // Notify the document owner that an individual signer has completed
+        const doc = await Document.findById(field.documentId);
+        if (doc) {
+          const owner = await User.findById(doc.ownerId);
+          if (owner) {
+            sendDocumentSignedEmail(owner.email, owner.name, field.recipientEmail, doc.filename)
+              .catch(err => console.error('[Sig] Document signed email failed:', err.message));
+          }
+        }
+
         // If sequential, notify the next recipient in order
         if (document && document.signingOrder === 'Sequential') {
           const recipients = await DocumentRecipient.find({ documentId: document._id, role: 'Signer' }).sort({ sequence: 1 });
@@ -700,6 +717,11 @@ router.post('/finalize', protect, async (req, res) => {
     const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
     if (owner) {
       await sendCompletionEmail(owner.email, document.filename, downloadUrl, owner.name);
+      // Also send allSignersCompleted and downloadReady as distinct notifications
+      sendAllSignersCompletedEmail(owner.email, owner.name, document.filename, downloadUrl)
+        .catch(err => console.error('[Sig] All signers completed email failed:', err.message));
+      sendDownloadReadyEmail(owner.email, owner.name, document.filename, downloadUrl)
+        .catch(err => console.error('[Sig] Download ready email failed:', err.message));
     }
 
     // Send completed email to all signers

@@ -58,7 +58,29 @@ const userSchema = new mongoose.Schema({
   documentsCount: {
     type: Number,
     default: 0
-  }
+  },
+  lastLoginIP: {
+    type: String,
+    default: ''
+  },
+  lastLoginDevice: {
+    type: String,
+    default: ''
+  },
+  mfaEnabled: {
+    type: Boolean,
+    default: false
+  },
+  trialEndingEmailSent: {
+    type: Boolean,
+    default: false
+  },
+  loginOtp: {
+    type: String,
+  },
+  loginOtpExpire: {
+    type: Date,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

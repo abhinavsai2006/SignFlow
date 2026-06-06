@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type MetaBadgeVariant = 'success' | 'attention' | 'warning' | 'critical';
+export type MetaBadgeVariant = 'success' | 'attention' | 'warning' | 'critical' | 'neutral';
 
 interface MetaBadgeProps {
   variant: MetaBadgeVariant;
@@ -23,6 +23,9 @@ export default function MetaBadge({ variant, children, className = '' }: MetaBad
       break;
     case 'critical':
       baseStyles += 'bg-critical text-canvas';
+      break;
+    case 'neutral':
+      baseStyles += 'bg-surface-soft text-slate border border-hairline-soft';
       break;
   }
 

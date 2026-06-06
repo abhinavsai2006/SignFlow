@@ -7,7 +7,14 @@ import User from '../models/User.js';
 import SignatureField from '../models/SignatureField.js';
 import Workspace from '../models/Workspace.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { sendInviteEmail, sendRejectionEmail } from '../middleware/emailService.js';
+import {
+  sendInviteEmail,
+  sendRejectionEmail,
+  sendViewedEmail,
+  sendShareLinkCreatedEmail,
+  sendDocumentCancelledEmail,
+  sendAuditReportGeneratedEmail
+} from '../middleware/emailService.js';
 import fs from 'fs';
 import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
@@ -268,10 +275,20 @@ router.get('/:id/download', protect, async (req, res) => {
 // @desc    Download the signed finalized PDF document file publicly
 router.get('/:id/public-download', async (req, res) => {
   try {
+    const { password } = req.query;
     const document = await Document.findById(req.params.id);
-    if (!document) {
-      return res.status(404).json({ message: 'Document not found' });
+    if (!document || !document.sharingEnabled) {
+      return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
     }
+
+    if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
+      return res.status(410).json({ message: 'This public shared link has expired' });
+    }
+
+    if (document.sharePassword && document.sharePassword !== password) {
+      return res.status(401).json({ message: 'Password protection required to download' });
+    }
+
 
     const fields = await SignatureField.find({ documentId: document._id });
     const signedFields = fields.filter(f => f.status === 'Signed');
@@ -437,6 +454,101 @@ router.put('/:id/reject', protect, async (req, res) => {
     res.json({ message: 'Document rejected successfully', document });
   } catch (error) {
     res.status(500).json({ message: 'Rejection failed', error: error.message });
+  }
+});
+
+// @route   PUT /api/docs/:id/cancel
+// @desc    Cancel a document workflow and notify all pending recipients
+router.put('/:id/cancel', protect, async (req, res) => {
+  try {
+    const document = await Document.findOne({ _id: req.params.id, isDeleted: false });
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const isAuthorized = await checkDocumentAccess(document, req.user._id, 'settings');
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Not authorized to cancel this document' });
+    }
+
+    document.status = 'Archived';
+    await document.save();
+
+    await logAuditEvent(document._id, req.user._id, 'Cancel', req);
+
+    // Notify all pending recipients that the document was cancelled
+    const pendingRecipients = await DocumentRecipient.find({
+      documentId: document._id,
+      status: { $in: ['Waiting', 'Notified'] }
+    });
+
+    const cancelerName = req.user.name || 'Document Owner';
+    for (const recipient of pendingRecipients) {
+      sendDocumentCancelledEmail(recipient.email, recipient.name, document.filename, cancelerName)
+        .catch(err => console.error('[Docs] Cancel email failed for', recipient.email, err.message));
+    }
+
+    res.json({ message: 'Document workflow cancelled successfully', document });
+  } catch (error) {
+    res.status(500).json({ message: 'Cancel failed', error: error.message });
+  }
+});
+
+// @route   POST /api/docs/:id/viewed
+// @desc    Mark document as first viewed by a signer and notify owner
+router.post('/:id/viewed', async (req, res) => {
+  try {
+    const { signerEmail, signerName } = req.body;
+    const document = await Document.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Only update status if it's first view (still Pending)
+    if (document.status === 'Pending') {
+      document.status = 'Viewed';
+      await document.save();
+
+      // Notify the owner that a signer has viewed the document
+      const owner = await User.findById(document.ownerId);
+      if (owner) {
+        const viewerEmail = signerEmail || 'Unknown Signer';
+        sendViewedEmail(owner.email, owner.name, viewerEmail, document.filename)
+          .catch(err => console.error('[Docs] Viewed email failed:', err.message));
+      }
+    }
+
+    await logAuditEvent(document._id, null, 'View', req);
+    res.json({ message: 'Document view recorded' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to record view', error: error.message });
+  }
+});
+
+// @route   POST /api/docs/:id/audit/export
+// @desc    Export audit log for a document and email it to the user
+// DEMO FEATURE - Student Project
+router.post('/:id/audit/export', protect, async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const isAuthorized = await checkDocumentAccess(document, req.user._id, 'read');
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Not authorized to export audit logs' });
+    }
+
+    const reportUrl = `${FRONTEND_URL}/documents/${document._id}/audit-trail`;
+    
+    await sendAuditReportGeneratedEmail(req.user.email, req.user.name, document.filename, reportUrl);
+
+    await logAuditEvent(document._id, req.user._id, 'Export Audit Trail', req);
+
+    res.json({ message: 'Audit report generated and email sent successfully', reportUrl });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to generate audit report', error: error.message });
   }
 });
 
@@ -629,6 +741,16 @@ router.put('/:id/share', protect, async (req, res) => {
     await document.save();
 
     const publicUrl = `${FRONTEND_URL}/share/${document._id}`;
+
+    // Trigger share link created email when sharing is newly enabled
+    if (sharingEnabled === true && !document.sharingEnabled) {
+      const owner = await User.findById(document.ownerId);
+      if (owner) {
+        sendShareLinkCreatedEmail(owner.email, document.filename, publicUrl, owner.name)
+          .catch(err => console.error('[Docs] Share link email failed:', err.message));
+      }
+    }
+
     res.json({ document, publicUrl });
   } catch (error) {
     res.status(500).json({ message: 'Failed to configure sharing', error: error.message });

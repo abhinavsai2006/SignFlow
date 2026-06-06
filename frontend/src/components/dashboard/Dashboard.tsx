@@ -13,6 +13,7 @@ import {
   CheckCircle2, Activity,
   Upload, TrendingUp, Zap, ArrowUpRight
 } from 'lucide-react';
+import { SkeletonTable } from '../ui/Skeleton';
 
 interface Document {
   _id: string;
@@ -180,7 +181,7 @@ export default function Dashboard() {
   if (!isLoading && totalDocs === 0) {
     return (
       <div className="space-y-xxl">
-        {/* Welcome Section */}
+        {/* Hero Section */}
         <div
           className="relative overflow-hidden rounded-xxxl border border-hairline-soft"
           style={{
@@ -190,29 +191,85 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-lg p-xxl">
             <div>
               <h1 className="text-heading-lg font-bold tracking-tight text-ink-deep mb-xxs" style={{ fontSize: '2rem' }}>
-                {getGreeting()}, {user?.name || 'Abhinav Sai'} 👋
+                {getGreeting()}, {user?.name || 'User'} 👋
               </h1>
               <p className="text-body-md text-slate" style={{ maxWidth: 480 }}>
                 Get started with secure digital signatures in your{' '}
                 <span className="font-bold text-ink-deep">{activeWorkspace ? activeWorkspace.name : 'Personal'}</span> workspace.
               </p>
             </div>
+            <div className="flex items-center gap-sm self-start sm:self-center">
+              <MetaButton
+                variant="buy-cta"
+                onClick={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" /> New Document
+              </MetaButton>
+            </div>
           </div>
+          <div
+            className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, var(--color-primary) 0%, transparent 70%)',
+              transform: 'translate(30%, -30%)',
+            }}
+          />
         </div>
 
-        {/* Vercel-style Empty State Card */}
-        <div className="flex flex-col items-center justify-center p-xxl border border-dashed border-hairline-soft rounded-xxxl bg-canvas py-xxl space-y-lg text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-            <Upload className="w-8 h-8" />
+        {/* Empty KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-sm">
+          {[
+            { label: 'Total Documents', icon: FileText, color: 'var(--color-primary)' },
+            { label: 'Pending', icon: Clock, color: '#f59e0b' },
+            { label: 'Viewed', icon: Eye, color: '#8b5cf6' },
+            { label: 'Signed', icon: CheckCircle, color: 'var(--color-success)' }
+          ].map((kpi, idx) => (
+            <MetaCard key={idx} variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] cursor-default">
+              <div className="flex justify-between items-start">
+                <span className="text-[11px] font-bold text-slate uppercase tracking-wider">{kpi.label}</span>
+                <div className="p-1.5 rounded-lg" style={{ background: kpi.color, opacity: 0.12 }}>
+                  <kpi.icon className="w-4 h-4" style={{ color: kpi.color }} />
+                </div>
+              </div>
+              <div>
+                <p className="text-heading-lg font-bold leading-none text-ink-deep">0</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-[10px] text-slate">No data yet</span>
+                </div>
+              </div>
+            </MetaCard>
+          ))}
+        </div>
+
+        {/* Layout for Empty Upload & Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl">
+          <div className="lg:col-span-2 space-y-md">
+            <h2 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Upload Document</h2>
+            <div className="flex flex-col items-center justify-center p-xxl border border-dashed border-hairline-soft rounded-xxxl bg-canvas py-[80px] space-y-lg text-center transition-all hover:bg-surface-soft/50">
+              <div className="relative w-24 h-24 mb-4 flex items-center justify-center">
+                <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse" />
+                <div className="absolute inset-4 bg-primary/20 rounded-full" />
+                <Upload className="w-10 h-10 text-primary relative z-10" />
+              </div>
+              <div className="space-y-xs max-w-md">
+                <h2 className="text-heading-md font-bold text-ink-deep">Your vault is empty</h2>
+                <p className="text-body-sm text-slate">
+                  Drag and drop your first PDF document to set up signature fields and invite recipients.
+                </p>
+              </div>
+              <div ref={uploadSectionRef} className="w-full max-w-xl text-left mt-8">
+                <UploadDropzone onUploadSuccess={handleUploadSuccess} workspaceId={activeWorkspace?._id} />
+              </div>
+            </div>
           </div>
-          <div className="space-y-xs max-w-md">
-            <h2 className="text-heading-md font-bold text-ink-deep">No documents yet</h2>
-            <p className="text-body-sm text-slate">
-              Upload your first PDF document to set up signature fields, invite recipients, and collect secure, legally-binding signatures.
-            </p>
-          </div>
-          <div className="w-full max-w-xl text-left">
-            <UploadDropzone onUploadSuccess={handleUploadSuccess} workspaceId={activeWorkspace?._id} />
+          <div className="lg:col-span-1 space-y-md">
+            <h2 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Recent Activity</h2>
+            <MetaCard variant="product-feature" className="p-lg flex flex-col items-center justify-center h-[300px] text-center border-dashed">
+              <Activity className="w-12 h-12 text-hairline mb-4" />
+              <p className="text-body-sm-bold text-slate">No recent activity</p>
+              <p className="text-caption text-stone mt-2">Activities will appear here once you send documents.</p>
+            </MetaCard>
           </div>
         </div>
       </div>
@@ -553,8 +610,8 @@ export default function Dashboard() {
 
             {/* Document Cards */}
             {isLoading ? (
-              <div className="text-center py-xl text-slate text-body-md">
-                Loading documents...
+              <div className="space-y-md">
+                <SkeletonTable rows={4} />
               </div>
             ) : documents.length === 0 ? (
               <MetaCard variant="product-feature" className="text-center py-xl border-dashed">
