@@ -1,6 +1,6 @@
 # SignFlow — Core Functionality Report
 
-Date: 2026-06-06T19:00:20.503Z
+Date: 2026-06-06T20:00:33.465Z
 Target API: `http://localhost:5000/api`
 
 This report lists the verified HTTP requests, responses, and status codes for the 15 core application workflows.
@@ -12,19 +12,19 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ```json
 {
   "name": "Audit Tester",
-  "email": "audit_user_0a7989@example.com",
+  "email": "audit_user_baf9bb@example.com",
   "password": "Password123!"
 }
 ```
 - **Response:**
 ```json
 {
-  "_id": "6a246e44a37bb97881d9b21f",
+  "_id": "6a247c61e1d77c7acb1e2815",
   "name": "Audit Tester",
-  "email": "audit_user_0a7989@example.com",
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMjQ2ZTQ0YTM3YmI5Nzg4MWQ5YjIxZiIsImlhdCI6MTc4MDc3MjQyMCwiZXhwIjoxNzgwNzczMzIwfQ.ld-VGhAfyL2lMIGa_uwFvUqsmS1rfkI9BttCkCwQBt4",
+  "email": "audit_user_baf9bb@example.com",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMjQ3YzYxZTFkNzdjN2FjYjFlMjgxNSIsImlhdCI6MTc4MDc3NjAzMywiZXhwIjoxNzgwNzc2OTMzfQ.3pSZsabALBf3hiTJHZRXAn8NYRaYFDkfgG0XFnsxtxE",
   "isVerified": false,
-  "verificationCode": "508960"
+  "verificationCode": "720168"
 }
 ```
 - **Status Code:** `201`
@@ -38,13 +38,13 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "email": "audit_user_0a7989@example.com"
+  "email": "audit_user_baf9bb@example.com"
 }
 ```
 - **Response:**
 ```json
 {
-  "verificationCode": "508960"
+  "verificationCode": "720168"
 }
 ```
 - **Status Code:** `200`
@@ -58,7 +58,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "code": "508960"
+  "code": "720168"
 }
 ```
 - **Response:**
@@ -79,7 +79,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "email": "audit_user_0a7989@example.com",
+  "email": "audit_user_baf9bb@example.com",
   "password": "Password123!"
 }
 ```
@@ -87,8 +87,8 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ```json
 {
   "requiresOtp": true,
-  "email": "audit_user_0a7989@example.com",
-  "loginOtp": "706539"
+  "email": "audit_user_baf9bb@example.com",
+  "loginOtp": "952897"
 }
 ```
 - **Status Code:** `200`
@@ -102,17 +102,17 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "email": "audit_user_0a7989@example.com",
-  "otp": "706539"
+  "email": "audit_user_baf9bb@example.com",
+  "otp": "952897"
 }
 ```
 - **Response:**
 ```json
 {
-  "_id": "6a246e44a37bb97881d9b21f",
+  "_id": "6a247c61e1d77c7acb1e2815",
   "name": "Audit Tester",
-  "email": "audit_user_0a7989@example.com",
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMjQ2ZTQ0YTM3YmI5Nzg4MWQ5YjIxZiIsImlhdCI6MTc4MDc3MjQyMSwiZXhwIjoxNzgwNzczMzIxfQ.nq12i2dmNVmosigvv52dar7QlVVYhnY8uNHcRzJwvqw",
+  "email": "audit_user_baf9bb@example.com",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMjQ3YzYxZTFkNzdjN2FjYjFlMjgxNSIsImlhdCI6MTc4MDc3NjAzNCwiZXhwIjoxNzgwNzc2OTM0fQ.HVuZQzcJ3kduN_X6KyN1qm4gxAnzYm0bTs4sHV5P2k4",
   "isVerified": true
 }
 ```
@@ -131,37 +131,10 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "message": "OAuth Success Redirect",
-  "headers": {
-    "access-control-allow-credentials": "true",
-    "connection": "keep-alive",
-    "content-length": "404",
-    "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests",
-    "content-type": "text/plain; charset=utf-8",
-    "cross-origin-opener-policy": "same-origin",
-    "cross-origin-resource-policy": "cross-origin",
-    "date": "Sat, 06 Jun 2026 19:00:22 GMT",
-    "keep-alive": "timeout=5",
-    "location": "http://localhost:5177/login?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMjMxNjdjZDFmMzlhNjJkZjQ0YWQ0MSIsImlhdCI6MTc4MDc3MjQyMSwiZXhwIjoxNzgwNzczMzIxfQ.FDBwUHzWOVBd4aaJ6UWsvcHxVFSI0mwYX3PA_BRNCho&user=%7B%22_id%22%3A%226a23167cd1f39a62df44ad41%22%2C%22name%22%3A%22OAuth%20Google%20User%22%2C%22email%22%3A%22oauth_google_user%40example.com%22%2C%22isVerified%22%3Atrue%7D",
-    "origin-agent-cluster": "?1",
-    "ratelimit-limit": "20",
-    "ratelimit-policy": "20;w=900",
-    "ratelimit-remaining": "11",
-    "ratelimit-reset": "863",
-    "referrer-policy": "no-referrer",
-    "set-cookie": "refreshToken=8f1c29382bdab82446b31f9d8fc360c01ec74ec6531288ea5bae5473959e02d5737870e04bae682e; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/",
-    "strict-transport-security": "max-age=31536000; includeSubDomains",
-    "vary": "Origin, Accept",
-    "x-content-type-options": "nosniff",
-    "x-dns-prefetch-control": "off",
-    "x-download-options": "noopen",
-    "x-frame-options": "SAMEORIGIN",
-    "x-permitted-cross-domain-policies": "none",
-    "x-xss-protection": "0"
-  }
+  "message": "Redirect/HTML Response"
 }
 ```
-- **Status Code:** `302`
+- **Status Code:** `404`
 - **Console Errors / Warnings:** `None`
 
 ---
@@ -176,9 +149,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "ownerId": "6a246e44a37bb97881d9b21f",
+  "ownerId": "6a247c61e1d77c7acb1e2815",
   "filename": "temp_audit.pdf",
-  "originalPath": "uploads/file-1780772422138.pdf",
+  "originalPath": "E:/Labmetrix/Project-1/backend/uploads/file-1780776034711.pdf",
   "status": "Pending",
   "isArchived": false,
   "isDeleted": false,
@@ -190,9 +163,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
     {
       "versionNumber": 1,
       "filename": "temp_audit.pdf",
-      "path": "uploads/file-1780772422138.pdf",
-      "_id": "6a246e46a37bb97881d9b228",
-      "createdAt": "2026-06-06T19:00:22.186Z"
+      "path": "E:/Labmetrix/Project-1/backend/uploads/file-1780776034711.pdf",
+      "_id": "6a247c62e1d77c7acb1e281d",
+      "createdAt": "2026-06-06T20:00:34.798Z"
     }
   ],
   "rejectionReason": "",
@@ -204,9 +177,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
   "templateName": "",
   "reminderSent": false,
   "expiredEmailSent": false,
-  "_id": "6a246e46a37bb97881d9b227",
-  "createdAt": "2026-06-06T19:00:22.187Z",
-  "updatedAt": "2026-06-06T19:00:22.187Z",
+  "_id": "6a247c62e1d77c7acb1e281c",
+  "createdAt": "2026-06-06T20:00:34.799Z",
+  "updatedAt": "2026-06-06T20:00:34.799Z",
   "__v": 0
 }
 ```
@@ -216,7 +189,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ---
 
 ### Step 7: Open PDF
-- **Request URL:** `http://localhost:5000/api/docs/6a246e46a37bb97881d9b227`
+- **Request URL:** `http://localhost:5000/api/docs/6a247c62e1d77c7acb1e281c`
 - **Method:** `GET`
 - **Payload:**
 ```json
@@ -225,10 +198,10 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "_id": "6a246e46a37bb97881d9b227",
-  "ownerId": "6a246e44a37bb97881d9b21f",
+  "_id": "6a247c62e1d77c7acb1e281c",
+  "ownerId": "6a247c61e1d77c7acb1e2815",
   "filename": "temp_audit.pdf",
-  "originalPath": "uploads/file-1780772422138.pdf",
+  "originalPath": "E:/Labmetrix/Project-1/backend/uploads/file-1780776034711.pdf",
   "status": "Pending",
   "isArchived": false,
   "isDeleted": false,
@@ -240,9 +213,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
     {
       "versionNumber": 1,
       "filename": "temp_audit.pdf",
-      "path": "uploads/file-1780772422138.pdf",
-      "_id": "6a246e46a37bb97881d9b228",
-      "createdAt": "2026-06-06T19:00:22.186Z"
+      "path": "E:/Labmetrix/Project-1/backend/uploads/file-1780776034711.pdf",
+      "_id": "6a247c62e1d77c7acb1e281d",
+      "createdAt": "2026-06-06T20:00:34.798Z"
     }
   ],
   "rejectionReason": "",
@@ -254,8 +227,8 @@ This report lists the verified HTTP requests, responses, and status codes for th
   "templateName": "",
   "reminderSent": false,
   "expiredEmailSent": false,
-  "createdAt": "2026-06-06T19:00:22.187Z",
-  "updatedAt": "2026-06-06T19:00:22.187Z",
+  "createdAt": "2026-06-06T20:00:34.799Z",
+  "updatedAt": "2026-06-06T20:00:34.799Z",
   "__v": 0
 }
 ```
@@ -270,7 +243,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "documentId": "6a246e46a37bb97881d9b227",
+  "documentId": "6a247c62e1d77c7acb1e281c",
   "recipientEmail": "signer_test@example.com",
   "type": "Signature",
   "xPercent": 10,
@@ -283,8 +256,8 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "documentId": "6a246e46a37bb97881d9b227",
-  "userId": "6a246e44a37bb97881d9b21f",
+  "documentId": "6a247c62e1d77c7acb1e281c",
+  "userId": "6a247c61e1d77c7acb1e2815",
   "recipientEmail": "signer_test@example.com",
   "type": "Signature",
   "xPercent": 10,
@@ -297,9 +270,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
   "userAgent": "Unavailable",
   "location": "Unavailable",
   "tamperStatus": "Verified",
-  "_id": "6a246e46a37bb97881d9b22d",
-  "createdAt": "2026-06-06T19:00:22.687Z",
-  "updatedAt": "2026-06-06T19:00:22.687Z",
+  "_id": "6a247c63e1d77c7acb1e2822",
+  "createdAt": "2026-06-06T20:00:35.416Z",
+  "updatedAt": "2026-06-06T20:00:35.416Z",
   "__v": 0
 }
 ```
@@ -309,7 +282,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ---
 
 ### Step 9: Send Document
-- **Request URL:** `http://localhost:5000/api/docs/6a246e46a37bb97881d9b227/recipients`
+- **Request URL:** `http://localhost:5000/api/docs/6a247c62e1d77c7acb1e281c/recipients`
 - **Method:** `POST`
 - **Payload:**
 ```json
@@ -323,15 +296,15 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "documentId": "6a246e46a37bb97881d9b227",
+  "documentId": "6a247c62e1d77c7acb1e281c",
   "email": "signer_test@example.com",
   "name": "Test Signer",
   "role": "Signer",
   "status": "Notified",
   "sequence": 1,
-  "_id": "6a246e46a37bb97881d9b22f",
-  "createdAt": "2026-06-06T19:00:22.894Z",
-  "updatedAt": "2026-06-06T19:00:22.955Z",
+  "_id": "6a247c63e1d77c7acb1e2824",
+  "createdAt": "2026-06-06T20:00:35.673Z",
+  "updatedAt": "2026-06-06T20:00:35.810Z",
   "__v": 0
 }
 ```
@@ -371,7 +344,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ---
 
 ### Step 11: Open Share Link
-- **Request URL:** `http://localhost:5000/api/docs/6a246e46a37bb97881d9b227/public`
+- **Request URL:** `http://localhost:5000/api/docs/6a247c62e1d77c7acb1e281c/public`
 - **Method:** `GET`
 - **Payload:**
 ```json
@@ -380,17 +353,17 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Response:**
 ```json
 {
-  "_id": "6a246e46a37bb97881d9b227",
+  "_id": "6a247c62e1d77c7acb1e281c",
   "filename": "temp_audit.pdf",
-  "originalPath": "uploads/file-1780772422138.pdf",
+  "originalPath": "E:/Labmetrix/Project-1/backend/uploads/file-1780776034711.pdf",
   "status": "Pending",
-  "createdAt": "2026-06-06T19:00:22.187Z",
+  "createdAt": "2026-06-06T20:00:34.799Z",
   "sha256Checksum": null,
   "signatureFields": [
     {
-      "_id": "6a246e46a37bb97881d9b22d",
-      "documentId": "6a246e46a37bb97881d9b227",
-      "userId": "6a246e44a37bb97881d9b21f",
+      "_id": "6a247c63e1d77c7acb1e2822",
+      "documentId": "6a247c62e1d77c7acb1e281c",
+      "userId": "6a247c61e1d77c7acb1e2815",
       "recipientEmail": "signer_test@example.com",
       "type": "Signature",
       "xPercent": 10,
@@ -403,8 +376,8 @@ This report lists the verified HTTP requests, responses, and status codes for th
       "userAgent": "Unavailable",
       "location": "Unavailable",
       "tamperStatus": "Verified",
-      "createdAt": "2026-06-06T19:00:22.687Z",
-      "updatedAt": "2026-06-06T19:00:22.687Z",
+      "createdAt": "2026-06-06T20:00:35.416Z",
+      "updatedAt": "2026-06-06T20:00:35.416Z",
       "__v": 0
     }
   ]
@@ -416,7 +389,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ---
 
 ### Step 12: Sign Document
-- **Request URL:** `http://localhost:5000/api/signatures/6a246e46a37bb97881d9b22d/sign-public`
+- **Request URL:** `http://localhost:5000/api/signatures/6a247c63e1d77c7acb1e2822/sign-public`
 - **Method:** `POST`
 - **Payload:**
 ```json
@@ -431,9 +404,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
 {
   "message": "Signature submitted successfully",
   "field": {
-    "_id": "6a246e46a37bb97881d9b22d",
-    "documentId": "6a246e46a37bb97881d9b227",
-    "userId": "6a246e44a37bb97881d9b21f",
+    "_id": "6a247c63e1d77c7acb1e2822",
+    "documentId": "6a247c62e1d77c7acb1e281c",
+    "userId": "6a247c61e1d77c7acb1e2815",
     "recipientEmail": "signer_test@example.com",
     "type": "Signature",
     "xPercent": 10,
@@ -446,8 +419,8 @@ This report lists the verified HTTP requests, responses, and status codes for th
     "userAgent": "node",
     "location": "Local Development Environment",
     "tamperStatus": "Verified",
-    "createdAt": "2026-06-06T19:00:22.687Z",
-    "updatedAt": "2026-06-06T19:00:24.122Z",
+    "createdAt": "2026-06-06T20:00:35.416Z",
+    "updatedAt": "2026-06-06T20:00:37.526Z",
     "__v": 0,
     "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
     "signerName": "Test Signer",
@@ -455,9 +428,9 @@ This report lists the verified HTTP requests, responses, and status codes for th
     "device": "Desktop",
     "operatingSystem": "Windows",
     "isp": "Development Network",
-    "certificateId": "SIG-2026-1CFEC8",
-    "auditId": "AUD-32C8AF",
-    "documentHash": "973855767d58aa6df2e3cee925eff008b06d052b41c7277a91b4248c05ac0543"
+    "certificateId": "SIG-2026-19D223",
+    "auditId": "AUD-7D6795",
+    "documentHash": "df4711416e9b5ed50f57c398894e1c147764ca298f1f9f40cc112c681deba360"
   }
 }
 ```
@@ -472,58 +445,23 @@ This report lists the verified HTTP requests, responses, and status codes for th
 - **Payload:**
 ```json
 {
-  "documentId": "6a246e46a37bb97881d9b227"
+  "documentId": "6a247c62e1d77c7acb1e281c"
 }
 ```
 - **Response:**
 ```json
 {
-  "message": "PDF finalized with Certificate of Completion and cryptographic stamp.",
-  "document": {
-    "_id": "6a246e46a37bb97881d9b227",
-    "ownerId": "6a246e44a37bb97881d9b21f",
-    "filename": "temp_audit.pdf",
-    "originalPath": "uploads/finalized-1780772425578-temp_audit.pdf",
-    "status": "Signed",
-    "isArchived": false,
-    "isDeleted": false,
-    "sharingEnabled": true,
-    "sharePassword": "",
-    "shareOneTimeOnly": false,
-    "shareVisited": false,
-    "versions": [
-      {
-        "versionNumber": 1,
-        "filename": "temp_audit.pdf",
-        "path": "uploads/file-1780772422138.pdf",
-        "_id": "6a246e46a37bb97881d9b228",
-        "createdAt": "2026-06-06T19:00:22.186Z"
-      }
-    ],
-    "rejectionReason": "",
-    "remindersEnabled": false,
-    "reminderInterval": 3,
-    "signingOrder": "Parallel",
-    "sha256Checksum": "3a98095a10447112a4736faae71d88baaea0417f231f30be1fdca18bf74ad336",
-    "isTemplate": false,
-    "templateName": "",
-    "reminderSent": false,
-    "expiredEmailSent": false,
-    "createdAt": "2026-06-06T19:00:22.187Z",
-    "updatedAt": "2026-06-06T19:00:25.580Z",
-    "__v": 0
-  },
-  "sha256Checksum": "3a98095a10447112a4736faae71d88baaea0417f231f30be1fdca18bf74ad336",
-  "downloadUrl": "/uploads/finalized-1780772425578-temp_audit.pdf"
+  "message": "Failed to finalize PDF document",
+  "error": "relativePath is not defined"
 }
 ```
-- **Status Code:** `200`
+- **Status Code:** `500`
 - **Console Errors / Warnings:** `None`
 
 ---
 
 ### Step 14: Download PDF
-- **Request URL:** `http://localhost:5000/api/docs/6a246e46a37bb97881d9b227/download`
+- **Request URL:** `http://localhost:5000/api/docs/6a247c62e1d77c7acb1e281c/download`
 - **Method:** `GET`
 - **Payload:**
 ```json
@@ -541,7 +479,7 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ---
 
 ### Step 15: View Audit Trail
-- **Request URL:** `http://localhost:5000/api/audit/6a246e46a37bb97881d9b227`
+- **Request URL:** `http://localhost:5000/api/audit/6a247c62e1d77c7acb1e281c`
 - **Method:** `GET`
 - **Payload:**
 ```json
@@ -551,97 +489,97 @@ This report lists the verified HTTP requests, responses, and status codes for th
 ```json
 [
   {
-    "_id": "6a246e4aa37bb97881d9b23e",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c66e1d77c7acb1e2833",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": {
-      "_id": "6a246e44a37bb97881d9b21f",
+      "_id": "6a247c61e1d77c7acb1e2815",
       "name": "Audit Tester",
-      "email": "audit_user_0a7989@example.com"
+      "email": "audit_user_baf9bb@example.com"
     },
     "action": "Download",
     "ipAddress": "::1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Localhost",
-    "createdAt": "2026-06-06T19:00:26.251Z",
-    "updatedAt": "2026-06-06T19:00:26.251Z",
+    "createdAt": "2026-06-06T20:00:38.975Z",
+    "updatedAt": "2026-06-06T20:00:38.975Z",
     "__v": 0
   },
   {
-    "_id": "6a246e49a37bb97881d9b238",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c66e1d77c7acb1e282d",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": {
-      "_id": "6a246e44a37bb97881d9b21f",
+      "_id": "6a247c61e1d77c7acb1e2815",
       "name": "Audit Tester",
-      "email": "audit_user_0a7989@example.com"
+      "email": "audit_user_baf9bb@example.com"
     },
     "action": "Finalize",
     "ipAddress": "127.0.0.1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Local Development Environment",
-    "createdAt": "2026-06-06T19:00:25.660Z",
-    "updatedAt": "2026-06-06T19:00:25.660Z",
+    "createdAt": "2026-06-06T20:00:38.589Z",
+    "updatedAt": "2026-06-06T20:00:38.589Z",
     "__v": 0
   },
   {
-    "_id": "6a246e48a37bb97881d9b234",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c65e1d77c7acb1e2829",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": null,
     "action": "Public Sign by signer_test@example.com",
     "ipAddress": "127.0.0.1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Local Development Environment",
-    "createdAt": "2026-06-06T19:00:24.184Z",
-    "updatedAt": "2026-06-06T19:00:24.184Z",
+    "createdAt": "2026-06-06T20:00:37.568Z",
+    "updatedAt": "2026-06-06T20:00:37.568Z",
     "__v": 0
   },
   {
-    "_id": "6a246e47a37bb97881d9b233",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c65e1d77c7acb1e2828",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": null,
     "action": "View",
     "ipAddress": "::1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Localhost",
-    "createdAt": "2026-06-06T19:00:23.877Z",
-    "updatedAt": "2026-06-06T19:00:23.877Z",
+    "createdAt": "2026-06-06T20:00:37.321Z",
+    "updatedAt": "2026-06-06T20:00:37.321Z",
     "__v": 0
   },
   {
-    "_id": "6a246e46a37bb97881d9b22b",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c63e1d77c7acb1e2820",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": {
-      "_id": "6a246e44a37bb97881d9b21f",
+      "_id": "6a247c61e1d77c7acb1e2815",
       "name": "Audit Tester",
-      "email": "audit_user_0a7989@example.com"
+      "email": "audit_user_baf9bb@example.com"
     },
     "action": "View",
     "ipAddress": "::1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Localhost",
-    "createdAt": "2026-06-06T19:00:22.547Z",
-    "updatedAt": "2026-06-06T19:00:22.547Z",
+    "createdAt": "2026-06-06T20:00:35.265Z",
+    "updatedAt": "2026-06-06T20:00:35.265Z",
     "__v": 0
   },
   {
-    "_id": "6a246e46a37bb97881d9b229",
-    "documentId": "6a246e46a37bb97881d9b227",
+    "_id": "6a247c62e1d77c7acb1e281e",
+    "documentId": "6a247c62e1d77c7acb1e281c",
     "userId": {
-      "_id": "6a246e44a37bb97881d9b21f",
+      "_id": "6a247c61e1d77c7acb1e2815",
       "name": "Audit Tester",
-      "email": "audit_user_0a7989@example.com"
+      "email": "audit_user_baf9bb@example.com"
     },
     "action": "Upload",
     "ipAddress": "::1",
     "userAgent": "node",
     "device": "Desktop",
     "country": "Localhost",
-    "createdAt": "2026-06-06T19:00:22.340Z",
-    "updatedAt": "2026-06-06T19:00:22.340Z",
+    "createdAt": "2026-06-06T20:00:34.991Z",
+    "updatedAt": "2026-06-06T20:00:34.991Z",
     "__v": 0
   }
 ]

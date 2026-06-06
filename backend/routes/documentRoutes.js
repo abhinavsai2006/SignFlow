@@ -20,6 +20,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
+import { uploadToR2 } from '../services/r2Service.js';
+import { readPdfBytes } from '../utils/fileLoader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,16 +119,19 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'Uploaded file is empty (0 bytes) on disk', path: pathString });
     }
 
+    // Upload local file to Cloudflare R2 if credentials are set, otherwise defaults to local path fallback
+    const targetPath = await uploadToR2(pathString, req.file.originalname, req.file.mimetype);
+
     const document = await Document.create({
       ownerId: req.user._id,
       filename: req.file.originalname,
-      originalPath: pathString,
+      originalPath: targetPath,
       status: 'Pending',
       workspaceId,
       versions: [{
         versionNumber: 1,
         filename: req.file.originalname,
-        path: pathString,
+        path: targetPath,
       }]
     });
 
@@ -260,15 +265,7 @@ router.get('/:id/download', protect, async (req, res) => {
       finalBytes = compiledBytes;
     } else {
       let originalPath = document.versions[0]?.path || document.originalPath;
-      // Resolve relative paths
-      if (!path.isAbsolute(originalPath)) {
-        originalPath = path.join(__dirname, '../', originalPath);
-      }
-      if (!fs.existsSync(originalPath)) {
-        console.error('[Document Download] File not found at:', originalPath);
-        return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
-      }
-      finalBytes = fs.readFileSync(originalPath);
+      finalBytes = await readPdfBytes(originalPath);
     }
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -309,15 +306,7 @@ router.get('/:id/public-download', async (req, res) => {
       finalBytes = compiledBytes;
     } else {
       let originalPath = document.versions[0]?.path || document.originalPath;
-      // Resolve relative paths
-      if (!path.isAbsolute(originalPath)) {
-        originalPath = path.join(__dirname, '../', originalPath);
-      }
-      if (!fs.existsSync(originalPath)) {
-        console.error('[Public Download] File not found at:', originalPath);
-        return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
-      }
-      finalBytes = fs.readFileSync(originalPath);
+      finalBytes = await readPdfBytes(originalPath);
     }
 
     res.setHeader('Content-Type', 'application/pdf');

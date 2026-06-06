@@ -43,7 +43,13 @@ import {
   getLoginOtpTemplate
 } from '../utils/emailTemplates.js';
 
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filenameService = fileURLToPath(import.meta.url);
+const __dirnameService = path.dirname(__filenameService);
+
+dotenv.config({ path: path.join(__dirnameService, '..', '.env') });
 
 /**
  * Unified Resend dispatch helper with database logging, plain-text fallback, and tracking

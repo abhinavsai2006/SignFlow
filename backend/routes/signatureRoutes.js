@@ -18,6 +18,8 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
 import crypto from 'crypto';
 import { generateFinalizedPdf } from '../services/pdfService.js';
+import { readPdfBytes } from '../utils/fileLoader.js';
+import { uploadToR2 } from '../services/r2Service.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -730,7 +732,6 @@ router.post('/finalize', protect, async (req, res) => {
     const timestamp = Date.now();
     const relativeFilename = `finalized-${timestamp}-${document.filename}`;
     const finalizedPath = path.join(uploadsDir, relativeFilename);
-    const relativePath = `uploads/${relativeFilename}`;
     
     try {
       fs.writeFileSync(finalizedPath, finalBytes);
@@ -742,8 +743,11 @@ router.post('/finalize', protect, async (req, res) => {
       });
     }
 
-    // Update main model database keys - store RELATIVE path for HTTP serving
-    document.originalPath = relativePath;
+    // Upload to Cloudflare R2 if credentials are set, otherwise defaults to local path fallback
+    const targetPath = await uploadToR2(finalizedPath, relativeFilename, 'application/pdf');
+
+    // Update main model database keys
+    document.originalPath = targetPath;
     document.status = 'Signed';
     document.sha256Checksum = sha256Checksum;
     
@@ -827,16 +831,7 @@ router.post('/verify/:documentId', async (req, res) => {
 
     // Resolve file path - handle both absolute and relative paths
     let filePath = document.originalPath;
-    if (!path.isAbsolute(filePath)) {
-      filePath = path.join(__dirname, '../', filePath);
-    }
-
-    if (!fs.existsSync(filePath)) {
-      console.error('[Verify] File not found at:', filePath, '(original:', document.originalPath, ')');
-      return res.status(404).json({ valid: false, message: 'Finalized file not found on disk.' });
-    }
-
-    const fileBytes = fs.readFileSync(filePath);
+    const fileBytes = await readPdfBytes(filePath);
     const computedHash = crypto.createHash('sha256').update(fileBytes).digest('hex');
     const valid = computedHash === document.sha256Checksum;
 

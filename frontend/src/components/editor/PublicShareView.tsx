@@ -609,29 +609,32 @@ export default function PublicShareView() {
       }
 
       return (
-        <div className="flex flex-col items-center justify-between w-full h-full p-1.5 text-center overflow-hidden">
-          {/* Content display */}
-          <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
+        <div className="flex flex-row w-full h-full border-[1.5px] border-emerald-500 bg-emerald-50/30 rounded overflow-hidden">
+          {/* Left Column: Signature Value */}
+          <div className="flex-1 flex items-center justify-center min-w-0 p-1 bg-white/50">
             {f.value.startsWith('data:image') ? (
               <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
             ) : (
-              <span className={`text-body-sm-bold truncate font-bold text-slate-800 ${
+              <span className={`truncate font-bold text-slate-800 ${
                 f.type === 'Signature' || f.type === 'Initials'
-                  ? (f.value.includes(':') ? `font-${f.value.split(':')[0]} italic text-[15px]` : 'font-cursive italic text-[15px]')
-                  : 'font-sans'
+                  ? (f.value.includes(':') ? `font-${f.value.split(':')[0]} italic text-[18px]` : 'font-cursive italic text-[18px]')
+                  : 'font-sans text-[14px]'
               }`}>
                 {f.value.includes(':') ? f.value.split(':')[1] : f.value}
               </span>
             )}
           </div>
           
-          {/* Audit trail details */}
-          <div className="w-full border-t border-slate-100 mt-1 pt-1 flex flex-col items-center leading-none">
-            <span className="text-[9px] font-bold text-slate-800 truncate max-w-full mb-0.5">{cleanSignerName}</span>
-            <span className="text-[8px] text-emerald-600 font-bold flex items-center gap-0.5 mb-0.5">
-              ✓ Digitally Signed
-            </span>
-            <span className="text-[7px] text-slate-400 font-mono">{formatSignatureDate(f.updatedAt)}</span>
+          {/* Right Column: Audit Trail Details */}
+          <div className="w-[100px] sm:w-[120px] flex-shrink-0 bg-emerald-50 border-l border-emerald-200 flex flex-col justify-center px-1.5 py-1 text-left leading-tight">
+            <div className="flex items-center gap-1 mb-0.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <span className="text-[7px] uppercase font-bold tracking-wider text-emerald-700">Verified</span>
+            </div>
+            <span className="text-[9px] font-bold text-slate-800 truncate w-full">{cleanSignerName}</span>
+            <span className="text-[7px] text-slate-500 font-mono mt-0.5 truncate w-full">{formatSignatureDate(f.updatedAt)}</span>
           </div>
         </div>
       );

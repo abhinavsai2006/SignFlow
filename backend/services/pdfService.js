@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import SignatureField from '../models/SignatureField.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readPdfBytes } from '../utils/fileLoader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -322,21 +323,10 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
 export const generateFinalizedPdf = async (document, fields) => {
   // Resolve the original file path - handle both absolute and relative paths
   let originalPath = document.versions[0]?.path || document.originalPath;
-  
-  // If path is relative (starts with 'uploads/'), make it absolute
-  if (!path.isAbsolute(originalPath)) {
-    originalPath = path.join(__dirname, '../', originalPath);
-  }
-
   console.log('[PDF Service] Attempting to load PDF from:', originalPath);
-  console.log('[PDF Service] File exists:', fs.existsSync(originalPath));
-
-  if (!fs.existsSync(originalPath)) {
-    throw new Error(`Original PDF file not found at: ${originalPath} (resolved from: ${document.versions[0]?.path || document.originalPath})`);
-  }
 
   try {
-    const pdfBytes = fs.readFileSync(originalPath);
+    const pdfBytes = await readPdfBytes(originalPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
 
     // 1. Draw signature blocks on appropriate pages

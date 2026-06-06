@@ -326,7 +326,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="lp-root">
+    <div className="lp-root w-full overflow-hidden">
       {/* ─── NAVIGATION ─── */}
       <nav className={`lp-nav ${scrolled ? 'lp-nav-scrolled' : ''}`}>
         <div className="lp-nav-inner">

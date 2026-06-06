@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../../utils/api';
 import UploadDropzone from '../upload/UploadDropzone';
 import MetaCard from '../ui/MetaCard';
@@ -29,6 +30,11 @@ interface Document {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, activeWorkspace } = useOutletContext<{ user: any; activeWorkspace: any }>();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
 
   // Ref for scrolling to upload section
   const uploadSectionRef = useRef<HTMLDivElement | null>(null);
@@ -180,7 +186,12 @@ export default function Dashboard() {
 
   if (!isLoading && totalDocs === 0) {
     return (
-      <div className="space-y-xxl">
+      <motion.div 
+        className="space-y-xxl"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
         {/* Hero Section */}
         <div
           className="relative overflow-hidden rounded-xxxl border border-hairline-soft"
@@ -272,12 +283,17 @@ export default function Dashboard() {
             </MetaCard>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-xxl">
+    <motion.div 
+      className="space-y-xxl"
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+    >
 
       {/* ─── Section 1: Hero Welcome ─── */}
       <div
@@ -753,6 +769,6 @@ export default function Dashboard() {
         )}
       </MetaCard>
 
-    </div>
+    </motion.div>
   );
 }

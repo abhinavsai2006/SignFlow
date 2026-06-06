@@ -238,12 +238,16 @@ router.post('/verify-login-otp', async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
+    console.log("VERIFY OTP INPUT:", { email, otp });
     if (!user) {
+      console.log("VERIFY OTP FAILED: User not found for email:", email);
       return res.status(401).json({ message: 'Invalid verification code' });
     }
+    console.log("USER DB OTP:", { email: user.email, dbOtp: user.loginOtp, dbOtpExpire: user.loginOtpExpire });
 
     // Check OTP and expiry
-    if (!user.loginOtp || user.loginOtp !== otp) {
+    if (!user.loginOtp || user.loginOtp.toString() !== otp.toString()) {
+      console.log("VERIFY OTP FAILED: OTP mismatch. Expected:", user.loginOtp, "Got:", otp);
       return res.status(401).json({ message: 'Invalid verification code' });
     }
     if (user.loginOtpExpire && new Date(user.loginOtpExpire) < new Date()) {
@@ -397,8 +401,9 @@ router.post('/verify-email', protect, async (req, res) => {
   try {
     const { code } = req.body;
     const user = await User.findById(req.user._id);
+    console.log("VERIFY EMAIL INPUT:", { code, dbCode: user ? user.verificationCode : 'None' });
 
-    if (user.verificationCode === code) {
+    if (user && user.verificationCode && user.verificationCode.toString() === code.toString()) {
       user.isVerified = true;
       user.verificationCode = undefined;
       await user.save();
@@ -481,34 +486,92 @@ router.get('/me', protect, async (req, res) => {
 });
 
 // @route   GET /api/auth/google
-// @desc    Simulate Google OAuth redirect
+// @desc    Initiate Google OAuth 2.0 Flow
 router.get('/google', (req, res) => {
-  res.redirect(`${BACKEND_URL}/api/auth/oauth-callback?provider=google`);
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    console.warn('[OAuth] GOOGLE_CLIENT_ID not configured. Redirecting to demo OAuth mode.');
+    // Graceful fallback to simulated code callback if credentials are not configured in dev env
+    return res.redirect(`${BACKEND_URL}/api/auth/google/callback?code=mock_dev_google_oauth_code`);
+  }
+
+  const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
+  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('profile email')}&prompt=select_account`;
+  
+  res.redirect(oauthUrl);
 });
 
-// @route   GET /api/auth/oauth-callback
-// @desc    Simulated OAuth Callback
-router.get('/oauth-callback', async (req, res) => {
+// @route   GET /api/auth/google/callback
+// @desc    Google OAuth Authorization Code Exchange Callback
+router.get('/google/callback', async (req, res) => {
   try {
-    const { provider } = req.query;
-    if (provider !== 'google') {
-      return res.status(400).json({ message: 'Only Google OAuth provider is supported' });
-    }
-    const email = `oauth_google_user@example.com`;
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({
-        name: 'OAuth Google User',
-        email,
-        password: crypto.randomBytes(16).toString('hex'),
-        isVerified: true
-      });
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent('Google authentication cancelled.')}`);
     }
 
+    let email = '';
+    let name = '';
+
+    // Handle real Google token exchange
+    if (code !== 'mock_dev_google_oauth_code' && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+      const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
+      
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      if (!tokenResponse.ok) {
+        throw new Error(tokenData.error_description || 'Failed to exchange Google OAuth code.');
+      }
+
+      // Fetch user profile info
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      const userInfo = await userInfoResponse.json();
+      
+      email = userInfo.email;
+      name = userInfo.name;
+    } else {
+      // Graceful fallback for test runners / local mock callbacks
+      email = `google_oauth_user_${Math.floor(Math.random() * 10000)}@example.com`;
+      name = 'Google Dev User';
+      console.log('[OAuth] Dev Mode: Bypassed real exchange; generated mock user:', email);
+    }
+
+    if (!email) {
+      throw new Error('Google did not return email profile data.');
+    }
+
+    // Find or create the user in MongoDB
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      user = await User.create({
+        name: name || 'Google Signer',
+        email: email.toLowerCase(),
+        password: crypto.randomBytes(24).toString('hex'), // Secure random password
+        isVerified: true
+      });
+      // Send welcome email upon OAuth signup
+      sendWelcomeEmail(user.email, user.name).catch(() => {});
+    }
+
+    // Generate platform authentication tokens
     const accessToken = generateAccessToken(user._id);
     const refreshToken = await generateRefreshToken(user._id);
     setCookieToken(res, refreshToken);
 
+    // Redirect user to the dashboard with access credentials
     res.redirect(`${FRONTEND_URL}/login?token=${accessToken}&user=${encodeURIComponent(JSON.stringify({
       _id: user._id,
       name: user.name,
@@ -516,6 +579,7 @@ router.get('/oauth-callback', async (req, res) => {
       isVerified: user.isVerified
     }))}`);
   } catch (err) {
+    console.error('[OAuth Callback Error]:', err.message);
     res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
   }
 });
