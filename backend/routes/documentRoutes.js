@@ -308,8 +308,13 @@ router.get('/:id/public-download', async (req, res) => {
       const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
       finalBytes = compiledBytes;
     } else {
-      const originalPath = document.versions[0]?.path || document.originalPath;
+      let originalPath = document.versions[0]?.path || document.originalPath;
+      // Resolve relative paths
+      if (!path.isAbsolute(originalPath)) {
+        originalPath = path.join(__dirname, '../', originalPath);
+      }
       if (!fs.existsSync(originalPath)) {
+        console.error('[Public Download] File not found at:', originalPath);
         return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
       }
       finalBytes = fs.readFileSync(originalPath);
