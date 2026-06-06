@@ -113,8 +113,9 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from uploads directory (supports custom persistent volume path)
+const uploadsPath = process.env.PERSISTENT_VOLUME_PATH || path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, authRoutes);
