@@ -236,7 +236,7 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
 
   // Verification status pills (Green Ribbon)
   certPage.drawRectangle({ x: 40, y: cH - 216, width: cW - 80, height: 26, color: rgb(0.93, 0.98, 0.95), borderColor: rgb(0.07, 0.64, 0.38), borderWidth: 1 });
-  certPage.drawText('✓ Verified  |  ✓ Tamper Protected  |  ✓ Legally Binding  |  ✓ Audit Trail Complete', { x: 50, y: cH - 207, size: 9, font: certFont, color: rgb(0.07, 0.5, 0.3) });
+  certPage.drawText('[VERIFIED]  |  [TAMPER PROTECTED]  |  [LEGALLY BINDING]  |  [AUDIT TRAIL COMPLETE]', { x: 50, y: cH - 207, size: 9, font: certFont, color: rgb(0.07, 0.5, 0.3) });
 
   let boxY = cH - 350;
   for (const field of fields) {

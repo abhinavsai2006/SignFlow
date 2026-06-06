@@ -22,6 +22,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1); // Trust Railway reverse proxy for rate-limiting IP detection
+
 // Railway injects PORT automatically — must not hardcode 5000 in production
 const PORT = process.env.PORT || 8080;
 

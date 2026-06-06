@@ -39,7 +39,8 @@ import {
   getSecurityAlertTemplate,
   getSuspiciousLoginTemplate,
   getMfaEnabledTemplate,
-  getMfaDisabledTemplate
+  getMfaDisabledTemplate,
+  getLoginOtpTemplate
 } from '../utils/emailTemplates.js';
 
 dotenv.config();
@@ -175,6 +176,10 @@ export const sendLoginAlertEmail = async (email, name, location, time) => {
 
 export const sendNewDeviceLoginEmail = async (email, name, device, location, time) => {
   return sendResendEmail(email, 'New Device Login', getNewDeviceLoginTemplate(name, device, location, time), 'new-device-login');
+};
+
+export const sendLoginOtpEmail = async (email, name, otp) => {
+  return sendResendEmail(email, 'Your SignFlow AI Login Verification Code', getLoginOtpTemplate(name, otp), 'login-otp');
 };
 
 // ============================================================================

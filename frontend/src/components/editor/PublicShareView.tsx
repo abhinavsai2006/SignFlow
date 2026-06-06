@@ -152,12 +152,15 @@ export default function PublicShareView() {
     try {
       const page = await pdfDoc.getPage(pageNum);
       const viewport = page.getViewport({ scale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      const dpr = window.devicePixelRatio || 1;
+      
+      canvas.width = viewport.width * dpr;
+      canvas.height = viewport.height * dpr;
       canvas.style.width = `${viewport.width}px`;
       canvas.style.height = `${viewport.height}px`;
 
       context.clearRect(0, 0, canvas.width, canvas.height);
+      context.scale(dpr, dpr);
 
       const renderTask = page.render({ canvasContext: context, viewport } as any);
       renderTaskRefs.current[pageNum] = renderTask;
@@ -721,7 +724,7 @@ export default function PublicShareView() {
         </aside>
 
         {/* PDF Viewer */}
-        <main ref={viewerContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
+        <main ref={viewerContainerRef} className="flex-1 overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
             <div
               key={pageNum}

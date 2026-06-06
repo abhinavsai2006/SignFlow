@@ -371,6 +371,14 @@ export const getVerificationSuccessTemplate = (name) => {
   });
 };
 
+export const getLoginOtpTemplate = (name, otp) => {
+  return generateEmailTemplate({
+    title: 'One-Time Verification Code',
+    message: `Hello ${name},<br><br>Here is your one-time verification code (OTP) to complete your login. This code is valid for 10 minutes:<br><br><span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #076424;">${otp}</span>`,
+    badgeText: 'SECURITY VERIFICATION'
+  });
+};
+
 export const getPasswordResetTemplate = (name, url) => {
   return generateEmailTemplate({
     title: 'Reset Your Password',

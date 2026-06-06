@@ -37,8 +37,20 @@ async function runAudit() {
       body: JSON.stringify({ email, password: 'Password123!' })
     });
     const loginData = await loginRes.json();
-    if (!loginData.accessToken) throw new Error('Login failed: No token received');
-    token = loginData.accessToken;
+    if (!loginData.requiresOtp) {
+      throw new Error('Login failed: Expected OTP requirement response');
+    }
+    
+    // Verify OTP to get token
+    console.log('[~] Step 2b: Verifying login OTP...');
+    const verifyRes = await fetch(`${API_BASE}/auth/verify-login-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp: loginData.loginOtp })
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.accessToken) throw new Error('OTP Verification failed: No token received');
+    token = verifyData.accessToken;
 
     // 3. Document Flow Verification
     console.log('[~] Step 3: Verifying Document endpoints are secured...');

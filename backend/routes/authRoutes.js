@@ -14,7 +14,8 @@ import {
   sendNewDeviceLoginEmail,
   sendSuspiciousLoginEmail,
   sendMfaEnabledEmail,
-  sendMfaDisabledEmail
+  sendMfaDisabledEmail,
+  sendLoginOtpEmail
 } from '../middleware/emailService.js';
 import useragent from 'useragent';
 
@@ -122,7 +123,7 @@ router.post('/register', async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user & get token (with IP/device change detection)
+// @desc    Authenticate user & initiate OTP flow (with IP/device change detection)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -133,42 +134,22 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (user && (await user.comparePassword(password))) {
-      const accessToken = generateAccessToken(user._id);
-      const refreshToken = await generateRefreshToken(user._id);
-      setCookieToken(res, refreshToken);
+      // Generate OTP
+      const loginOtp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+      const loginOtpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // ── Security: IP & Device Change Detection ─────────────────────────────
-      const currentIP = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
-      const uaString = req.headers['user-agent'] || '';
-      const agent = useragent.parse(uaString);
-      const currentDevice = `${agent.family} on ${agent.os.family}`;
-      const loginTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-
-      const ipChanged = user.lastLoginIP && user.lastLoginIP !== currentIP;
-      const deviceChanged = user.lastLoginDevice && user.lastLoginDevice !== currentDevice;
-
-      if (ipChanged || deviceChanged) {
-        // Send the most relevant alert
-        if (deviceChanged) {
-          sendNewDeviceLoginEmail(user.email, user.name, currentDevice, currentIP, loginTime)
-            .catch(err => console.error('[Auth] New device email failed:', err.message));
-        } else {
-          sendLoginAlertEmail(user.email, user.name, currentIP, loginTime)
-            .catch(err => console.error('[Auth] Login alert email failed:', err.message));
-        }
-      }
-
-      // Update stored login tracking fields
-      user.lastLoginIP = currentIP;
-      user.lastLoginDevice = currentDevice;
+      user.loginOtp = loginOtp;
+      user.loginOtpExpire = loginOtpExpire;
       await user.save();
 
+      // Send Login OTP Email via Resend
+      sendLoginOtpEmail(user.email, user.name, loginOtp)
+        .catch(err => console.error('[Auth] Login OTP email failed:', err.message));
+
       res.json({
-        _id: user._id,
-        name: user.name,
+        requiresOtp: true,
         email: user.email,
-        accessToken,
-        isVerified: user.isVerified,
+        loginOtp // Returned for simulated UI auto-filling/testing
       });
     } else {
       // Failed login — could indicate brute force / suspicious activity
@@ -268,6 +249,31 @@ router.post('/verify-login-otp', async (req, res) => {
     // Clear OTP fields
     user.loginOtp = undefined;
     user.loginOtpExpire = undefined;
+
+    // ── Security: IP & Device Change Detection ─────────────────────────────
+    const currentIP = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+    const uaString = req.headers['user-agent'] || '';
+    const agent = useragent.parse(uaString);
+    const currentDevice = `${agent.family} on ${agent.os.family}`;
+    const loginTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    const ipChanged = user.lastLoginIP && user.lastLoginIP !== currentIP;
+    const deviceChanged = user.lastLoginDevice && user.lastLoginDevice !== currentDevice;
+
+    if (ipChanged || deviceChanged) {
+      // Send the most relevant alert
+      if (deviceChanged) {
+        sendNewDeviceLoginEmail(user.email, user.name, currentDevice, currentIP, loginTime)
+          .catch(err => console.error('[Auth] New device email failed:', err.message));
+      } else {
+        sendLoginAlertEmail(user.email, user.name, currentIP, loginTime)
+          .catch(err => console.error('[Auth] Login alert email failed:', err.message));
+      }
+    }
+
+    // Update stored login tracking fields
+    user.lastLoginIP = currentIP;
+    user.lastLoginDevice = currentDevice;
     await user.save();
 
     const accessToken = generateAccessToken(user._id);
@@ -348,6 +354,36 @@ router.post('/logout-all', protect, async (req, res) => {
     res.json({ message: 'Logged out from all devices successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Logout all failed', error: error.message });
+  }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Change logged-in user password
+router.post('/change-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ message: 'Incorrect current password' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    // Notify user that their password was changed
+    sendPasswordChangedEmail(user.email, user.name)
+      .catch(err => console.error('[Auth] Password changed email failed:', err.message));
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to change password', error: error.message });
   }
 });
 
@@ -446,22 +482,19 @@ router.get('/google', (req, res) => {
   res.redirect(`${BACKEND_URL}/api/auth/oauth-callback?provider=google`);
 });
 
-// @route   GET /api/auth/github
-// @desc    Simulate GitHub OAuth redirect
-router.get('/github', (req, res) => {
-  res.redirect(`${BACKEND_URL}/api/auth/oauth-callback?provider=github`);
-});
-
 // @route   GET /api/auth/oauth-callback
 // @desc    Simulated OAuth Callback
 router.get('/oauth-callback', async (req, res) => {
   try {
     const { provider } = req.query;
-    const email = `oauth_${provider}_user@example.com`;
+    if (provider !== 'google') {
+      return res.status(400).json({ message: 'Only Google OAuth provider is supported' });
+    }
+    const email = `oauth_google_user@example.com`;
     let user = await User.findOne({ email });
     if (!user) {
       user = await User.create({
-        name: `OAuth ${provider === 'google' ? 'Google' : 'GitHub'} User`,
+        name: 'OAuth Google User',
         email,
         password: crypto.randomBytes(16).toString('hex'),
         isVerified: true

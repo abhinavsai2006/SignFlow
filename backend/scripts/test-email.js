@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import * as emailService from '../middleware/emailService.js';
@@ -11,6 +12,14 @@ async function runTests() {
   console.log('--- SIGNFLOW AI EMAIL TESTING ---');
   if (!process.env.RESEND_API_KEY) {
     console.error('ERROR: RESEND_API_KEY is not configured in .env');
+    process.exit(1);
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('[+] Connected to MongoDB Atlas');
+  } catch (err) {
+    console.error('[-] MongoDB connection failed:', err.message);
     process.exit(1);
   }
 
@@ -64,6 +73,9 @@ async function runTests() {
   console.log(`\n--- SUMMARY ---`);
   console.log(`Passed: ${successCount}`);
   console.log(`Failed: ${failureCount}`);
+  
+  await mongoose.disconnect();
+  console.log('[+] Disconnected from database.');
   
   if (failureCount > 0) process.exit(1);
 }
