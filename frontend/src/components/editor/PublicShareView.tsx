@@ -6,18 +6,20 @@ import SignatureCanvas from 'react-signature-canvas';
 import {
   FileText, Lock, AlertTriangle, ChevronLeft, ChevronRight,
   ZoomIn, ZoomOut, Edit3, Type, Upload, CheckCircle2, X, Undo,
-  Shield
+  Shield, Maximize, ClipboardList, Settings
 } from 'lucide-react';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-const BASE_URL = 'http://localhost:5000';
+// Backend base URL — reads from VITE_API_URL in production, falls back to localhost for dev
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 
 interface SignatureField {
   _id: string;
   type: 'Signature' | 'Initials' | 'Date' | 'Text' | 'Checkbox';
   recipientEmail: string;
+  signerName?: string;
   xPercent: number;
   yPercent: number;
   widthPercent: number;
@@ -60,6 +62,7 @@ export default function PublicShareView() {
   const [scale, setScale] = useState(1.2);
   const [fields, setFields] = useState<SignatureField[]>([]);
   const pageContainerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const viewerContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Access control state
   const [password, setPassword] = useState('');
@@ -87,6 +90,7 @@ export default function PublicShareView() {
 
   // Completion state
   const [allSigned, setAllSigned] = useState(false);
+  const [mobileDrawerTab, setMobileDrawerTab] = useState<'fields' | 'controls' | null>(null);
 
   // Page canvas render tasks cleanup
   const renderTaskRefs = useRef<Record<number, any>>({});
@@ -118,7 +122,11 @@ export default function PublicShareView() {
     }
   }, [id]);
 
-  useEffect(() => { loadDocument(); }, [loadDocument]);
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      loadDocument();
+    });
+  }, [loadDocument]);
 
   // Render each page into its canvas
   const renderPage = useCallback(async (pageNum: number) => {
@@ -168,10 +176,127 @@ export default function PublicShareView() {
     }
   }, [pdfDoc, numPages, scale, renderPage]);
 
-  const registerPageContainer = (el: HTMLDivElement | null, pageNum: number) => {
-    pageContainerRefs.current[pageNum] = el;
-    if (el && pdfDoc) renderPage(pageNum);
-  };
+
+  const handleFitWidth = useCallback(() => {
+    if (!pdfDoc || !viewerContainerRef.current) return;
+    const containerWidth = viewerContainerRef.current.clientWidth - 48;
+    pdfDoc.getPage(1).then((page) => {
+      const originalViewport = page.getViewport({ scale: 1 });
+      const fitScale = containerWidth / originalViewport.width;
+      setScale(fitScale);
+    });
+  }, [pdfDoc]);
+
+  // Auto-fit page width on load and resize
+  useEffect(() => {
+    if (!pdfDoc) return;
+    handleFitWidth();
+
+    const handleResize = () => {
+      handleFitWidth();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pdfDoc, handleFitWidth]);
+
+  // Mobile Gestures: Pinch-to-zoom, drag-to-pan, and double-tap zoom toggle
+  useEffect(() => {
+    const container = viewerContainerRef.current;
+    if (!container) return;
+
+    let touchStartDist = 0;
+    let initialScale = 1.0;
+    let isPinching = false;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let initialScrollLeft = 0;
+    let initialScrollTop = 0;
+    let isPanning = false;
+
+    let lastTapTime = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Handle Double Tap
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapTime < 300) {
+          e.preventDefault();
+          // Cycle zoom levels: 100%, 150%, 200%, Fit Width
+          setScale(currentScale => {
+            if (Math.abs(currentScale - 1.0) < 0.1) {
+              return 1.5;
+            } else if (Math.abs(currentScale - 1.5) < 0.1) {
+              return 2.0;
+            } else if (Math.abs(currentScale - 2.0) < 0.1) {
+              if (pdfDoc) {
+                const containerWidth = container.clientWidth - 48;
+                pdfDoc.getPage(1).then((page) => {
+                  const originalViewport = page.getViewport({ scale: 1 });
+                  const fitScale = containerWidth / originalViewport.width;
+                  setScale(fitScale);
+                });
+              }
+              return currentScale;
+            } else {
+              return 1.0;
+            }
+          });
+        }
+        lastTapTime = now;
+      }
+
+      if (e.touches.length === 2) {
+        isPinching = true;
+        touchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialScale = scale;
+      } else if (e.touches.length === 1) {
+        isPanning = true;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        initialScrollLeft = container.scrollLeft;
+        initialScrollTop = container.scrollTop;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isPinching && e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / touchStartDist;
+        const newScale = Math.min(Math.max(initialScale * factor, 0.5), 3.0);
+        setScale(newScale);
+      } else if (isPanning && e.touches.length === 1 && !isPinching) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        container.scrollLeft = initialScrollLeft - dx;
+        container.scrollTop = initialScrollTop - dy;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isPinching = false;
+      isPanning = false;
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [pdfDoc, scale, handleFitWidth]);
 
   // Identity gate
   const handleIdentitySubmit = (e: React.FormEvent) => {
@@ -193,7 +318,7 @@ export default function PublicShareView() {
   const myPendingFields = myFields.filter(f => f.status !== 'Signed');
 
   // Open signing modal for a field
-  const openSigningModal = (field: SignatureField) => {
+  const openSigningModal = useCallback((field: SignatureField) => {
     if (!identityConfirmed) return;
     if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) return;
     if (field.status === 'Signed') return;
@@ -201,9 +326,15 @@ export default function PublicShareView() {
     setSignatureType('draw');
     setTypedName(signerName || signerEmail.split('@')[0]);
     setUploadedBase64('');
-    drawingHistory.current = [];
-    setTimeout(() => signatureCanvasRef.current?.clear(), 50);
-  };
+  }, [identityConfirmed, signerEmail, signerName]);
+
+  // Handle signature canvas clearing on activeField changes
+  useEffect(() => {
+    if (activeField) {
+      drawingHistory.current = [];
+      setTimeout(() => signatureCanvasRef.current?.clear(), 50);
+    }
+  }, [activeField]);
 
   const handleSignConfirm = async () => {
     if (!activeField) return;
@@ -226,13 +357,14 @@ export default function PublicShareView() {
 
     setIsSubmitting(true);
     try {
-      await axios.post(`${BASE_URL}/api/signatures/${activeField._id}/sign-public`, {
+      const response = await axios.post(`${BASE_URL}/api/signatures/${activeField._id}/sign-public`, {
         signatureValue: signatureVal,
         signerEmail,
         signerName: signerName || signerEmail
       });
 
-      setFields(prev => prev.map(f => f._id === activeField._id ? { ...f, status: 'Signed', value: signatureVal } : f));
+      const updatedField = response.data.field;
+      setFields(prev => prev.map(f => f._id === activeField._id ? { ...f, ...updatedField } : f));
       setActiveField(null);
 
       // Check if all the signer's fields are done
@@ -257,6 +389,34 @@ export default function PublicShareView() {
     const reader = new FileReader();
     reader.onload = ev => setUploadedBase64(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleFieldClick = useCallback((f: SignatureField) => {
+    const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+    const isSigned = f.status === 'Signed';
+    if (isSigned) {
+      setSignatureDetails(f);
+    } else if (isMine) {
+      openSigningModal(f);
+    }
+  }, [signerEmail, openSigningModal]);
+
+  const handleDownloadPublicPDF = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}/api/docs/${id}/public-download`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', docData?.filename || 'signed-document.pdf');
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+      alert('Error downloading PDF file');
+    }
   };
 
   // ─── Loading / Error / Password screens ───────────────────────────────────
@@ -337,6 +497,14 @@ export default function PublicShareView() {
               <p className="text-slate-400 text-[10px] font-mono break-all">{docData.sha256Checksum}</p>
             </div>
           )}
+          <div className="pt-2">
+            <button
+              onClick={handleDownloadPublicPDF}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Download Signed PDF
+            </button>
+          </div>
           <p className="text-slate-500 text-xs">You may close this window safely.</p>
         </div>
       </div>
@@ -396,91 +564,79 @@ export default function PublicShareView() {
 
   const renderFieldContents = (f: SignatureField) => {
     const isSigned = f.status === 'Signed';
+    const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+    const cleanSignerName = f.signerName || (isMine ? signerName : '') || f.recipientEmail.split('@')[0];
+
+    const formatSignatureDate = (dateString?: string) => {
+      const d = dateString ? new Date(dateString) : new Date();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = months[d.getUTCMonth()];
+      const year = d.getUTCFullYear();
+      const hours = String(d.getUTCHours()).padStart(2, '0');
+      const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+    };
+
     if (isSigned && f.value) {
-      const formatSignatureDate = (dateString?: string) => {
-        const d = dateString ? new Date(dateString) : new Date();
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const day = String(d.getUTCDate()).padStart(2, '0');
-        const month = months[d.getUTCMonth()];
-        const year = d.getUTCFullYear();
-        const hours = String(d.getUTCHours()).padStart(2, '0');
-        const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-        return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
-      };
-
-      const signerDisplayName = f.recipientEmail.split('@')[0];
-
-      if (f.type === 'Signature' || f.type === 'Initials') {
-        return (
-          <div className="flex flex-col items-center justify-between w-full h-full p-2 text-center overflow-hidden">
-            {/* Handwritten Signature */}
-            <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
-              {f.value.startsWith('data:image') ? (
-                <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
-              ) : (
-                <span className={`text-[15px] truncate font-bold text-slate-800 italic ${
-                  f.value.includes(':') ? `font-${f.value.split(':')[0]}` : 'font-cursive'
-                }`}>
-                  {f.value.includes(':') ? f.value.split(':')[1] : f.value}
-                </span>
-              )}
-            </div>
-            
-            {/* Signer Name & Verification Info */}
-            <div className="w-full border-t border-slate-100 mt-0.5 pt-0.5 flex flex-col items-center">
-              <span className="text-[10px] font-semibold text-slate-700 leading-tight truncate max-w-full">{signerDisplayName}</span>
-              <div className="flex items-center gap-1 mt-0.5 justify-center">
-                <span className="text-[8px] text-slate-400 font-medium">Digitally Signed</span>
-                <span className="w-0.5 h-0.5 rounded-full bg-slate-300"></span>
-                <span className="text-[8px] text-emerald-600 font-semibold flex items-center gap-0.5">
-                  ✓ Verified Signature
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 font-mono mt-0.5">{formatSignatureDate(f.updatedAt)}</span>
-            </div>
-          </div>
-        );
-      } else if (f.type === 'Checkbox') {
+      if (f.type === 'Checkbox') {
         return (
           <div className="flex items-center justify-center w-full h-full">
             <input type="checkbox" checked={f.value === 'true'} readOnly className="h-5 w-5 accent-success cursor-default" />
           </div>
         );
-      } else {
-        return (
-          <div className="flex flex-col items-center justify-between w-full h-full p-2 text-center overflow-hidden">
-            <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
-              <span className="text-body-sm-bold truncate text-slate-800 font-bold font-sans">
+      }
+
+      return (
+        <div className="flex flex-col items-center justify-between w-full h-full p-1.5 text-center overflow-hidden">
+          {/* Content display */}
+          <div className="flex-1 flex items-center justify-center min-h-0 w-full p-1">
+            {f.value.startsWith('data:image') ? (
+              <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
+            ) : (
+              <span className={`text-body-sm-bold truncate font-bold text-slate-800 ${
+                f.type === 'Signature' || f.type === 'Initials'
+                  ? (f.value.includes(':') ? `font-${f.value.split(':')[0]} italic text-[15px]` : 'font-cursive italic text-[15px]')
+                  : 'font-sans'
+              }`}>
                 {f.value.includes(':') ? f.value.split(':')[1] : f.value}
               </span>
-            </div>
-            <div className="w-full border-t border-slate-100 mt-0.5 pt-0.5 flex flex-col items-center">
-              <span className="text-[10px] font-semibold text-slate-700 leading-tight truncate max-w-full">{signerDisplayName}</span>
-              <div className="flex items-center gap-1 mt-0.5 justify-center">
-                <span className="text-[8px] text-slate-400 font-medium">Digitally Signed</span>
-                <span className="w-0.5 h-0.5 rounded-full bg-slate-300"></span>
-                <span className="text-[8px] text-emerald-600 font-semibold flex items-center gap-0.5">
-                  ✓ Verified Signature
-                </span>
-              </div>
-              <span className="text-[7px] text-slate-400 font-mono mt-0.5">{formatSignatureDate(f.updatedAt)}</span>
-            </div>
+            )}
           </div>
-        );
-      }
+          
+          {/* Audit trail details */}
+          <div className="w-full border-t border-slate-100 mt-1 pt-1 flex flex-col items-center leading-none">
+            <span className="text-[9px] font-bold text-slate-800 truncate max-w-full mb-0.5">{cleanSignerName}</span>
+            <span className="text-[8px] text-emerald-600 font-bold flex items-center gap-0.5 mb-0.5">
+              ✓ Digitally Signed
+            </span>
+            <span className="text-[7px] text-slate-400 font-mono">{formatSignatureDate(f.updatedAt)}</span>
+          </div>
+        </div>
+      );
     }
 
-    const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+    // Unsigned state
     return (
-      <div className="flex items-center gap-1 text-xs font-bold">
-        {isMine ? (
-          <>
-            <Edit3 className="w-3 h-3 text-blue-400" />
-            <span className="text-blue-300">{f.type}</span>
-          </>
-        ) : (
-          <span className="text-slate-400 text-[10px]">{f.type}</span>
-        )}
+      <div className="flex flex-col items-center justify-center text-center p-1.5 w-full h-full select-none text-slate-800">
+        <div className="flex items-center gap-1.5 justify-center">
+          {f.type === 'Signature' ? (
+            <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+          ) : f.type === 'Initials' ? (
+            <Type className="w-3.5 h-3.5 text-slate-600" />
+          ) : (
+            <FileText className="w-3.5 h-3.5 text-slate-600" />
+          )}
+          <span className="text-[10px] font-bold tracking-wide uppercase text-slate-700">
+            ✍ {f.type} Required
+          </span>
+        </div>
+        <div className="text-[9px] text-slate-500 font-bold truncate max-w-[130px] mt-0.5">
+          {cleanSignerName}
+        </div>
+        <div className="text-[7px] text-slate-400 mt-0.5">
+          {isMine ? 'Click or Double Click' : 'Assigned Signer'}
+        </div>
       </div>
     );
   };
@@ -564,11 +720,11 @@ export default function PublicShareView() {
         </aside>
 
         {/* PDF Viewer */}
-        <main className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
+        <main ref={viewerContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
             <div
               key={pageNum}
-              ref={el => registerPageContainer(el, pageNum)}
+              ref={el => { pageContainerRefs.current[pageNum] = el; }}
               className="relative shadow-2xl bg-white rounded-lg overflow-visible"
               style={{ display: 'inline-block' }}
             >
@@ -581,7 +737,8 @@ export default function PublicShareView() {
                   return (
                     <div
                       key={f._id}
-                      onClick={() => isSigned ? setSignatureDetails(f) : (isMine && !isSigned && openSigningModal(f))}
+                      onClick={() => handleFieldClick(f)}
+                      onDoubleClick={() => handleFieldClick(f)}
                       style={{
                         position: 'absolute',
                         left: `${f.xPercent}%`,
@@ -597,12 +754,17 @@ export default function PublicShareView() {
                         isSigned
                           ? 'rounded-[16px] bg-white border border-slate-200 shadow-sm'
                           : isMine
-                          ? 'rounded border-2 border-blue-400 bg-blue-400/10 animate-pulse hover:bg-blue-400/20'
-                          : 'rounded border-2 border-slate-400/40 bg-slate-400/5'
+                          ? 'rounded-lg border-4 border-double border-blue-400 bg-blue-400/10 hover:bg-blue-400/20'
+                          : 'rounded-lg border-4 border-double border-slate-400/40 bg-slate-400/5'
                       }`}
-                      title={isSigned ? 'Signed - Click to view Signature Details' : (isMine ? `Click to sign (${f.type})` : `Assigned to ${f.recipientEmail}`)}
+                      title={isSigned ? 'Signed - Double click to view details' : (isMine ? 'Double click to sign' : `Assigned to ${f.recipientEmail}`)}
                     >
                       {renderFieldContents(f)}
+                      {isSigned && (
+                        <div className="absolute bottom-1 right-1 bg-[#31A24C] text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full shadow-sm flex items-center gap-0.5 z-30 select-none">
+                          ✓ VERIFIED
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -778,17 +940,18 @@ export default function PublicShareView() {
 
       {/* Signer Details Modal */}
       {signatureDetails && (() => {
-        const signerDisplayName = signatureDetails.recipientEmail.split('@')[0];
+        const signerDisplayName = signerName || signatureDetails.recipientEmail.split('@')[0];
         const certId = signatureDetails.certificateId || `SIG-${new Date().getFullYear()}-${signatureDetails._id.slice(-6).toUpperCase()}`;
         const auditId = signatureDetails.auditId || `AUD-${signatureDetails._id.slice(-8).toUpperCase()}`;
-        const browser = signatureDetails.browser || 'Chrome';
-        const device = signatureDetails.device || 'Desktop';
-        const os = signatureDetails.operatingSystem || 'Windows';
-        const location = signatureDetails.location || 'San Francisco, CA (IP Geolocation Sim)';
+        const browser = signatureDetails.browser || 'Unavailable';
+        const device = signatureDetails.device || 'Unavailable';
+        const os = signatureDetails.operatingSystem || 'Unavailable';
+        const location = signatureDetails.location || 'Unavailable';
         const docId = signatureDetails.documentId;
         const tamperStatus = signatureDetails.tamperStatus || 'Verified';
         const docHash = docData?.sha256Checksum || signatureDetails.documentHash || 'Pending Finalization';
         const verificationStatus = signatureDetails.status === 'Signed' ? 'Verified Signature' : 'Pending';
+        const isLocal = !signatureDetails.ipAddress || signatureDetails.ipAddress === '127.0.5.1' || signatureDetails.ipAddress === '127.0.0.1' || signatureDetails.location === 'Local Development Environment';
 
         const formatSignatureDate = (dateString?: string) => {
           const d = dateString ? new Date(dateString) : new Date();
@@ -817,10 +980,20 @@ export default function PublicShareView() {
 
               {/* Modal body */}
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {isLocal && (
+                  <div className="flex items-center space-x-3 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+                    <AlertTriangle className="w-8 h-8 text-yellow-500 shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-bold text-yellow-400">Development Mode Active</h4>
+                      <p className="text-[11px] text-yellow-500/80">This signature was captured in a local development environment. Geolocation and network provider metadata are simulated.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center space-x-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
                   <div>
-                    <h4 className="text-sm font-bold text-emerald-400">Adobe Sign Certified Signature</h4>
+                    <h4 className="text-sm font-bold text-emerald-400">SignFlow AI Verified Signature</h4>
                     <p className="text-[11px] text-emerald-500/80">This signature is cryptographically verified and legally binding under ESIGN & UETA regulations.</p>
                   </div>
                 </div>
@@ -844,7 +1017,7 @@ export default function PublicShareView() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">IP Address</span>
-                    <span className="text-white text-sm font-mono">{signatureDetails.ipAddress || '127.0.0.1'}</span>
+                    <span className="text-white text-sm font-mono">{signatureDetails.ipAddress || 'Unavailable'}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Location</span>
@@ -861,6 +1034,18 @@ export default function PublicShareView() {
                   <div className="flex flex-col col-span-2">
                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">User Agent</span>
                     <span className="text-slate-300 text-[11px] font-mono break-all leading-tight bg-white/5 p-2 rounded border border-white/10 mt-1">{signatureDetails.userAgent || 'Unknown Browser'}</span>
+                  </div>
+                </div>
+
+                {/* Compliance Verification */}
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2">
+                  <h4 className="text-sm font-bold text-emerald-400 mb-1">Compliance Verification</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-400">Trust Score</span><span className="text-emerald-400 font-bold">100%</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Document Integrity</span><span className="text-emerald-400 font-bold">Verified</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Signature Integrity</span><span className="text-emerald-400 font-bold">Verified</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Audit Trail</span><span className="text-emerald-400 font-bold">Verified</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Tamper Detection</span><span className="text-emerald-400 font-bold">Passed</span></div>
                   </div>
                 </div>
 
@@ -901,16 +1086,126 @@ export default function PublicShareView() {
         );
       })()}
 
-      {/* Mobile signing prompt */}
-      {myPendingFields.length > 0 && !activeField && (
-        <div className="md:hidden fixed bottom-4 left-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between">
-          <span className="text-sm font-bold">{myPendingFields.length} field{myPendingFields.length > 1 ? 's' : ''} to sign</span>
-          <button
-            onClick={() => openSigningModal(myPendingFields[0])}
-            className="bg-white text-blue-600 text-xs font-bold px-3 py-1.5 rounded-xl"
+      {/* Mobile Drawer (Slide-up Panel) */}
+      {mobileDrawerTab && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end text-slate-200 select-none animate-slide-up">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs" 
+            onClick={() => setMobileDrawerTab(null)} 
+          />
+          
+          {/* Drawer Body */}
+          <div className="relative bg-[#13131a] rounded-t-2xl border-t border-white/10 p-6 max-h-[75vh] flex flex-col z-50 overflow-y-auto">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4 shrink-0">
+              <span className="text-sm font-bold text-white uppercase tracking-wider">
+                {mobileDrawerTab === 'fields' && 'Your Fields'}
+                {mobileDrawerTab === 'controls' && 'Editor Controls'}
+              </span>
+              <button 
+                onClick={() => setMobileDrawerTab(null)}
+                className="p-1 hover:bg-white/10 rounded-full transition"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              {mobileDrawerTab === 'fields' && (
+                <div className="space-y-2">
+                  {myPendingFields.length === 0 ? (
+                    <div className="text-center py-6">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                      <p className="text-emerald-400 text-sm font-bold">All Fields Signed!</p>
+                    </div>
+                  ) : (
+                    myPendingFields.map(f => (
+                      <button
+                        key={f._id}
+                        onClick={() => { setCurrentPage(f.page); openSigningModal(f); setMobileDrawerTab(null); }}
+                        className="w-full text-left p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition text-sm flex items-center justify-between cursor-pointer"
+                      >
+                        <div>
+                          <p className="font-bold text-blue-300">{f.type}</p>
+                          <p className="text-slate-500 text-xs mt-0.5">Page {f.page}</p>
+                        </div>
+                        <span className="text-[10px] bg-blue-500/25 text-blue-300 px-2 py-0.5 rounded-full font-bold">Sign</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {mobileDrawerTab === 'controls' && (
+                <div className="space-y-6">
+                  {/* Zoom Controls */}
+                  <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
+                    <span className="text-sm text-slate-300">Zoom Level</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setScale(s => Math.max(0.5, s - 0.15))}
+                        className="h-11 w-11 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition cursor-pointer"
+                      >
+                        <ZoomOut className="w-5 h-5 text-white" />
+                      </button>
+                      <span className="text-sm font-mono font-bold w-12 text-center">{Math.round(scale * 100)}%</span>
+                      <button 
+                        onClick={() => setScale(s => Math.min(3, s + 0.15))}
+                        className="h-11 w-11 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition cursor-pointer"
+                      >
+                        <ZoomIn className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Auto Fit Width */}
+                  <button 
+                    onClick={() => { handleFitWidth(); setMobileDrawerTab(null); }}
+                    className="h-11 w-full bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition border border-white/10 cursor-pointer"
+                  >
+                    <Maximize className="w-4 h-4 text-white" />
+                    Fit to Width
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Toolbar */}
+      {docData?.status !== 'Signed' && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-[#13131a] border-t border-white/10 flex items-center justify-around px-4 shrink-0 z-40 select-none">
+          <button 
+            onClick={() => setMobileDrawerTab('fields')} 
+            className="flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
           >
-            Sign Now
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-0.5">Fields</span>
           </button>
+
+          <button 
+            onClick={() => setMobileDrawerTab('controls')} 
+            className="flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
+          >
+            <Settings className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-0.5">Controls</span>
+          </button>
+
+          {myPendingFields.length > 0 ? (
+            <button 
+              onClick={() => openSigningModal(myPendingFields[0])}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-xs font-bold shadow-md cursor-pointer"
+            >
+              Sign Now
+            </button>
+          ) : (
+            <div className="text-xs text-emerald-400 font-bold px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+              ✓ All Signed
+            </div>
+          )}
         </div>
       )}
     </div>

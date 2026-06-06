@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../../utils/api';
 import UploadDropzone from '../upload/UploadDropzone';
@@ -7,10 +7,11 @@ import MetaBadge from '../ui/MetaBadge';
 import type { MetaBadgeVariant } from '../ui/MetaBadge';
 import MetaButton from '../ui/MetaButton';
 import MetaInput from '../ui/MetaInput';
-import { 
-  FileText, Clock, CheckCircle, Search, Trash2, Archive, 
-  Eye, XCircle, AlertTriangle, Plus, Send, Link as LinkIcon, 
-  CheckCircle2, Activity, Calendar
+import {
+  FileText, Clock, CheckCircle, Search, Trash2, Archive,
+  Eye, XCircle, AlertTriangle, Plus,
+  CheckCircle2, Activity,
+  Upload, TrendingUp, Zap, ArrowUpRight
 } from 'lucide-react';
 
 interface Document {
@@ -27,7 +28,7 @@ interface Document {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, activeWorkspace } = useOutletContext<{ user: any; activeWorkspace: any }>();
-  
+
   // Ref for scrolling to upload section
   const uploadSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -50,17 +51,13 @@ export default function Dashboard() {
   const [signedDocs, setSignedDocs] = useState(0);
   const [rejectedDocs, setRejectedDocs] = useState(0);
   const [expiringSoonDocs, setExpiringSoonDocs] = useState(0);
-  
+
   // Recent activity logs
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
 
   const limit = 5;
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [search, statusFilter, showArchived, sortBy, page, activeWorkspace]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get('/docs', {
@@ -81,7 +78,7 @@ export default function Dashboard() {
       // Fetch overall counts without filters for metrics
       const countRes = await api.get('/docs', { params: { limit: 1000 } });
       const allDocs: Document[] = countRes.data.documents || countRes.data;
-      
+
       setPendingDocs(allDocs.filter(d => d.status === 'Pending' || d.status === 'PartiallySigned').length);
       setSignedDocs(allDocs.filter(d => d.status === 'Signed').length);
       setViewedDocs(allDocs.filter(d => d.status === 'Viewed').length);
@@ -115,7 +112,19 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [search, statusFilter, showArchived, sortBy, page, limit, activeWorkspace]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => fetchDocuments());
+  }, [fetchDocuments]);
+
+  // 20-second background sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDocuments();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [fetchDocuments]);
 
   const handleUploadSuccess = (document: any) => {
     setDocuments(prev => [document, ...prev].slice(0, limit));
@@ -160,169 +169,235 @@ export default function Dashboard() {
   // Completion Rate math
   const completionRate = totalDocs > 0 ? Math.round((signedDocs / totalDocs) * 100) : 0;
 
+  // Greeting helper based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  if (!isLoading && totalDocs === 0) {
+    return (
+      <div className="space-y-xxl">
+        {/* Welcome Section */}
+        <div
+          className="relative overflow-hidden rounded-xxxl border border-hairline-soft"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(235,240,255,0.5) 100%)',
+          }}
+        >
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-lg p-xxl">
+            <div>
+              <h1 className="text-heading-lg font-bold tracking-tight text-ink-deep mb-xxs" style={{ fontSize: '2rem' }}>
+                {getGreeting()}, {user?.name || 'Abhinav Sai'} 👋
+              </h1>
+              <p className="text-body-md text-slate" style={{ maxWidth: 480 }}>
+                Get started with secure digital signatures in your{' '}
+                <span className="font-bold text-ink-deep">{activeWorkspace ? activeWorkspace.name : 'Personal'}</span> workspace.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Vercel-style Empty State Card */}
+        <div className="flex flex-col items-center justify-center p-xxl border border-dashed border-hairline-soft rounded-xxxl bg-canvas py-xxl space-y-lg text-center">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <Upload className="w-8 h-8" />
+          </div>
+          <div className="space-y-xs max-w-md">
+            <h2 className="text-heading-md font-bold text-ink-deep">No documents yet</h2>
+            <p className="text-body-sm text-slate">
+              Upload your first PDF document to set up signature fields, invite recipients, and collect secure, legally-binding signatures.
+            </p>
+          </div>
+          <div className="w-full max-w-xl text-left">
+            <UploadDropzone onUploadSuccess={handleUploadSuccess} workspaceId={activeWorkspace?._id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-xxl">
-      {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md border-b border-hairline-soft pb-xl">
-        <div>
-          <h1 className="text-heading-lg font-bold tracking-tight text-ink-deep mb-xxs">
-            Hello, {user?.name}
-          </h1>
-          <p className="text-body-md text-slate">
-            Manage and trace your secure digital signatures on the {activeWorkspace ? activeWorkspace.name : 'Personal'} workspace.
-          </p>
+
+      {/* ─── Section 1: Hero Welcome ─── */}
+      <div
+        className="relative overflow-hidden rounded-xxxl border border-hairline-soft"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(235,240,255,0.5) 100%)',
+        }}
+      >
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-lg p-xxl">
+          <div>
+            <h1 className="text-heading-lg font-bold tracking-tight text-ink-deep mb-xxs" style={{ fontSize: '2rem' }}>
+              {getGreeting()}, {user?.name || 'Abhinav Sai'} 👋
+            </h1>
+            <p className="text-body-md text-slate" style={{ maxWidth: 480 }}>
+              Manage, track and trace your secure digital signatures across the{' '}
+              <span className="font-bold text-ink-deep">{activeWorkspace ? activeWorkspace.name : 'Personal'}</span> workspace.
+            </p>
+          </div>
+          <div className="flex items-center gap-sm self-start sm:self-center">
+            <MetaButton
+              variant="buy-cta"
+              onClick={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center"
+            >
+              <Plus className="w-4 h-4 mr-2" /> New Document
+            </MetaButton>
+            <MetaButton
+              variant="ghost"
+              onClick={() => navigate('/dashboard/documents')}
+              className="flex items-center"
+            >
+              <FileText className="w-4 h-4 mr-2" /> View All Documents
+            </MetaButton>
+          </div>
         </div>
-        
-        {/* Quick Upload Button */}
-        <MetaButton 
-          variant="buy-cta" 
-          onClick={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-          className="flex items-center self-start sm:self-center"
-        >
-          <Plus className="w-4 h-4 mr-2" /> New Document
-        </MetaButton>
+        {/* Decorative gradient accent */}
+        <div
+          className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, var(--color-primary) 0%, transparent 70%)',
+            transform: 'translate(30%, -30%)',
+          }}
+        />
       </div>
 
-      {/* Six Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-sm">
+      {/* ─── Section 2: Metrics Grid ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-sm">
         {/* Total Documents */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
+        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
           <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Total</span>
-            <FileText className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Total Documents</span>
+            <div className="p-1.5 rounded-lg" style={{ background: 'var(--color-primary)', opacity: 0.12 }}>
+              <FileText className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+            </div>
           </div>
           <div>
             <p className="text-heading-lg font-bold leading-none text-ink-deep">{totalDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Files uploaded</p>
+            <div className="flex items-center gap-1 mt-1">
+              <TrendingUp className="w-3 h-3 text-success" />
+              <span className="text-[10px] text-slate">Files uploaded</span>
+            </div>
           </div>
         </MetaCard>
 
         {/* Pending */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Pending</span>
-            <Clock className="w-4 h-4 text-warning" />
-          </div>
-          <div>
-            <p className="text-heading-lg font-bold leading-none text-ink-deep">{pendingDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Needs action</p>
-          </div>
-        </MetaCard>
-
-        {/* Viewed */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Viewed</span>
-            <Eye className="w-4 h-4 text-oculus-purple" />
-          </div>
-          <div>
-            <p className="text-heading-lg font-bold leading-none text-ink-deep">{viewedDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Opened by signers</p>
-          </div>
-        </MetaCard>
-
-        {/* Signed */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Signed</span>
-            <CheckCircle className="w-4 h-4 text-success" />
-          </div>
-          <div>
-            <p className="text-heading-lg font-bold leading-none text-ink-deep">{signedDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Completed docs</p>
-          </div>
-        </MetaCard>
-
-        {/* Rejected */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Rejected</span>
-            <XCircle className="w-4 h-4 text-critical" />
-          </div>
-          <div>
-            <p className="text-heading-lg font-bold leading-none text-ink-deep">{rejectedDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Declined docs</p>
-          </div>
-        </MetaCard>
-
-        {/* Expiring Soon */}
-        <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[100px] hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Urgent</span>
-            <AlertTriangle className="w-4 h-4 text-critical-strong" />
-          </div>
-          <div>
-            <p className="text-heading-lg font-bold leading-none text-ink-deep">{expiringSoonDocs}</p>
-            <p className="text-[10px] text-slate mt-1">Expires within 3d</p>
-          </div>
-        </MetaCard>
-      </div>
-
-      {/* Main Grid Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl">
-        {/* Left Column: Quick Actions & Charts */}
-        <div className="space-y-xl lg:col-span-1">
-          {/* Quick Actions Panel */}
-          <MetaCard variant="checkout-summary" className="space-y-md">
-            <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-sm">
-              <button 
-                onClick={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                className="p-sm bg-surface-soft border border-hairline-soft rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left flex flex-col justify-between h-[85px] group select-none"
-              >
-                <Plus className="w-5 h-5 text-slate group-hover:text-primary transition-colors" />
-                <div>
-                  <span className="block text-body-sm-bold font-bold text-ink-deep">Upload File</span>
-                  <span className="text-[9px] text-slate">PDF contract</span>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => navigate('/dashboard/workspace')}
-                className="p-sm bg-surface-soft border border-hairline-soft rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left flex flex-col justify-between h-[85px] group select-none"
-              >
-                <Calendar className="w-5 h-5 text-slate group-hover:text-primary transition-colors" />
-                <div>
-                  <span className="block text-body-sm-bold font-bold text-ink-deep">Templates</span>
-                  <span className="text-[9px] text-slate">Workspace drafts</span>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="p-sm bg-surface-soft border border-hairline-soft rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left flex flex-col justify-between h-[85px] group select-none"
-              >
-                <Send className="w-5 h-5 text-slate group-hover:text-primary transition-colors" />
-                <div>
-                  <span className="block text-body-sm-bold font-bold text-ink-deep">Invite Signer</span>
-                  <span className="text-[9px] text-slate">Send invitation</span>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="p-sm bg-surface-soft border border-hairline-soft rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left flex flex-col justify-between h-[85px] group select-none"
-              >
-                <LinkIcon className="w-5 h-5 text-slate group-hover:text-primary transition-colors" />
-                <div>
-                  <span className="block text-body-sm-bold font-bold text-ink-deep">Get Link</span>
-                  <span className="text-[9px] text-slate">Generate share link</span>
-                </div>
-              </button>
+        {pendingDocs > 0 && (
+          <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Pending</span>
+              <div className="p-1.5 rounded-lg" style={{ background: '#f59e0b', opacity: 0.12 }}>
+                <Clock className="w-4 h-4" style={{ color: '#f59e0b' }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-heading-lg font-bold leading-none text-ink-deep">{pendingDocs}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Zap className="w-3 h-3" style={{ color: '#f59e0b' }} />
+                <span className="text-[10px] text-slate">Needs action</span>
+              </div>
             </div>
           </MetaCard>
+        )}
 
-          {/* Completion Rate Chart */}
-          <MetaCard variant="product-feature" className="flex flex-col items-center justify-between p-lg text-center h-[200px]">
+        {/* Viewed */}
+        {viewedDocs > 0 && (
+          <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Viewed</span>
+              <div className="p-1.5 rounded-lg" style={{ background: '#8b5cf6', opacity: 0.12 }}>
+                <Eye className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-heading-lg font-bold leading-none text-ink-deep">{viewedDocs}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <ArrowUpRight className="w-3 h-3" style={{ color: '#8b5cf6' }} />
+                <span className="text-[10px] text-slate">Opened by signers</span>
+              </div>
+            </div>
+          </MetaCard>
+        )}
+
+        {/* Signed */}
+        {signedDocs > 0 && (
+          <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Signed</span>
+              <div className="p-1.5 rounded-lg" style={{ background: 'var(--color-success)', opacity: 0.12 }}>
+                <CheckCircle className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-heading-lg font-bold leading-none text-ink-deep">{signedDocs}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingUp className="w-3 h-3 text-success" />
+                <span className="text-[10px] text-slate">Completed docs</span>
+              </div>
+            </div>
+          </MetaCard>
+        )}
+
+        {/* Rejected */}
+        {rejectedDocs > 0 && (
+          <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Rejected</span>
+              <div className="p-1.5 rounded-lg" style={{ background: 'var(--color-critical)', opacity: 0.12 }}>
+                <XCircle className="w-4 h-4" style={{ color: 'var(--color-critical)' }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-heading-lg font-bold leading-none text-ink-deep">{rejectedDocs}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <AlertTriangle className="w-3 h-3" style={{ color: 'var(--color-critical)' }} />
+                <span className="text-[10px] text-slate">Declined docs</span>
+              </div>
+            </div>
+          </MetaCard>
+        )}
+
+        {/* Expiring Soon */}
+        {expiringSoonDocs > 0 && (
+          <MetaCard variant="product-feature" className="!p-md flex flex-col justify-between h-[110px] hover:shadow-md transition-shadow cursor-default">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate uppercase tracking-wider">Expiring Soon</span>
+              <div className="p-1.5 rounded-lg" style={{ background: '#ea580c', opacity: 0.12 }}>
+                <AlertTriangle className="w-4 h-4" style={{ color: '#ea580c' }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-heading-lg font-bold leading-none text-ink-deep">{expiringSoonDocs}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Clock className="w-3 h-3" style={{ color: '#ea580c' }} />
+                <span className="text-[10px] text-slate">Expires within 3d</span>
+              </div>
+            </div>
+          </MetaCard>
+        )}
+      </div>
+
+      {/* ─── Section 3: Two-column layout ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl">
+
+        {/* ── Left Column (1/3 width) ── */}
+        <div className="space-y-xl lg:col-span-1">
+          {/* Completion Rate Gauge */}
+          <MetaCard variant="product-feature" className="flex flex-col items-center justify-between p-lg text-center h-[220px]">
             <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider self-start">Completion Rate</h3>
             <div className="relative flex items-center justify-center my-2 select-none">
               {/* Circular progress bar SVG */}
-              <svg className="w-24 h-24 transform -rotate-90">
-                <circle cx="48" cy="48" r="40" stroke="var(--color-hairline-soft)" strokeWidth="6" fill="transparent" />
-                <circle cx="48" cy="48" r="40" stroke="var(--color-primary)" strokeWidth="6" fill="transparent"
-                  strokeDasharray={2 * Math.PI * 40}
-                  strokeDashoffset={2 * Math.PI * 40 * (1 - completionRate / 100)}
+              <svg className="w-28 h-28 transform -rotate-90">
+                <circle cx="56" cy="56" r="46" stroke="var(--color-hairline-soft)" strokeWidth="7" fill="transparent" />
+                <circle cx="56" cy="56" r="46" stroke="var(--color-primary)" strokeWidth="7" fill="transparent"
+                  strokeDasharray={2 * Math.PI * 46}
+                  strokeDashoffset={2 * Math.PI * 46 * (1 - completionRate / 100)}
                   strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 0.6s ease' }}
                 />
               </svg>
               <div className="absolute flex flex-col items-center">
@@ -330,13 +405,16 @@ export default function Dashboard() {
                 <span className="text-[9px] text-slate font-bold uppercase">Signed</span>
               </div>
             </div>
-            <p className="text-body-xs text-slate">You have signed {signedDocs} out of {totalDocs} total contracts.</p>
+            <p className="text-body-xs text-slate">
+              {signedDocs} of {totalDocs} documents signed.
+            </p>
           </MetaCard>
         </div>
 
-        {/* Center / Right Column: Activity charts and document lists */}
+        {/* ── Right Column (2/3 width) ── */}
         <div className="space-y-xl lg:col-span-2">
-          {/* Document Activity Chart Card */}
+
+          {/* Signing Activity Chart Card */}
           <MetaCard variant="product-feature" className="space-y-md p-lg">
             <div className="flex justify-between items-center">
               <div>
@@ -348,14 +426,14 @@ export default function Dashboard() {
                 <span className="flex items-center"><span className="w-2.5 h-2.5 rounded-full bg-success mr-1.5" /> Signed</span>
               </div>
             </div>
-            
+
             {/* SVG Graph */}
             <div className="h-32 w-full pt-md relative">
               <svg className="w-full h-full" viewBox="0 0 600 100" preserveAspectRatio="none">
                 <line x1="0" y1="20" x2="600" y2="20" stroke="rgba(200, 200, 200, 0.1)" strokeDasharray="4 4" />
                 <line x1="0" y1="55" x2="600" y2="55" stroke="rgba(200, 200, 200, 0.1)" strokeDasharray="4 4" />
                 <line x1="0" y1="90" x2="600" y2="90" stroke="rgba(200, 200, 200, 0.1)" strokeDasharray="4 4" />
-                
+
                 <path
                   d="M 10 80 Q 100 20, 200 45 T 400 30 T 590 15"
                   fill="none"
@@ -370,7 +448,7 @@ export default function Dashboard() {
                   strokeWidth="3"
                   strokeLinecap="round"
                 />
-                
+
                 <path
                   d="M 10 80 Q 100 20, 200 45 T 400 30 T 590 15 L 590 100 L 10 100 Z"
                   fill="url(#uploadGlow)"
@@ -381,7 +459,7 @@ export default function Dashboard() {
                   fill="url(#signedGlow)"
                   opacity="0.06"
                 />
-                
+
                 <defs>
                   <linearGradient id="uploadGlow" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--color-primary)" />
@@ -395,13 +473,7 @@ export default function Dashboard() {
               </svg>
             </div>
             <div className="flex justify-between text-[10px] font-bold text-slate uppercase tracking-wider px-xs">
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-              <span>Sun</span>
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
             </div>
           </MetaCard>
 
@@ -411,11 +483,10 @@ export default function Dashboard() {
             <UploadDropzone onUploadSuccess={handleUploadSuccess} workspaceId={activeWorkspace?._id} />
           </div>
 
-          {/* Your Documents List */}
+          {/* ── Recent Documents List ── */}
           <div className="space-y-md pt-md">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
               <h2 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Your Documents</h2>
-              
               <div className="flex items-center space-x-sm">
                 <button
                   onClick={() => {
@@ -423,8 +494,8 @@ export default function Dashboard() {
                     setPage(1);
                   }}
                   className={`px-sm py-xxs border rounded-full text-caption-bold font-bold transition-all ${
-                    showArchived 
-                      ? 'bg-primary text-canvas border-primary' 
+                    showArchived
+                      ? 'bg-primary text-canvas border-primary'
                       : 'bg-canvas text-slate border-hairline hover:border-slate'
                   }`}
                 >
@@ -513,7 +584,7 @@ export default function Dashboard() {
                         {doc.status}
                       </MetaBadge>
 
-                      <MetaButton 
+                      <MetaButton
                         variant={doc.status === 'Pending' ? 'primary' : 'secondary'}
                         onClick={() => navigate(`/edit/${doc._id}`)}
                         className="!py-1.5 !px-4"
@@ -525,11 +596,11 @@ export default function Dashboard() {
                         <button
                           onClick={() => handleToggleArchive(doc._id)}
                           className="p-xs hover:bg-surface-soft rounded-circle text-slate hover:text-ink transition-colors"
-                          title={doc.isArchived ? "Unarchive Document" : "Archive Document"}
+                          title={doc.isArchived ? 'Unarchive Document' : 'Archive Document'}
                         >
                           <Archive className={`w-4 h-4 ${doc.isArchived ? 'text-primary fill-primary/10' : ''}`} />
                         </button>
-                        
+
                         <button
                           onClick={() => handleSoftDelete(doc._id)}
                           className="p-xs hover:bg-surface-soft rounded-circle text-slate hover:text-critical transition-colors"
@@ -569,61 +640,62 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
-          {/* Recent Activity Timeline */}
-          <MetaCard variant="product-feature" className="space-y-md p-lg">
-            <div className="flex items-center space-x-2">
-              <Activity className="w-4 h-4 text-slate" />
-              <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Recent Activity Audit</h3>
-            </div>
-            {recentActivities.length === 0 ? (
-              <p className="text-body-sm text-slate">No recent signature events.</p>
-            ) : (
-              <div className="flow-root">
-                <ul className="-mb-8">
-                  {recentActivities.map((act, actIdx) => (
-                    <li key={act._id}>
-                      <div className="relative pb-8">
-                        {actIdx !== recentActivities.length - 1 ? (
-                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-hairline-soft" aria-hidden="true" />
-                        ) : null}
-                        <div className="relative flex space-x-3">
-                          <div>
-                            <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-canvas ${
-                              act.action === 'Sign' ? 'bg-success/10 text-success' :
-                              act.action === 'Reject' ? 'bg-critical/10 text-critical' :
-                              act.action === 'View' ? 'bg-oculus-purple/10 text-oculus-purple' :
-                              'bg-primary/10 text-primary'
-                            }`}>
-                              {act.action === 'Sign' && <CheckCircle2 className="w-4 h-4" />}
-                              {act.action === 'Reject' && <XCircle className="w-4 h-4" />}
-                              {act.action === 'View' && <Eye className="w-4 h-4" />}
-                              {act.action === 'Upload' && <Plus className="w-4 h-4" />}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
-                            <div>
-                              <p className="text-body-sm text-ink font-bold">
-                                {act.action} event on <span className="text-ink-deep underline">{act.documentName}</span>
-                              </p>
-                              <p className="text-caption text-slate mt-0.5">
-                                IP: {act.ipAddress} • {act.userAgent}
-                              </p>
-                            </div>
-                            <div className="text-right text-caption font-bold text-slate whitespace-nowrap">
-                              {new Date(act.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </MetaCard>
         </div>
       </div>
+
+      {/* ─── Section 4: Activity Timeline ─── */}
+      <MetaCard variant="product-feature" className="space-y-md p-lg">
+        <div className="flex items-center space-x-2">
+          <Activity className="w-4 h-4 text-slate" />
+          <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Recent Activity Audit</h3>
+        </div>
+        {recentActivities.length === 0 ? (
+          <p className="text-body-sm text-slate">No recent signature events.</p>
+        ) : (
+          <div className="flow-root">
+            <ul className="-mb-8">
+              {recentActivities.map((act, actIdx) => (
+                <li key={act._id}>
+                  <div className="relative pb-8">
+                    {actIdx !== recentActivities.length - 1 ? (
+                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-hairline-soft" aria-hidden="true" />
+                    ) : null}
+                    <div className="relative flex space-x-3">
+                      <div>
+                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-canvas ${
+                          act.action === 'Sign' ? 'bg-success/10 text-success' :
+                          act.action === 'Reject' ? 'bg-critical/10 text-critical' :
+                          act.action === 'View' ? 'bg-oculus-purple/10 text-oculus-purple' :
+                          'bg-primary/10 text-primary'
+                        }`}>
+                          {act.action === 'Sign' && <CheckCircle2 className="w-4 h-4" />}
+                          {act.action === 'Reject' && <XCircle className="w-4 h-4" />}
+                          {act.action === 'View' && <Eye className="w-4 h-4" />}
+                          {act.action === 'Upload' && <Plus className="w-4 h-4" />}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
+                        <div>
+                          <p className="text-body-sm text-ink font-bold">
+                            {act.action} event on <span className="text-ink-deep underline">{act.documentName}</span>
+                          </p>
+                          <p className="text-caption text-slate mt-0.5">
+                            IP: {act.ipAddress} • {act.userAgent}
+                          </p>
+                        </div>
+                        <div className="text-right text-caption font-bold text-slate whitespace-nowrap">
+                          {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </MetaCard>
+
     </div>
   );
 }

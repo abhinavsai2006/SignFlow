@@ -7,6 +7,9 @@ const router = express.Router();
 const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock_stripe_key';
 const stripe = new Stripe(stripeKey);
 
+// Resolve frontend base URL from environment (no localhost hardcoding in production)
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5177';
+
 // @route   GET /api/billing/plan
 // @desc    Get user plan and usage limits
 router.get('/plan', protect, async (req, res) => {
@@ -46,7 +49,7 @@ router.post('/checkout', protect, async (req, res) => {
       await user.save();
 
       return res.json({ 
-        url: 'http://localhost:5177/billing?success=true',
+        url: `${FRONTEND_URL}/billing?success=true`,
         simulated: true,
         message: 'Mock Stripe Session Success: Plan upgraded instantly.' 
       });
@@ -68,8 +71,8 @@ router.post('/checkout', protect, async (req, res) => {
         quantity: 1,
       }],
       mode: 'subscription',
-      success_url: 'http://localhost:5177/billing?success=true',
-      cancel_url: 'http://localhost:5177/billing?cancel=true',
+      success_url: `${FRONTEND_URL}/billing?success=true`,
+      cancel_url: `${FRONTEND_URL}/billing?cancel=true`,
       customer_email: user.email,
       metadata: {
         userId: user._id.toString(),

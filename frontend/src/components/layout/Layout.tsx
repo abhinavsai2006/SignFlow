@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 import api from '../../utils/api';
 import Navbar from './Navbar';
@@ -12,6 +12,13 @@ export default function Layout() {
   const [isValidating, setIsValidating] = useState(true);
   const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<any>(null);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('activeWorkspaceId');
+    navigate('/login');
+  }, [navigate]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -48,7 +55,7 @@ export default function Layout() {
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, handleLogout]);
 
   const handleSelectWorkspace = (workspace: any) => {
     setActiveWorkspace(workspace);
@@ -57,13 +64,6 @@ export default function Layout() {
     } else {
       localStorage.removeItem('activeWorkspaceId');
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('activeWorkspaceId');
-    navigate('/login');
   };
 
   if (isValidating) {

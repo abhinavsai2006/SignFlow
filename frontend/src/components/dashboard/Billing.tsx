@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
 import MetaCard from '../ui/MetaCard';
 import MetaButton from '../ui/MetaButton';
@@ -11,15 +11,7 @@ export default function Billing() {
   const [isLoading, setIsLoading] = useState(true);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('success') === 'true') {
-      setSuccess(true);
-    }
-    fetchPlanDetails();
-  }, []);
-
-  const fetchPlanDetails = async () => {
+  const fetchPlanDetails = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get('/billing/plan');
@@ -31,7 +23,15 @@ export default function Billing() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      Promise.resolve().then(() => setSuccess(true));
+    }
+    Promise.resolve().then(() => fetchPlanDetails());
+  }, [fetchPlanDetails]);
 
   const handleUpgrade = async (plan: string) => {
     try {

@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes } from 'react';
 import { Search } from 'lucide-react';
 
-interface MetaSearchProps extends InputHTMLAttributes<HTMLInputElement> {}
+type MetaSearchProps = InputHTMLAttributes<HTMLInputElement>;
 
 export default function MetaSearch({ className = '', ...props }: MetaSearchProps) {
   return (

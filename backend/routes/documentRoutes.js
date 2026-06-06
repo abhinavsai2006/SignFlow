@@ -9,8 +9,13 @@ import Workspace from '../models/Workspace.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { sendInviteEmail, sendRejectionEmail } from '../middleware/emailService.js';
 import fs from 'fs';
+import { PDFDocument } from 'pdf-lib';
+import { generateFinalizedPdf } from '../services/pdfService.js';
 
 const router = express.Router();
+
+// Resolve frontend base URL from environment
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5177';
 
 // Helper to log audit events
 const logAuditEvent = async (documentId, userId, action, req) => {
@@ -234,19 +239,62 @@ router.get('/:id/download', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to download this document' });
     }
 
-    if (!fs.existsSync(document.originalPath)) {
-      return res.status(404).json({ message: 'Finalized PDF file does not exist on disk' });
+    const fields = await SignatureField.find({ documentId: document._id });
+    const signedFields = fields.filter(f => f.status === 'Signed');
+
+    let finalBytes;
+    if (document.status === 'Signed' || signedFields.length > 0) {
+      const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
+      finalBytes = compiledBytes;
+    } else {
+      const originalPath = document.versions[0]?.path || document.originalPath;
+      if (!fs.existsSync(originalPath)) {
+        return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
+      }
+      finalBytes = fs.readFileSync(originalPath);
     }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${document.filename}"`);
-
-    const fileStream = fs.createReadStream(document.originalPath);
-    fileStream.pipe(res);
+    res.send(Buffer.from(finalBytes));
 
     await logAuditEvent(document._id, req.user._id, 'Download', req);
   } catch (error) {
     res.status(500).json({ message: 'Download failed', error: error.message });
+  }
+});
+
+// @route   GET /api/docs/:id/public-download
+// @desc    Download the signed finalized PDF document file publicly
+router.get('/:id/public-download', async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const fields = await SignatureField.find({ documentId: document._id });
+    const signedFields = fields.filter(f => f.status === 'Signed');
+
+    let finalBytes;
+    if (document.status === 'Signed' || signedFields.length > 0) {
+      const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
+      finalBytes = compiledBytes;
+    } else {
+      const originalPath = document.versions[0]?.path || document.originalPath;
+      if (!fs.existsSync(originalPath)) {
+        return res.status(404).json({ message: 'Original PDF file does not exist on disk' });
+      }
+      finalBytes = fs.readFileSync(originalPath);
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${document.filename}"`);
+    res.send(Buffer.from(finalBytes));
+
+    await logAuditEvent(document._id, null, 'Public Download', req);
+  } catch (error) {
+    res.status(500).json({ message: 'Public download failed', error: error.message });
   }
 });
 
@@ -441,7 +489,7 @@ router.post('/:id/recipients', protect, async (req, res) => {
       status: 'Waiting'
     });
 
-    const editUrl = `http://localhost:5177/edit/${req.params.id}`;
+    const signingUrl = `${FRONTEND_URL}/share/${req.params.id}`;
     
     let shouldSendEmail = true;
     if (document.signingOrder === 'Sequential' && recipient.role === 'Signer') {
@@ -462,7 +510,7 @@ router.post('/:id/recipients', protect, async (req, res) => {
     if (shouldSendEmail && recipient.role === 'Signer') {
       recipient.status = 'Notified';
       await recipient.save();
-      await sendInviteEmail(recipient.email, recipient.name, document.filename, editUrl);
+      await sendInviteEmail(recipient.email, recipient.name, document.filename, signingUrl);
     }
 
     res.status(201).json(recipient);
@@ -580,7 +628,7 @@ router.put('/:id/share', protect, async (req, res) => {
 
     await document.save();
 
-    const publicUrl = `http://localhost:5177/share/${document._id}`;
+    const publicUrl = `${FRONTEND_URL}/share/${document._id}`;
     res.json({ document, publicUrl });
   } catch (error) {
     res.status(500).json({ message: 'Failed to configure sharing', error: error.message });

@@ -8,12 +8,25 @@ import { sendWelcomeEmail, sendVerificationEmail, sendPasswordResetEmail } from 
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'fallback_refresh_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_SECRET = process.env.REFRESH_SECRET;
+
+if (!JWT_SECRET || !REFRESH_SECRET) {
+  console.error('[authRoutes] FATAL: JWT_SECRET and REFRESH_SECRET must be set in environment variables.');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+
+// Use the actual JWT secrets; fall back to weak dev-only values if not in production
+const _JWT_SECRET = JWT_SECRET || 'dev_fallback_secret_not_for_production';
+const _REFRESH_SECRET = REFRESH_SECRET || 'dev_fallback_refresh_secret_not_for_production';
+
+// Resolve the frontend base URL from environment
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5177';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 
 // Helpers
 const generateAccessToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '15m' }); // Short-lived access
+  return jwt.sign({ id }, _JWT_SECRET, { expiresIn: '15m' }); // Short-lived access
 };
 
 const generateRefreshToken = async (userId) => {
@@ -64,7 +77,7 @@ router.post('/register', async (req, res) => {
 
     // Send welcome and verification emails via Resend
     sendWelcomeEmail(email, name).catch(err => console.error('Failed to send welcome email:', err));
-    sendVerificationEmail(email, name, `http://localhost:5177/verify-email?code=${verificationCode}`).catch(err => console.error('Failed to send verification email:', err));
+    sendVerificationEmail(email, name, `${FRONTEND_URL}/verify-email?code=${verificationCode}`).catch(err => console.error('Failed to send verification email:', err));
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = await generateRefreshToken(user._id);
@@ -228,7 +241,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // Send password reset email via Resend
-    sendPasswordResetEmail(email, user.name, `http://localhost:5177/reset-password/${resetToken}`)
+    sendPasswordResetEmail(email, user.name, `${FRONTEND_URL}/reset-password/${resetToken}`)
       .catch(err => console.error('Failed to send password reset email:', err));
 
     res.json({
@@ -274,13 +287,13 @@ router.get('/me', protect, async (req, res) => {
 // @route   GET /api/auth/google
 // @desc    Simulate Google OAuth redirect
 router.get('/google', (req, res) => {
-  res.redirect('http://localhost:5000/api/auth/oauth-callback?provider=google');
+  res.redirect(`${BACKEND_URL}/api/auth/oauth-callback?provider=google`);
 });
 
 // @route   GET /api/auth/github
 // @desc    Simulate GitHub OAuth redirect
 router.get('/github', (req, res) => {
-  res.redirect('http://localhost:5000/api/auth/oauth-callback?provider=github');
+  res.redirect(`${BACKEND_URL}/api/auth/oauth-callback?provider=github`);
 });
 
 // @route   GET /api/auth/oauth-callback
@@ -303,14 +316,14 @@ router.get('/oauth-callback', async (req, res) => {
     const refreshToken = await generateRefreshToken(user._id);
     setCookieToken(res, refreshToken);
 
-    res.redirect(`http://localhost:5177/login?token=${accessToken}&user=${encodeURIComponent(JSON.stringify({
+    res.redirect(`${FRONTEND_URL}/login?token=${accessToken}&user=${encodeURIComponent(JSON.stringify({
       _id: user._id,
       name: user.name,
       email: user.email,
       isVerified: user.isVerified
     }))}`);
   } catch (err) {
-    res.redirect(`http://localhost:5177/login?error=${encodeURIComponent(err.message)}`);
+    res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
   }
 });
 

@@ -1,3 +1,6 @@
+// Resolve frontend URL at render time so templates work in any environment
+const getFrontendUrl = () => process.env.FRONTEND_URL || 'https://signflow.abhinavsai.com';
+
 const emailWrapper = (title, content) => {
   return `<!DOCTYPE html>
 <html>
@@ -148,7 +151,7 @@ export const getWelcomeTemplate = (name) => {
      </ul>
      <p>Ready to get started? Log in to your dashboard to upload your first document.</p>
      <div style="text-align: center;">
-       <a href="http://localhost:5177/dashboard" class="btn">Go to Dashboard</a>
+       <a href="${getFrontendUrl()}/dashboard" class="btn">Go to Dashboard</a>
      </div>`
   );
 };
@@ -214,7 +217,7 @@ export const getViewedTemplate = (ownerName, recipientEmail, docName) => {
      <p>The recipient <strong>${recipientEmail}</strong> has viewed your document: <strong>${docName}</strong>.</p>
      <p>We will notify you immediately once they place their signature and complete the process.</p>
      <div style="text-align: center;">
-       <a href="http://localhost:5177/dashboard" class="btn">View Document Status</a>
+       <a href="${getFrontendUrl()}/dashboard" class="btn">View Document Status</a>
      </div>`
   );
 };
@@ -253,7 +256,7 @@ export const getRejectedTemplate = (ownerName, rejecterName, docName, reason) =>
      <p><strong>Reason provided:</strong></p>
      <blockquote>${reason || 'No comments left.'}</blockquote>
      <div style="text-align: center;">
-       <a href="http://localhost:5177/dashboard" class="btn">View Document</a>
+       <a href="${getFrontendUrl()}/dashboard" class="btn">View Document</a>
      </div>`
   );
 };
@@ -279,7 +282,7 @@ export const getDocumentExpiredTemplate = (ownerName, docName) => {
      <p>Your document invitation <strong>${docName}</strong> has reached its expiration date and is no longer available for signing.</p>
      <p>If you wish to collect signatures for this document, you can duplicate and resend it from your dashboard.</p>
      <div style="text-align: center;">
-       <a href="http://localhost:5177/dashboard" class="btn">Manage Documents</a>
+       <a href="${getFrontendUrl()}/dashboard" class="btn">Manage Documents</a>
      </div>`
   );
 };

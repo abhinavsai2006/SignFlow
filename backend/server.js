@@ -11,6 +11,8 @@ import auditRoutes from './routes/auditRoutes.js';
 import workspaceRoutes from './routes/workspaceRoutes.js';
 import billingRoutes from './routes/billingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import emailRoutes from './routes/emailRoutes.js';
+import { verifyResendConnection } from './middleware/emailService.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -20,26 +22,64 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+// Railway injects PORT automatically — must not hardcode 5000 in production
+const PORT = process.env.PORT || 8080;
+
+// ─── Startup Environment Diagnostics ─────────────────────────────────────────
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('  SignFlow AI — Backend Starting');
+console.log(`  NODE_ENV      : ${process.env.NODE_ENV || 'development'}`);
+console.log(`  PORT          : ${PORT}`);
+console.log(`  MONGODB_URI   : ${process.env.MONGODB_URI ? '✓ Set' : '✗ MISSING — server will fail to connect!'}`);
+console.log(`  JWT_SECRET    : ${process.env.JWT_SECRET ? '✓ Set' : '✗ MISSING — using insecure fallback!'}`);
+console.log(`  RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✓ Set' : '✗ MISSING — emails will fail'}`);
+console.log(`  FROM_EMAIL    : ${process.env.FROM_EMAIL || '(not set — will use onboarding@resend.dev)'}`);
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
 // Security headers
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-// CORS
+// ─── CORS Configuration ───────────────────────────────────────────────────────
 const allowedOrigins = [
+  // Production custom domain
+  'https://signflow.abhinavsai.com',
+  'https://www.signflow.abhinavsai.com',
+  // Allow overriding from env (e.g. Railway or Vercel custom domain)
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  // Local development
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:5176',
   'http://localhost:5177',
 ];
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
-      callback(null, origin);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Allow any localhost port (local development)
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, origin);
     }
+
+    // Allow any *.vercel.app subdomain (Vercel preview deployments)
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, origin);
+    }
+
+    // Allow any *.railway.app subdomain (Railway preview deployments)
+    if (origin.endsWith('.railway.app')) {
+      return callback(null, origin);
+    }
+
+    // Allow known production origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, origin);
+    }
+
+    callback(new Error(`CORS: Origin ${origin} not allowed`));
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -49,7 +89,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiters
+// ─── Rate Limiters ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -66,7 +106,7 @@ const publicSignLimiter = rateLimit({
 });
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -74,7 +114,7 @@ const generalLimiter = rateLimit({
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/docs', generalLimiter, documentRoutes);
 app.use('/api/documents', generalLimiter, documentRoutes);
@@ -83,25 +123,55 @@ app.use('/api/audit', generalLimiter, auditRoutes);
 app.use('/api/workspaces', generalLimiter, workspaceRoutes);
 app.use('/api/billing', generalLimiter, billingRoutes);
 app.use('/api/admin', generalLimiter, adminRoutes);
+app.use('/api/email', generalLimiter, emailRoutes);
 
-// Database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/doc-sign-app';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    console.error('\nUnable to connect to MongoDB. Possible fixes:');
-    console.error('- Ensure MongoDB server is running locally (run `mongod` or start the MongoDB service).');
-    console.error('- If using MongoDB Atlas, set the MONGODB_URI environment variable in a .env file.');
-    console.error("- Check that `MONGODB_URI` in your environment points to the correct host and port (default: mongodb://localhost:27017).");
+// Health check endpoint (used by Railway health checks and uptime monitors)
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    environment: process.env.NODE_ENV || 'development',
+    mongoConnected: mongoose.connection.readyState === 1,
+    timestamp: new Date().toISOString()
   });
-
-// Basic route
-app.get('/', (req, res) => {
-  res.send('Document Signature API is running');
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Root route
+app.get('/', (req, res) => {
+  res.send('SignFlow AI Document Signature API is running');
+});
+
+// ─── MongoDB Connection ───────────────────────────────────────────────────────
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.error('  FATAL: MONGODB_URI environment variable is not set.');
+  console.error('  Go to Railway Dashboard → Your Service → Variables');
+  console.error('  Add: MONGODB_URI = mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/<dbname>');
+  console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('[+] MongoDB Atlas connected successfully.');
+  })
+  .catch(err => {
+    console.error('[-] MongoDB connection failed:', err.message);
+    console.error('    Ensure MONGODB_URI in Railway Variables points to Atlas, not localhost.');
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  });
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
+app.listen(PORT, async () => {
+  console.log(`[+] Server running on port ${PORT}`);
+  try {
+    await verifyResendConnection();
+  } catch (err) {
+    console.error('Failed to run Resend startup verification:', err);
+  }
 });

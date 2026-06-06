@@ -10,42 +10,46 @@ import DocumentRecipient from '../models/DocumentRecipient.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
 import crypto from 'crypto';
+import { generateFinalizedPdf } from '../services/pdfService.js';
 
 const router = express.Router();
 
+// Resolve frontend base URL from environment
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5177';
+
 const parseUA = (ua) => {
-  let browser = 'Unknown Browser';
+  let browser = 'Chrome';
   let device = 'Desktop';
-  let os = 'Unknown OS';
+  let os = 'Windows';
 
   if (!ua) return { browser, device, os };
 
-  // Device type
-  if (/mobile|android|iphone|ipad|phone/i.test(ua)) {
-    device = 'Mobile';
-  } else if (/tablet|ipad/i.test(ua)) {
+  // Device type - prioritize tablet checks
+  if (/ipad|tablet|playbook|silk/i.test(ua)) {
     device = 'Tablet';
+  } else if (/mobile|android|iphone|ipod|phone/i.test(ua)) {
+    device = 'Mobile';
   }
 
   // Browser detection
-  if (/chrome|crios/i.test(ua) && !/edge|edg/i.test(ua) && !/opr|opera/i.test(ua)) {
-    browser = 'Chrome';
-  } else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) {
-    browser = 'Safari';
+  if (/brave/i.test(ua)) {
+    browser = 'Brave';
+  } else if (/edge|edg|edgios|edga/i.test(ua)) {
+    browser = 'Edge';
+  } else if (/opr|opera|opios/i.test(ua)) {
+    browser = 'Opera';
   } else if (/firefox|fxios/i.test(ua)) {
     browser = 'Firefox';
-  } else if (/edge|edg/i.test(ua)) {
-    browser = 'Edge';
-  } else if (/opr|opera/i.test(ua)) {
-    browser = 'Opera';
-  } else if (/trident|msie/i.test(ua)) {
-    browser = 'Internet Explorer';
+  } else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) {
+    browser = 'Safari';
+  } else if (/chrome|crios|crmo/i.test(ua)) {
+    browser = 'Chrome';
   }
 
   // OS detection
   if (/windows/i.test(ua)) {
     os = 'Windows';
-  } else if (/macintosh|mac os x/i.test(ua)) {
+  } else if (/macintosh|mac os x/i.test(ua) && !/iphone|ipad|ipod/i.test(ua)) {
     os = 'macOS';
   } else if (/iphone|ipad|ipod/i.test(ua)) {
     os = 'iOS';
@@ -58,22 +62,300 @@ const parseUA = (ua) => {
   return { browser, device, os };
 };
 
+const getClientIP = (req) => {
+  let ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '';
+  if (ip.includes(',')) {
+    ip = ip.split(',')[0].trim();
+  }
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+  return ip;
+};
+
+const getLocationInfo = async (ip) => {
+  try {
+    const isLocal = !ip || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || 
+          ip.startsWith('192.168.') || ip.startsWith('10.') || 
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) || ip.startsWith('169.254.');
+
+    if (isLocal) {
+      return {
+        location: 'Local Development Environment',
+        ip: '127.0.0.1',
+        isp: 'Development Network'
+      };
+    }
+
+    // 1. Primary: ip-api.com
+    try {
+      const res = await fetch(`http://ip-api.com/json/${ip}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'success') {
+          const country = data.country || '';
+          const state = data.regionName || '';
+          const city = data.city || '';
+          const locationParts = [city, state, country].filter(Boolean);
+          return {
+            location: locationParts.join(', ') || 'Local Development Environment',
+            ip: data.query || ip,
+            isp: data.isp || 'Development Network'
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Primary Geolocation error (ip-api.com):', err);
+    }
+
+    // 2. Fallback: ipinfo.io
+    try {
+      const res = await fetch(`https://ipinfo.io/${ip}/json`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && !data.error) {
+          const country = data.country || '';
+          const state = data.region || '';
+          const city = data.city || '';
+          const locationParts = [city, state, country].filter(Boolean);
+          return {
+            location: locationParts.join(', ') || 'Local Development Environment',
+            ip: data.ip || ip,
+            isp: data.org || 'Development Network'
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Secondary Geolocation error (ipinfo.io):', err);
+    }
+
+    return {
+      location: 'Local Development Environment',
+      ip: ip || '127.0.0.1',
+      isp: 'Development Network'
+    };
+  } catch (err) {
+    console.error('Geolocation logic error:', err);
+    return {
+      location: 'Local Development Environment',
+      ip: ip || '127.0.0.1',
+      isp: 'Development Network'
+    };
+  }
+};
+
 // Helper to log audit events
 const logAuditEvent = async (documentId, userId, action, req) => {
   try {
-    const ipAddress = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const ipAddress = getClientIP(req);
+    const geo = await getLocationInfo(ipAddress);
     const userAgent = req.headers['user-agent'] || 'Unknown Browser';
+    const { browser, device, os } = parseUA(userAgent);
+
     await AuditLog.create({
       documentId,
       userId,
       action,
-      ipAddress,
+      ipAddress: geo.ip,
       userAgent,
-      device: userAgent.includes('Mobile') ? 'Mobile' : 'Desktop',
-      country: 'Localhost',
+      device,
+      country: geo.location,
     });
   } catch (err) {
-    console.error('Audit logging failed:', err);
+    console.error('Failed to log audit event:', err);
+  }
+};
+
+export const embedSignaturesToPdf = async (pdfDoc, fields) => {
+  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const helveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+  const pages = pdfDoc.getPages();
+
+  for (const field of fields) {
+    const pageIndex = field.page - 1;
+    if (pageIndex < 0 || pageIndex >= pages.length) continue;
+
+    const page = pages[pageIndex];
+    const { width, height } = page.getSize();
+
+    // Convert relative percentage dimensions to absolute points
+    const targetX = (field.xPercent / 100) * width;
+    const targetY = height - ((field.yPercent / 100) * height) - ((field.heightPercent / 100) * height);
+    const targetW = (field.widthPercent / 100) * width;
+    const targetH = (field.heightPercent / 100) * height;
+
+    if (!field.value) continue;
+
+    if (field.type === 'Checkbox') {
+      // Draw a clean card background first
+      page.drawRectangle({
+        x: targetX,
+        y: targetY,
+        width: targetW,
+        height: targetH,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0.85, 0.85, 0.85),
+        borderWidth: 0.75
+      });
+      // Render checkbox indicator
+      const isChecked = field.value === 'true';
+      page.drawText(isChecked ? '[X]' : '[ ]', {
+        x: targetX + (targetW - 12) / 2,
+        y: targetY + (targetH - 10) / 2,
+        size: 10,
+        font: helveticaBold,
+        color: rgb(0, 0.392, 0.878)
+      });
+    } else {
+      // Draw professional signature block card (for Signature, Initials, Date, Text)
+      page.drawRectangle({
+        x: targetX,
+        y: targetY,
+        width: targetW,
+        height: targetH,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0.85, 0.85, 0.85),
+        borderWidth: 0.75
+      });
+
+      const footerH = Math.max(16, Math.min(26, targetH * 0.35));
+      const sepY = targetY + footerH;
+
+      // Divider line
+      page.drawLine({
+        start: { x: targetX, y: sepY },
+        end: { x: targetX + targetW, y: sepY },
+        thickness: 0.5,
+        color: rgb(0.9, 0.9, 0.9)
+      });
+
+      const topPadding = 2;
+      const contentW = targetW - topPadding * 2;
+      const contentH = targetH - footerH - topPadding * 2;
+      const contentX = targetX + topPadding;
+      const contentY = sepY + topPadding;
+
+      // Draw signature content (image or typed text)
+      if (field.value.startsWith('data:image')) {
+        const base64Data = field.value.split(',')[1];
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        let embeddedImage;
+        try {
+          if (field.value.includes('image/png')) {
+            embeddedImage = await pdfDoc.embedPng(imageBuffer);
+          } else {
+            embeddedImage = await pdfDoc.embedJpg(imageBuffer);
+          }
+          
+          const imgSize = embeddedImage.scale(1);
+          const scale = Math.min(contentW / imgSize.width, contentH / imgSize.height);
+          const fitW = imgSize.width * scale;
+          const fitH = imgSize.height * scale;
+          const fitX = contentX + (contentW - fitW) / 2;
+          const fitY = contentY + (contentH - fitH) / 2;
+
+          page.drawImage(embeddedImage, {
+            x: fitX,
+            y: fitY,
+            width: fitW,
+            height: fitH
+          });
+        } catch (e) {
+          console.error('Failed to embed signature image:', e);
+        }
+      } else {
+        let displayVal = field.value;
+        let fontStyle = helveticaBoldOblique;
+        
+        if (displayVal.includes(':')) {
+          const parts = displayVal.split(':');
+          const fontPrefix = parts[0];
+          displayVal = parts[1] || displayVal;
+          if (fontPrefix === 'cursive' || fontPrefix === 'great-vibes') {
+            fontStyle = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+          } else if (fontPrefix === 'serif' || fontPrefix === 'dancing-script') {
+            fontStyle = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
+          } else if (fontPrefix === 'sans-serif' || fontPrefix === 'allura') {
+            fontStyle = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+          }
+        }
+        
+        const textWidth = fontStyle.widthOfTextAtSize(displayVal, Math.max(5, contentH * 0.5));
+        const textX = contentX + (contentW - textWidth) / 2;
+        const textY = contentY + (contentH - Math.max(5, contentH * 0.5)) / 2 + 1;
+
+        page.drawText(displayVal, {
+          x: textX,
+          y: textY,
+          size: Math.max(5, contentH * 0.5),
+          font: fontStyle,
+          color: rgb(0.1, 0.1, 0.1)
+        });
+      }
+
+      // Draw footer details
+      const signerDisplayName = field.signerName || field.recipientEmail.split('@')[0];
+      const nameSize = Math.max(4.5, Math.min(7.5, footerH * 0.32));
+      const subSize = Math.max(3.5, Math.min(5.5, footerH * 0.22));
+
+      // 1. Signer Name
+      page.drawText(signerDisplayName, {
+        x: targetX + 5,
+        y: targetY + footerH * 0.6,
+        size: nameSize,
+        font: helveticaBold,
+        color: rgb(0.2, 0.2, 0.2)
+      });
+
+      // 2. "Digitally Signed" text
+      page.drawText('Digitally Signed', {
+        x: targetX + 5,
+        y: targetY + footerH * 0.32,
+        size: subSize,
+        font: helveticaFont,
+        color: rgb(0.4, 0.4, 0.4)
+      });
+
+      // 3. Timestamp
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = months[d.getUTCMonth()];
+      const year = d.getUTCFullYear();
+      const hours = String(d.getUTCHours()).padStart(2, '0');
+      const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+      const formattedDate = `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+
+      page.drawText(formattedDate, {
+        x: targetX + 5,
+        y: targetY + footerH * 0.1,
+        size: subSize * 0.85,
+        font: helveticaFont,
+        color: rgb(0.5, 0.5, 0.5)
+      });
+
+      // 4. Green Verified Badge
+      const badgeW = Math.max(28, targetW * 0.22);
+      const badgeH = Math.max(6, footerH * 0.3);
+      page.drawRectangle({
+        x: targetX + targetW - badgeW - 5,
+        y: targetY + footerH * 0.22,
+        width: badgeW,
+        height: badgeH,
+        color: rgb(0.19, 0.635, 0.3)
+      });
+
+      const badgeText = '✓ VERIFIED';
+      const badgeTextW = helveticaBold.widthOfTextAtSize(badgeText, badgeH * 0.65);
+      page.drawText(badgeText, {
+        x: targetX + targetW - badgeW - 5 + (badgeW - badgeTextW) / 2,
+        y: targetY + footerH * 0.22 + (badgeH - badgeH * 0.65) / 2 + 0.5,
+        size: badgeH * 0.65,
+        font: helveticaBold,
+        color: rgb(1, 1, 1)
+      });
+    }
   }
 };
 
@@ -268,24 +550,31 @@ router.put('/:id/sign', protect, async (req, res) => {
     if (status !== undefined) field.status = status;
     if (signatureValue !== undefined) field.value = signatureValue;
 
+    const recipient = await DocumentRecipient.findOne({ 
+      documentId: field.documentId, 
+      email: field.recipientEmail 
+    });
+    field.signerName = req.body.signerName || req.user.name || recipient?.name || field.recipientEmail.split('@')[0];
+
     // Capture IP address and User-Agent details
-    const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const ip = getClientIP(req);
+    const geo = await getLocationInfo(ip);
     const ua = req.headers['user-agent'] || 'Unknown Browser';
     const { browser, device, os } = parseUA(ua);
 
-    field.ipAddress = ip;
+    field.ipAddress = geo.ip;
     field.userAgent = ua;
     field.browser = browser;
     field.device = device;
     field.operatingSystem = os;
-    field.location = 'San Francisco, CA (IP Geolocation Sim)';
+    field.location = geo.location;
+    field.isp = geo.isp;
     
     // Generate IDs
-    const year = new Date().getFullYear();
-    const randomHexCert = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const randomHexAudit = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const randomHexCert = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const randomHexAudit = crypto.randomBytes(3).toString('hex').toUpperCase();
     
-    field.certificateId = `SIG-${year}-${randomHexCert}`;
+    field.certificateId = `SIG-2026-${randomHexCert}`;
     field.auditId = `AUD-${randomHexAudit}`;
     field.tamperStatus = 'Verified';
     
@@ -321,8 +610,8 @@ router.put('/:id/sign', protect, async (req, res) => {
           if (nextRecipient) {
             nextRecipient.status = 'Notified';
             await nextRecipient.save();
-            const editUrl = `http://localhost:5177/edit/${document._id}`;
-            await sendInviteEmail(nextRecipient.email, nextRecipient.name, document.filename, editUrl);
+            const signingUrl = `${FRONTEND_URL}/share/${document._id}`;
+            await sendInviteEmail(nextRecipient.email, nextRecipient.name, document.filename, signingUrl);
           }
         }
       }
@@ -354,10 +643,10 @@ router.delete('/:id', protect, async (req, res) => {
   try {
     const field = await SignatureField.findById(req.params.id);
     if (!field) {
-      return res.status(404).json({ message: 'Signature field not found' });
+      return res.status(200).json({ success: true, message: 'Field removed' });
     }
     await field.deleteOne();
-    res.json({ message: 'Signature field removed successfully' });
+    res.status(200).json({ success: true, message: 'Field removed' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete signature field', error: error.message });
   }
@@ -388,222 +677,39 @@ router.post('/finalize', protect, async (req, res) => {
       return res.status(400).json({ message: 'Please sign all placed placeholders before finalization.' });
     }
 
-    // Load original PDF bytes
-    console.log('Finalizing PDF with originalPath:', document.originalPath);
-    if (!fs.existsSync(document.originalPath)) {
-      console.log('File does NOT exist on disk!');
-    } else {
-      console.log('File size on disk:', fs.statSync(document.originalPath).size);
-    }
-    const pdfBytes = fs.readFileSync(document.originalPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    
-    // Embed standard Fonts
-    const helveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const pages = pdfDoc.getPages();
-
-    // Iterate placed fields and draw onto pages
-    for (const field of fields) {
-      const pageIndex = field.page - 1;
-      if (pageIndex < 0 || pageIndex >= pages.length) continue;
-
-      const page = pages[pageIndex];
-      const { width, height } = page.getSize();
-
-      // Convert relative percentage dimensions to absolute points
-      const targetX = (field.xPercent / 100) * width;
-      const targetY = height - ((field.yPercent / 100) * height) - ((field.heightPercent / 100) * height);
-      const targetW = (field.widthPercent / 100) * width;
-      const targetH = (field.heightPercent / 100) * height;
-
-      if (!field.value) continue;
-
-      if (field.value.startsWith('data:image')) {
-        // Embed drawing or uploaded signature image buffer
-        const base64Data = field.value.split(',')[1];
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        let embeddedImage;
-        if (field.value.includes('image/png')) {
-          embeddedImage = await pdfDoc.embedPng(imageBuffer);
-        } else {
-          embeddedImage = await pdfDoc.embedJpg(imageBuffer);
-        }
-
-        page.drawImage(embeddedImage, {
-          x: targetX,
-          y: targetY,
-          width: targetW,
-          height: targetH
-        });
-      } else if (field.type === 'Checkbox') {
-        // Render checkbox indicator
-        const isChecked = field.value === 'true';
-        page.drawText(isChecked ? '[X]' : '[ ]', {
-          x: targetX,
-          y: targetY + 2,
-          size: 12,
-          font: helveticaBoldOblique,
-          color: rgb(0, 0.392, 0.878)
-        });
-      } else {
-        // Render standard typed text or date string
-        let displayVal = field.value;
-        let fontStyle = helveticaBoldOblique;
-        
-        if (displayVal.includes(':')) {
-          const parts = displayVal.split(':');
-          const fontPrefix = parts[0];
-          displayVal = parts[1] || displayVal;
-          if (fontPrefix === 'cursive' || fontPrefix === 'great-vibes') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
-          } else if (fontPrefix === 'serif' || fontPrefix === 'dancing-script') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
-          } else if (fontPrefix === 'sans-serif' || fontPrefix === 'allura') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-          }
-        }
-
-        page.drawText(displayVal, {
-          x: targetX,
-          y: targetY + 4,
-          size: Math.max(8, targetH * 0.5),
-          font: fontStyle,
-          color: rgb(0, 0.392, 0.878)
-        });
-      }
-
-      // Draw a thin border line beneath the signature for professional appearance
-      page.drawLine({
-        start: { x: targetX, y: targetY - 2 },
-        end: { x: targetX + targetW, y: targetY - 2 },
-        thickness: 0.5,
-        color: rgb(0.7, 0.7, 0.7)
-      });
-    }
-
-    // Build finalized PDF bytes
-    const finalizedBytes = await pdfDoc.save();
-
-    // Compute cryptographic SHA256 checksum
-    const sha256Checksum = crypto.createHash('sha256').update(finalizedBytes).digest('hex');
-
-    // --- Embed Certificate of Completion Page ---
-    const certPage = pdfDoc.addPage([595, 842]); // A4 portrait
-    const { width: cW, height: cH } = certPage.getSize();
-    const certFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const certFontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    // Retrieve owner info for the certificate
-    const owner = await User.findById(document.ownerId);
-    const ownerName = owner ? owner.name : 'Unknown Owner';
-    const ownerEmail = owner ? owner.email : '';
-
-    // Header bar
-    certPage.drawRectangle({ x: 0, y: cH - 90, width: cW, height: 90, color: rgb(0, 0.392, 0.878) });
-    certPage.drawText('Certificate of Completion', { x: 40, y: cH - 52, size: 22, font: certFont, color: rgb(1, 1, 1) });
-    certPage.drawText('SignFlow AI — Electronic Signature Platform', { x: 40, y: cH - 72, size: 10, font: certFontRegular, color: rgb(0.8, 0.9, 1) });
-
-    // Document info
-    certPage.drawText(`Document: ${document.filename}`, { x: 40, y: cH - 120, size: 11, font: certFont, color: rgb(0.1, 0.1, 0.1) });
-    certPage.drawText(`Owner: ${ownerName} ${ownerEmail ? `(${ownerEmail})` : ''}`, { x: 40, y: cH - 138, size: 10, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-    certPage.drawText(`Status: Fully Executed`, { x: 40, y: cH - 156, size: 10, font: certFontRegular, color: rgb(0.1, 0.6, 0.2) });
-    certPage.drawText(`Completed: ${new Date().toUTCString()}`, { x: 40, y: cH - 174, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
-    certPage.drawText(`Document ID: ${document._id}`, { x: 40, y: cH - 190, size: 9, font: certFontRegular, color: rgb(0.4, 0.4, 0.4) });
-
-    // Divider
-    certPage.drawLine({ start: { x: 40, y: cH - 200 }, end: { x: cW - 40, y: cH - 200 }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
-
-    // Signers list title
-    certPage.drawText('Signer Lifecycle & Verification Audit Trail', { x: 40, y: cH - 220, size: 11, font: certFont, color: rgb(0.2, 0.2, 0.2) });
-
-    let boxY = cH - 315;
-    for (const field of fields) {
-      if (field.status !== 'Signed') continue;
-      const signerDisplayName = field.userId?.name || field.recipientEmail.split('@')[0];
-      const signedAt = field.updatedAt ? new Date(field.updatedAt).toUTCString() : new Date().toUTCString();
-      const ip = field.ipAddress || '127.0.0.1';
-      const certId = field.certificateId || 'SIG-PENDING';
-      const auditId = field.auditId || 'AUD-PENDING';
-      const tamperStatus = field.tamperStatus || 'Verified';
-      const docHash = field.documentHash || sha256Checksum;
-      const verificationStatus = field.status === 'Signed' ? 'Verified Signature' : 'Pending';
-
-      // Draw light card background for this signer block
-      certPage.drawRectangle({
-        x: 40,
-        y: boxY,
-        width: cW - 80,
-        height: 80,
-        color: rgb(0.98, 0.98, 0.98),
-        borderColor: rgb(0.9, 0.9, 0.9),
-        borderWidth: 1
-      });
-
-      // Card Header: Signer Name & Email
-      certPage.drawText(`${signerDisplayName} (${field.recipientEmail})`, { x: 50, y: boxY + 65, size: 9, font: certFont, color: rgb(0, 0.392, 0.878) });
-      
-      // Metadata Details inside card (two columns)
-      certPage.drawText(`Signed At: ${signedAt}`, { x: 50, y: boxY + 48, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-      certPage.drawText(`IP Address: ${ip}`, { x: 50, y: boxY + 34, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-      certPage.drawText(`Certificate ID: ${certId}`, { x: 50, y: boxY + 20, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-      
-      certPage.drawText(`Audit ID: ${auditId}`, { x: 300, y: boxY + 48, size: 8, font: certFontRegular, color: rgb(0.2, 0.2, 0.2) });
-      certPage.drawText(`Tamper Status: ${tamperStatus}`, { x: 300, y: boxY + 34, size: 8, font: certFontRegular, color: rgb(0.1, 0.6, 0.2) });
-      certPage.drawText(`Verification Status: ${verificationStatus}`, { x: 300, y: boxY + 20, size: 8, font: certFont, color: rgb(0, 0.6, 0.2) });
-
-      // Document hash for this signature block
-      certPage.drawText(`SHA-256 Hash: ${docHash}`, { x: 50, y: boxY + 6, size: 7, font: certFontRegular, color: rgb(0.5, 0.5, 0.5) });
-
-      boxY -= 90; // Move down for the next signer block
-      
-      // Prevent overflow
-      if (boxY < 80) break;
-    }
-
-    // Document Fingerprint at the bottom
-    const hashY = 85;
-    certPage.drawRectangle({ x: 40, y: hashY, width: cW - 80, height: 32, color: rgb(0.96, 0.98, 1), borderColor: rgb(0.7, 0.8, 1), borderWidth: 1 });
-    certPage.drawText('Final Document Fingerprint (SHA-256):', { x: 48, y: hashY + 20, size: 8, font: certFont, color: rgb(0.2, 0.3, 0.8) });
-    certPage.drawText(sha256Checksum, { x: 48, y: hashY + 6, size: 7, font: certFontRegular, color: rgb(0.1, 0.1, 0.4) });
-
-    // Footer
-    certPage.drawText('This certificate is generated by SignFlow AI and is legally binding in jurisdictions recognizing electronic signatures.', {
-      x: 40, y: 40, size: 7, font: certFontRegular, color: rgb(0.6, 0.6, 0.6)
-    });
-
-    // Re-save with cert page
-    const finalBytesWithCert = await pdfDoc.save();
-    const finalChecksumWithCert = crypto.createHash('sha256').update(finalBytesWithCert).digest('hex');
-
+    // Use centralized PDF service to finalize
+    const { finalBytes, sha256Checksum } = await generateFinalizedPdf(document, fields);
 
     // Save finalized document to disk
     const finalizedPath = `uploads/finalized-${Date.now()}-${document.filename}`;
-    fs.writeFileSync(finalizedPath, finalBytesWithCert);
+    fs.writeFileSync(finalizedPath, finalBytes);
 
     // Update main model database keys
     document.originalPath = finalizedPath;
     document.status = 'Signed';
-    document.sha256Checksum = finalChecksumWithCert;
+    document.sha256Checksum = sha256Checksum;
     await document.save();
 
     // Log the action to Audit Trail
     await logAuditEvent(document._id, req.user._id, 'Finalize', req);
 
+    // Retrieve owner info for the email notification
+    const owner = await User.findById(document.ownerId);
+
     // Send completion email to document owner
-    const downloadUrl = `http://localhost:5177/edit/${document._id}`;
+    const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
     if (owner) {
       await sendCompletionEmail(owner.email, document.filename, downloadUrl, owner.name);
     }
 
     // Send completed email to all signers
     try {
+      const shareUrl = `${FRONTEND_URL}/share/${document._id}`;
       const distinctSigners = await SignatureField.find({ documentId: document._id, status: 'Signed' }).distinct('recipientEmail');
       for (const signerEmail of distinctSigners) {
         const fieldsForSigner = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.toLowerCase());
-        const signerName = fieldsForSigner[0]?.userId?.name || signerEmail.split('@')[0];
-        await sendCompletedSignerEmail(signerEmail, signerName, document.filename, downloadUrl);
+        const signerName = fieldsForSigner[0]?.signerName || fieldsForSigner[0]?.userId?.name || signerEmail.split('@')[0];
+        await sendCompletedSignerEmail(signerEmail, signerName, document.filename, shareUrl);
       }
     } catch (err) {
       console.error('Failed to send signer completion emails:', err);
@@ -612,7 +718,7 @@ router.post('/finalize', protect, async (req, res) => {
     res.json({ 
       message: 'PDF finalized with Certificate of Completion and cryptographic stamp.', 
       document,
-      sha256Checksum: finalChecksumWithCert
+      sha256Checksum: sha256Checksum
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to finalize PDF document', error: error.message });
@@ -691,25 +797,32 @@ router.post('/:id/sign-public', async (req, res) => {
 
     field.value = signatureValue;
     field.status = 'Signed';
+
+    const recipient = await DocumentRecipient.findOne({ 
+      documentId: field.documentId, 
+      email: field.recipientEmail 
+    });
+    field.signerName = signerName || recipient?.name || signerEmail.split('@')[0];
     
     // Capture IP address and User-Agent details
-    const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const ip = getClientIP(req);
+    const geo = await getLocationInfo(ip);
     const ua = req.headers['user-agent'] || 'Unknown Browser';
     const { browser, device, os } = parseUA(ua);
 
-    field.ipAddress = ip;
+    field.ipAddress = geo.ip;
     field.userAgent = ua;
     field.browser = browser;
     field.device = device;
     field.operatingSystem = os;
-    field.location = 'San Francisco, CA (IP Geolocation Sim)';
+    field.location = geo.location;
+    field.isp = geo.isp;
     
     // Generate IDs
-    const year = new Date().getFullYear();
-    const randomHexCert = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const randomHexAudit = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const randomHexCert = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const randomHexAudit = crypto.randomBytes(3).toString('hex').toUpperCase();
     
-    field.certificateId = `SIG-${year}-${randomHexCert}`;
+    field.certificateId = `SIG-2026-${randomHexCert}`;
     field.auditId = `AUD-${randomHexAudit}`;
     field.tamperStatus = 'Verified';
     
@@ -734,7 +847,7 @@ router.post('/:id/sign-public', async (req, res) => {
 
         const owner = await User.findById(document.ownerId);
         if (owner) {
-          const downloadUrl = `http://localhost:5177/edit/${document._id}`;
+          const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
           await sendCompletionEmail(owner.email, document.filename, downloadUrl);
         }
       }

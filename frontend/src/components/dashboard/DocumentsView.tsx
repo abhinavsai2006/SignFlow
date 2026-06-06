@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../../utils/api';
 import MetaCard from '../ui/MetaCard';
@@ -36,11 +36,7 @@ export default function DocumentsView({ statusFilter = 'all', title, subtitle }:
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 5;
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [statusFilter, searchQuery, sortBy, currentPage, activeWorkspace]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get('/docs', {
@@ -70,7 +66,11 @@ export default function DocumentsView({ statusFilter = 'all', title, subtitle }:
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, statusFilter, sortBy, currentPage, activeWorkspace]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => fetchDocuments());
+  }, [fetchDocuments]);
 
   const getStatusBadgeVariant = (status: string): MetaBadgeVariant => {
     switch (status) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
 import MetaCard from '../ui/MetaCard';
 import MetaInput from '../ui/MetaInput';
@@ -32,11 +32,7 @@ export default function Workspace() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchWorkspaces();
-  }, []);
-
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -60,7 +56,11 @@ export default function Workspace() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve().then(() => fetchWorkspaces());
+  }, [fetchWorkspaces]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -14,6 +14,9 @@ const signatureFieldSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  signerName: {
+    type: String
+  },
   type: {
     type: String,
     enum: ['Signature', 'Initials', 'Date', 'Text', 'Checkbox'],
@@ -53,11 +56,11 @@ const signatureFieldSchema = new mongoose.Schema({
   },
   ipAddress: {
     type: String,
-    default: '127.0.0.1'
+    default: 'Unavailable'
   },
   userAgent: {
     type: String,
-    default: 'Unknown Browser'
+    default: 'Unavailable'
   },
   certificateId: {
     type: String
@@ -76,7 +79,10 @@ const signatureFieldSchema = new mongoose.Schema({
   },
   location: {
     type: String,
-    default: 'Localhost (United States)'
+    default: 'Unavailable'
+  },
+  isp: {
+    type: String
   },
   documentHash: {
     type: String

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /* ═══════════════════════════════════════════════════════
@@ -159,20 +159,21 @@ function useCountUp(end: number, duration: number = 2000, trigger: boolean = fal
 /* ═══════════════════════════════════════════════════════
    INTERSECTION OBSERVER FOR SCROLL ANIMATIONS
    ═══════════════════════════════════════════════════════ */
-function useInView(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
+function useInView(threshold = 0.15): [(el: HTMLDivElement | null) => void, boolean] {
   const [inView, setInView] = useState(false);
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!element) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setInView(true); },
       { threshold }
     );
-    observer.observe(el);
+    observer.observe(element);
     return () => observer.disconnect();
-  }, [threshold]);
-  return { ref, inView };
+  }, [element, threshold]);
+
+  return [setElement, inView];
 }
 
 
@@ -229,20 +230,20 @@ export default function LandingPage() {
   }, []);
 
   // Stats animation
-  const statsSection = useInView(0.3);
-  const stat1 = useCountUp(10000, 2000, statsSection.inView);
-  const stat2 = useCountUp(99, 1800, statsSection.inView);
-  const stat3 = useCountUp(150, 2200, statsSection.inView);
-  const stat4 = useCountUp(50, 1600, statsSection.inView);
+  const [statsRef, statsInView] = useInView(0.3);
+  const stat1 = useCountUp(10000, 2000, statsInView);
+  const stat2 = useCountUp(99, 1800, statsInView);
+  const stat3 = useCountUp(150, 2200, statsInView);
+  const stat4 = useCountUp(50, 1600, statsInView);
 
   // Section animations
-  const heroAnim = useInView(0.05);
-  const featuresAnim = useInView();
-  const workflowAnim = useInView();
-  const securityAnim = useInView();
-  const pricingAnim = useInView();
-  const faqAnim = useInView();
-  const ctaAnim = useInView();
+  const [heroRef, heroInView] = useInView(0.05);
+  const [featuresRef, featuresInView] = useInView();
+  const [workflowRef, workflowInView] = useInView();
+  const [securityRef, securityInView] = useInView();
+  const [pricingRef, pricingInView] = useInView();
+  const [faqRef, faqInView] = useInView();
+  const [ctaRef, ctaInView] = useInView();
 
   const plans = [
     {
@@ -392,8 +393,8 @@ export default function LandingPage() {
 
       {/* ─── HERO ─── */}
       <section
-        ref={heroAnim.ref}
-        className={`lp-hero lp-fade-section ${heroAnim.inView ? 'lp-visible' : ''}`}
+        ref={heroRef}
+        className={`lp-hero lp-fade-section ${heroInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-hero-inner">
           <div className="lp-hero-content">
@@ -487,7 +488,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── STATS BAR ─── */}
-      <section ref={statsSection.ref} className="lp-stats">
+      <section ref={statsRef} className="lp-stats">
         <div className="lp-stats-inner">
           <div className="lp-stat">
             <div className="lp-stat-number">{stat1.toLocaleString()}+</div>
@@ -511,8 +512,8 @@ export default function LandingPage() {
       {/* ─── FEATURES ─── */}
       <section
         id="features"
-        ref={featuresAnim.ref}
-        className={`lp-section lp-fade-section ${featuresAnim.inView ? 'lp-visible' : ''}`}
+        ref={featuresRef}
+        className={`lp-section lp-fade-section ${featuresInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container">
           <div className="lp-section-header">
@@ -568,8 +569,8 @@ export default function LandingPage() {
       {/* ─── HOW IT WORKS ─── */}
       <section
         id="how-it-works"
-        ref={workflowAnim.ref}
-        className={`lp-section lp-section-soft lp-fade-section ${workflowAnim.inView ? 'lp-visible' : ''}`}
+        ref={workflowRef}
+        className={`lp-section lp-section-soft lp-fade-section ${workflowInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container">
           <div className="lp-section-header">
@@ -614,8 +615,8 @@ export default function LandingPage() {
       {/* ─── SECURITY ─── */}
       <section
         id="security"
-        ref={securityAnim.ref}
-        className={`lp-section lp-fade-section ${securityAnim.inView ? 'lp-visible' : ''}`}
+        ref={securityRef}
+        className={`lp-section lp-fade-section ${securityInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container">
           <div className="lp-security-banner">
@@ -680,8 +681,8 @@ export default function LandingPage() {
       {/* ─── PRICING ─── */}
       <section
         id="pricing"
-        ref={pricingAnim.ref}
-        className={`lp-section lp-fade-section ${pricingAnim.inView ? 'lp-visible' : ''}`}
+        ref={pricingRef}
+        className={`lp-section lp-fade-section ${pricingInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container">
           <div className="lp-section-header">
@@ -750,8 +751,8 @@ export default function LandingPage() {
       {/* ─── FAQ ─── */}
       <section
         id="faq"
-        ref={faqAnim.ref}
-        className={`lp-section lp-section-soft lp-fade-section ${faqAnim.inView ? 'lp-visible' : ''}`}
+        ref={faqRef}
+        className={`lp-section lp-section-soft lp-fade-section ${faqInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container lp-faq-container">
           <div className="lp-section-header">
@@ -767,8 +768,8 @@ export default function LandingPage() {
 
       {/* ─── FINAL CTA BANNER ─── */}
       <section
-        ref={ctaAnim.ref}
-        className={`lp-section lp-fade-section ${ctaAnim.inView ? 'lp-visible' : ''}`}
+        ref={ctaRef}
+        className={`lp-section lp-fade-section ${ctaInView ? 'lp-visible' : ''}`}
       >
         <div className="lp-container">
           <div className="lp-cta-banner">
