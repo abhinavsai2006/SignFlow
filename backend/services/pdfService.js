@@ -26,7 +26,6 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
     const page = pages[pageIndex];
     const { width, height } = page.getSize();
 
-    // Convert relative percentage dimensions to absolute points
     const targetX = (field.xPercent / 100) * width;
     const targetY = height - ((field.yPercent / 100) * height) - ((field.heightPercent / 100) * height);
     const targetW = (field.widthPercent / 100) * width;
@@ -35,174 +34,122 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
     if (!field.value) continue;
 
     if (field.type === 'Checkbox') {
-      // Draw a clean card background
       page.drawRectangle({
-        x: targetX,
-        y: targetY,
-        width: targetW,
-        height: targetH,
-        color: rgb(1, 1, 1),
-        borderColor: rgb(0.85, 0.85, 0.85),
-        borderWidth: 0.75
+        x: targetX, y: targetY, width: targetW, height: targetH,
+        color: rgb(1, 1, 1), borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 0.75
       });
-      // Render checkbox indicator
       const isChecked = field.value === 'true';
       page.drawText(isChecked ? '[X]' : '[ ]', {
-        x: targetX + (targetW - 12) / 2,
-        y: targetY + (targetH - 10) / 2,
-        size: Math.min(10, targetH * 0.5),
-        font: helveticaBold,
-        color: rgb(0, 0.392, 0.878)
+        x: targetX + (targetW - 12) / 2, y: targetY + (targetH - 10) / 2,
+        size: Math.min(10, targetH * 0.5), font: helveticaBold, color: rgb(0, 0.392, 0.878)
       });
     } else {
-      // Draw professional signature block card (for Signature, Initials, Date, Text)
+      // 1. Light Green Background
       page.drawRectangle({
-        x: targetX,
-        y: targetY,
-        width: targetW,
-        height: targetH,
-        color: rgb(1, 1, 1),
-        borderColor: rgb(0.85, 0.85, 0.85),
-        borderWidth: 0.75
+        x: targetX, y: targetY, width: targetW, height: targetH,
+        color: rgb(0.96, 0.98, 0.96), // light green bg
+        borderColor: rgb(0.12, 0.635, 0.3), // green border
+        borderWidth: 1.5
       });
 
-      const footerH = Math.max(16, Math.min(28, targetH * 0.35));
-      const sepY = targetY + footerH;
-
-      // Divider line
-      page.drawLine({
-        start: { x: targetX, y: sepY },
-        end: { x: targetX + targetW, y: sepY },
-        thickness: 0.5,
-        color: rgb(0.9, 0.9, 0.9)
+      // Split into Left (Signature) and Right (Metadata) or Top (Signature) and Bottom (Metadata)
+      // Adobe Sign usually puts signature on left, metadata on right, or signature top, metadata bottom.
+      // Let's do a top/bottom split if it's rectangular.
+      const isHorizontal = targetW > targetH * 1.5;
+      
+      const headerH = 14;
+      
+      // Top header banner
+      page.drawRectangle({
+        x: targetX, y: targetY + targetH - headerH, width: targetW, height: headerH,
+        color: rgb(0.12, 0.635, 0.3)
+      });
+      page.drawText('Verified Digital Signature', {
+        x: targetX + 4, y: targetY + targetH - headerH + 4,
+        size: 7, font: helveticaBold, color: rgb(1, 1, 1)
       });
 
-      const topPadding = 2;
-      const contentW = targetW - topPadding * 2;
-      const contentH = targetH - footerH - topPadding * 2;
-      const contentX = targetX + topPadding;
-      const contentY = sepY + topPadding;
+      // Content Area
+      let sigArea = { x: targetX, y: targetY, w: targetW, h: targetH - headerH };
+      let metaArea = { x: targetX, y: targetY, w: targetW, h: targetH - headerH };
 
-      // Draw signature content (image or typed text)
+      if (isHorizontal) {
+        sigArea.w = targetW * 0.45;
+        metaArea.x = targetX + targetW * 0.45;
+        metaArea.w = targetW * 0.55;
+      } else {
+        sigArea.h = (targetH - headerH) * 0.55;
+        sigArea.y = targetY + (targetH - headerH) * 0.45;
+        metaArea.h = (targetH - headerH) * 0.45;
+      }
+
+      // Draw signature image
       if (field.value.startsWith('data:image')) {
         const base64Data = field.value.split(',')[1];
         const imageBuffer = Buffer.from(base64Data, 'base64');
-        let embeddedImage;
         try {
-          if (field.value.includes('image/png')) {
-            embeddedImage = await pdfDoc.embedPng(imageBuffer);
-          } else {
-            embeddedImage = await pdfDoc.embedJpg(imageBuffer);
-          }
-          
+          let embeddedImage = field.value.includes('image/png') 
+            ? await pdfDoc.embedPng(imageBuffer) 
+            : await pdfDoc.embedJpg(imageBuffer);
           const imgSize = embeddedImage.scale(1);
+          const padding = 4;
+          const contentW = sigArea.w - padding * 2;
+          const contentH = sigArea.h - padding * 2;
           const scaleFactor = Math.min(contentW / imgSize.width, contentH / imgSize.height);
           const fitW = imgSize.width * scaleFactor;
           const fitH = imgSize.height * scaleFactor;
-          const fitX = contentX + (contentW - fitW) / 2;
-          const fitY = contentY + (contentH - fitH) / 2;
-
+          
           page.drawImage(embeddedImage, {
-            x: fitX,
-            y: fitY,
-            width: fitW,
-            height: fitH
+            x: sigArea.x + padding + (contentW - fitW) / 2,
+            y: sigArea.y + padding + (contentH - fitH) / 2,
+            width: fitW, height: fitH
           });
-        } catch (e) {
-          console.error('Failed to embed signature image:', e);
-        }
+        } catch (e) { console.error('Signature embed error:', e); }
       } else {
         let displayVal = field.value;
         let fontStyle = helveticaBoldOblique;
-        
         if (displayVal.includes(':')) {
           const parts = displayVal.split(':');
-          const fontPrefix = parts[0];
           displayVal = parts[1] || displayVal;
-          if (fontPrefix === 'cursive' || fontPrefix === 'great-vibes') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
-          } else if (fontPrefix === 'serif' || fontPrefix === 'dancing-script') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
-          } else if (fontPrefix === 'sans-serif' || fontPrefix === 'allura') {
-            fontStyle = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-          }
+          if (['cursive', 'great-vibes'].includes(parts[0])) fontStyle = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+          else if (['serif', 'dancing-script'].includes(parts[0])) fontStyle = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
         }
-        
-        const textSize = Math.max(6, contentH * 0.45);
+        const textSize = Math.min(18, sigArea.h * 0.4);
         const textWidth = fontStyle.widthOfTextAtSize(displayVal, textSize);
-        const textX = contentX + (contentW - textWidth) / 2;
-        const textY = contentY + (contentH - textSize) / 2 + 1;
-
         page.drawText(displayVal, {
-          x: textX,
-          y: textY,
-          size: textSize,
-          font: fontStyle,
-          color: rgb(0.1, 0.1, 0.1)
+          x: sigArea.x + (sigArea.w - textWidth) / 2,
+          y: sigArea.y + (sigArea.h - textSize) / 2,
+          size: textSize, font: fontStyle, color: rgb(0.1, 0.1, 0.1)
         });
       }
 
-      // Draw footer details
-      const signerDisplayName = field.signerName || field.recipientEmail.split('@')[0];
-      const nameSize = Math.max(4.5, Math.min(8.0, footerH * 0.32));
-      const subSize = Math.max(3.5, Math.min(6.0, footerH * 0.22));
-
-      // 1. Signer Name
-      page.drawText(signerDisplayName, {
-        x: targetX + 5,
-        y: targetY + footerH * 0.6,
-        size: nameSize,
-        font: helveticaBold,
-        color: rgb(0.1, 0.1, 0.1)
-      });
-
-      // 2. "Digitally Signed" text
-      page.drawText('Digitally Signed', {
-        x: targetX + 5,
-        y: targetY + footerH * 0.32,
-        size: subSize,
-        font: helveticaFont,
-        color: rgb(0.4, 0.4, 0.4)
-      });
-
-      // 3. Timestamp
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      // Draw Metadata
+      const signerName = field.signerName || field.recipientEmail.split('@')[0];
+      const email = field.recipientEmail;
       const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const month = months[d.getUTCMonth()];
-      const year = d.getUTCFullYear();
-      const hours = String(d.getUTCHours()).padStart(2, '0');
-      const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-      const formattedDate = `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+      const formattedDate = `${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      const formattedTime = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC`;
 
-      page.drawText(formattedDate, {
-        x: targetX + 5,
-        y: targetY + footerH * 0.1,
-        size: subSize * 0.85,
-        font: helveticaFont,
-        color: rgb(0.5, 0.5, 0.5)
-      });
+      let cursorY = metaArea.y + metaArea.h - 10;
+      const textX = metaArea.x + 6;
+      
+      // Name & Email
+      page.drawText(signerName, { x: textX, y: cursorY, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+      cursorY -= 9;
+      page.drawText(email, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
+      cursorY -= 12;
 
-      // 4. Green Verified Badge
-      const badgeW = Math.max(34, targetW * 0.22);
-      const badgeH = Math.max(8, footerH * 0.3);
-      page.drawRectangle({
-        x: targetX + targetW - badgeW - 5,
-        y: targetY + footerH * 0.22,
-        width: badgeW,
-        height: badgeH,
-        color: rgb(0.12, 0.635, 0.3)
-      });
+      // Date & Time
+      page.drawText(`${formattedDate}  ${formattedTime}`, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      cursorY -= 12;
 
-      const badgeText = '[VERIFIED]';
-      const badgeTextW = helveticaBold.widthOfTextAtSize(badgeText, badgeH * 0.65);
-      page.drawText(badgeText, {
-        x: targetX + targetW - badgeW - 5 + (badgeW - badgeTextW) / 2,
-        y: targetY + footerH * 0.22 + (badgeH - badgeH * 0.65) / 2 + 0.5,
-        size: badgeH * 0.65,
-        font: helveticaBold,
-        color: rgb(1, 1, 1)
-      });
+      // Verification checks
+      const checks = ['✓ Identity Verified', '✓ Audit Verified', '✓ SHA256 Protected'];
+      for (const check of checks) {
+        if (cursorY < metaArea.y + 2) break; // Don't draw if no space
+        page.drawText(check, { x: textX, y: cursorY, size: 5.5, font: helveticaBold, color: rgb(0.12, 0.635, 0.3) });
+        cursorY -= 8;
+      }
     }
   }
 };

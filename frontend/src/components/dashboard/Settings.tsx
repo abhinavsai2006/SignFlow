@@ -1,46 +1,44 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import MetaCard from '../ui/MetaCard';
 import MetaInput from '../ui/MetaInput';
 import MetaButton from '../ui/MetaButton';
+import MetaBadge from '../ui/MetaBadge';
+import { 
+  User, Shield, Bell, Briefcase, CreditCard, Code, List, 
+  Save, LogOut, Smartphone, CheckCircle, AlertTriangle 
+} from 'lucide-react';
 
 export default function Settings() {
-  const { user } = useOutletContext<{ user: any }>();
+  const { user, handleLogout } = useOutletContext<{ user: any, handleLogout: () => void }>();
+  const [activeTab, setActiveTab] = useState('general');
+
   const [name, setName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const [isTestingEmail, setIsTestingEmail] = useState(false);
-  const [testResult, setTestResult] = useState<any | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
-
-  const [emailStatus, setEmailStatus] = useState<any | null>(null);
-  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-
-  const fetchEmailStatus = useCallback(async () => {
-    try {
-      setIsLoadingStatus(true);
-      const res = await api.get('/email/status');
-      setEmailStatus(res.data);
-    } catch (err) {
-      console.error('Failed to fetch email status', err);
-    } finally {
-      setIsLoadingStatus(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    Promise.resolve().then(() => fetchEmailStatus());
-  }, [fetchEmailStatus]);
+  const tabs = [
+    { id: 'general', label: 'General', icon: <User className="w-4 h-4" /> },
+    { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
+    { id: 'workspace', label: 'Workspace', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'billing', label: 'Billing', icon: <CreditCard className="w-4 h-4" /> },
+    { id: 'api', label: 'API Keys', icon: <Code className="w-4 h-4" /> },
+    { id: 'audit', label: 'Audit Logs', icon: <List className="w-4 h-4" /> },
+  ];
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
     setStatusMessage(null);
+    setError(null);
     
     try {
       if (name !== user?.name) {
@@ -64,218 +62,204 @@ export default function Settings() {
       setCurrentPassword('');
       setPassword('');
       setConfirmPassword('');
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: any) {
       console.error(err);
-      setStatusMessage(err.response?.data?.message || err.message || 'Update failed');
+      setError(err.response?.data?.message || err.message || 'Update failed');
+      setTimeout(() => setError(null), 3000);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleSendTestEmail = async () => {
-    setIsTestingEmail(true);
-    setTestResult(null);
-    setTestError(null);
-    try {
-      const res = await api.post('/email/test');
-      if (res.data.success) {
-        setTestResult(res.data);
-        // Refresh email status logs after a short delay to fetch the new log
-        setTimeout(fetchEmailStatus, 1000);
-      } else {
-        setTestError(res.data.message || 'Verification failed.');
-      }
-    } catch (err: any) {
-      console.error(err);
-      const errMsg = err.response?.data?.providerError || err.response?.data?.message || err.message || 'Request failed';
-      setTestError(errMsg);
-    } finally {
-      setIsTestingEmail(false);
-    }
+  const fadeVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 }
   };
 
   return (
-    <div className="space-y-xl max-w-[600px]">
+    <div className="max-w-7xl mx-auto w-full space-y-lg">
       <div>
-        <h1 className="text-heading-lg font-bold text-ink-deep mb-xxs">Account Settings</h1>
-        <p className="text-body-sm text-slate">Manage your user profile and security credentials.</p>
+        <h1 className="text-heading-lg font-bold text-ink-deep mb-xs">Settings</h1>
+        <p className="text-body-sm text-slate">Manage your account preferences, security, and workspace configurations.</p>
       </div>
 
-      {statusMessage && (
-        <div className="bg-primary/10 border border-primary text-primary-deep px-md py-sm rounded-lg text-body-sm-bold text-center">
-          {statusMessage}
-        </div>
-      )}
+      <AnimatePresence>
+        {statusMessage && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-success-bg/10 border border-success text-success px-md py-sm rounded-lg text-body-sm-bold text-center">
+            {statusMessage}
+          </motion.div>
+        )}
+        {error && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-critical/10 border border-critical text-critical px-md py-sm rounded-lg text-body-sm-bold text-center">
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <MetaCard variant="product-feature">
-        <form onSubmit={handleUpdateProfile} className="space-y-xl">
-          <div>
-            <label className="block text-body-sm-bold text-ink-deep mb-xs">Email Address</label>
-            <MetaInput value={user?.email} disabled className="bg-surface-soft opacity-60 cursor-not-allowed" />
-            <p className="text-caption text-slate mt-xxs">Email address cannot be changed.</p>
-          </div>
-
-          <div>
-            <label className="block text-body-sm-bold text-ink-deep mb-xs">Display Name</label>
-            <MetaInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" />
-          </div>
-
-          <div className="border-t border-hairline-soft pt-xl space-y-xl">
-            <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Change Password</h3>
-            <div>
-              <label className="block text-body-sm-bold text-ink-deep mb-xs">Current Password</label>
-              <MetaInput 
-                type="password" 
-                value={currentPassword} 
-                onChange={(e) => setCurrentPassword(e.target.value)} 
-                placeholder="Current password" 
-              />
-            </div>
-            <div>
-              <label className="block text-body-sm-bold text-ink-deep mb-xs">New Password</label>
-              <MetaInput 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="At least 6 characters" 
-              />
-            </div>
-            <div>
-              <label className="block text-body-sm-bold text-ink-deep mb-xs">Confirm New Password</label>
-              <MetaInput 
-                type="password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                placeholder="Confirm password" 
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-xl gap-md">
-            <MetaButton 
-              variant="secondary" 
-              type="button" 
-              onClick={async () => {
-                try {
-                  await api.post('/auth/logout-all');
-                  window.location.href = '/login';
-                } catch (err: any) {
-                  setStatusMessage(err.response?.data?.message || 'Logout failed');
-                }
-              }}
-              className="text-critical hover:bg-critical/10 hover:border-critical/30"
+      <div className="flex flex-col md:flex-row gap-xl">
+        {/* Sidebar Nav */}
+        <div className="w-full md:w-64 shrink-0 flex flex-row md:flex-col gap-2 overflow-x-auto pb-4 md:pb-0">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-3 px-md py-sm rounded-xl font-bold text-body-sm transition-all whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? 'bg-fb-blue text-white shadow-md' 
+                  : 'text-slate hover:bg-surface-soft hover:text-ink-deep'
+              }`}
             >
-              Logout All Devices
-            </MetaButton>
-            <MetaButton variant="buy-cta" type="submit" isLoading={isUpdating}>
-              Save Changes
-            </MetaButton>
-          </div>
-        </form>
-      </MetaCard>
-
-      {/* Email Integration & Status Dashboard */}
-      <MetaCard variant="product-feature" className="space-y-lg">
-        <div>
-          <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider mb-xxs">Email Service Integration</h3>
-          <p className="text-body-xs text-slate">Monitor your Resend email delivery configuration and audit test logs.</p>
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {isLoadingStatus ? (
-          <div className="text-body-sm text-slate py-md text-center">Loading email status...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md bg-surface-soft p-md rounded-xl border border-hairline-soft text-body-sm">
-            <div className="space-y-xxs">
-              <span className="text-[10px] text-slate font-bold uppercase tracking-wider block">Configuration Mode</span>
-              <span className={`inline-block px-sm py-0.5 text-xs font-bold rounded-full ${
-                emailStatus?.configurationStatus === 'Fully Configured' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
-              }`}>
-                {emailStatus?.configurationStatus || 'Demo Mode'}
-              </span>
-            </div>
-            <div className="space-y-xxs">
-              <span className="text-[10px] text-slate font-bold uppercase tracking-wider block">Domain Status</span>
-              <span className="text-ink-deep font-mono font-bold text-xs">{emailStatus?.domainStatus || 'Sandbox'}</span>
-            </div>
-            <div className="space-y-xxs">
-              <span className="text-[10px] text-slate font-bold uppercase tracking-wider block">Authorized Sender</span>
-              <span className="text-ink-deep font-mono text-xs">{emailStatus?.senderInfo || 'onboarding@resend.dev'}</span>
-            </div>
-            <div className="space-y-xxs">
-              <span className="text-[10px] text-slate font-bold uppercase tracking-wider block">Connection status</span>
-              <span className={`inline-block px-sm py-0.5 text-xs font-bold rounded-full ${
-                emailStatus?.emailService === 'Connected' ? 'bg-success/10 text-success' : 'bg-critical/10 text-critical'
-              }`}>
-                {emailStatus?.emailService || 'Offline'}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Content Area */}
+        <div className="flex-1 min-w-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial="hidden"
+              animate="show"
+              exit="hidden"
+              variants={fadeVariants}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === 'general' && (
+                <div className="space-y-xl">
+                  <MetaCard variant="checkout-summary" className="overflow-hidden">
+                    <div className="p-lg border-b border-hairline-soft bg-surface-soft">
+                      <h2 className="text-heading-md font-bold text-ink-deep">Profile Information</h2>
+                      <p className="text-body-sm text-slate">Update your account details and public profile.</p>
+                    </div>
+                    <form onSubmit={handleUpdateProfile} className="p-lg space-y-md">
+                      <div className="flex items-center gap-md mb-lg">
+                        <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-display-sm shadow-inner">
+                          {user?.name?.charAt(0) || 'U'}
+                        </div>
+                        <div>
+                          <MetaButton variant="ghost" type="button">Change Avatar</MetaButton>
+                        </div>
+                      </div>
 
-        {testResult && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-950 p-md rounded-xl space-y-xxs text-body-sm font-sans">
-            <p className="text-body-sm-bold font-bold text-emerald-800">✓ Test Email Sent Successfully</p>
-            <div className="grid grid-cols-1 gap-xxs font-mono text-xs pt-xs">
-              <div><span className="font-sans text-slate text-[10px] font-bold uppercase tracking-wider block">Recipient</span> {testResult.recipient}</div>
-              <div><span className="font-sans text-slate text-[10px] font-bold uppercase tracking-wider block">Message ID</span> {testResult.messageId}</div>
-            </div>
-          </div>
-        )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
+                        <div>
+                          <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-xs">Full Name</label>
+                          <MetaInput 
+                            type="text" 
+                            value={name} 
+                            onChange={(e) => setName(e.target.value)} 
+                            placeholder="John Doe" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-xs">Email Address</label>
+                          <MetaInput 
+                            type="email" 
+                            value={user?.email || ''} 
+                            disabled 
+                            className="bg-surface-soft text-slate cursor-not-allowed"
+                          />
+                          <p className="text-body-xs text-slate mt-1">Contact support to change your primary email.</p>
+                        </div>
+                      </div>
+                      <div className="pt-md border-t border-hairline-soft flex justify-end">
+                        <MetaButton type="submit" variant="buy-cta" disabled={isUpdating}>
+                          {isUpdating ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Changes</>}
+                        </MetaButton>
+                      </div>
+                    </form>
+                  </MetaCard>
+                </div>
+              )}
 
-        {testError && (
-          <div className="bg-red-50 border border-red-200 text-red-950 p-md rounded-xl space-y-xxs text-body-sm font-sans">
-            <p className="text-body-sm-bold font-bold text-red-800">✗ Email Dispatch Failed</p>
-            <p className="text-xs font-mono break-all mt-xs bg-white/50 p-sm rounded border border-red-100">{testError}</p>
-          </div>
-        )}
+              {activeTab === 'security' && (
+                <div className="space-y-xl">
+                  <MetaCard variant="checkout-summary" className="overflow-hidden">
+                    <div className="p-lg border-b border-hairline-soft bg-surface-soft">
+                      <h2 className="text-heading-md font-bold text-ink-deep">Change Password</h2>
+                      <p className="text-body-sm text-slate">Ensure your account is using a long, random password to stay secure.</p>
+                    </div>
+                    <form onSubmit={handleUpdateProfile} className="p-lg space-y-md">
+                      <div>
+                        <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-xs">Current Password</label>
+                        <MetaInput 
+                          type="password" 
+                          value={currentPassword} 
+                          onChange={(e) => setCurrentPassword(e.target.value)} 
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
+                        <div>
+                          <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-xs">New Password</label>
+                          <MetaInput 
+                            type="password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-xs">Confirm New Password</label>
+                          <MetaInput 
+                            type="password" 
+                            value={confirmPassword} 
+                            onChange={(e) => setConfirmPassword(e.target.value)} 
+                          />
+                        </div>
+                      </div>
+                      <div className="pt-md border-t border-hairline-soft flex justify-end">
+                        <MetaButton type="submit" variant="buy-cta" disabled={isUpdating}>
+                          {isUpdating ? 'Updating...' : 'Update Password'}
+                        </MetaButton>
+                      </div>
+                    </form>
+                  </MetaCard>
 
-        {/* Test email action button */}
-        <div className="flex items-center justify-between pt-md border-t border-hairline-soft">
-          <span className="text-caption text-slate">Sends verification test to: <span className="font-mono font-bold text-ink-deep">mndabhinavsai@gmail.com</span></span>
-          <MetaButton 
-            variant="primary" 
-            onClick={handleSendTestEmail} 
-            isLoading={isTestingEmail}
-          >
-            Send Test Email
-          </MetaButton>
+                  <MetaCard variant="checkout-summary" className="overflow-hidden">
+                    <div className="p-lg border-b border-hairline-soft bg-surface-soft">
+                      <h2 className="text-heading-md font-bold text-ink-deep">Active Sessions</h2>
+                      <p className="text-body-sm text-slate">Manage your active sessions and devices.</p>
+                    </div>
+                    <div className="p-lg">
+                      <div className="flex items-center justify-between p-md bg-surface-soft rounded-xl mb-md">
+                        <div className="flex items-center gap-4">
+                          <Smartphone className="w-8 h-8 text-slate" />
+                          <div>
+                            <p className="font-bold text-ink-deep">Current Session</p>
+                            <p className="text-body-sm text-slate">Windows • Chrome • IP: 192.168.1.1</p>
+                          </div>
+                        </div>
+                        <MetaBadge variant="success">Active Now</MetaBadge>
+                      </div>
+                      
+                      <MetaButton variant="ghost" className="text-critical hover:bg-critical/10 hover:text-critical border border-critical/20" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4 mr-2" /> Logout All Other Devices
+                      </MetaButton>
+                    </div>
+                  </MetaCard>
+                </div>
+              )}
+
+              {(activeTab === 'notifications' || activeTab === 'workspace' || activeTab === 'billing' || activeTab === 'api' || activeTab === 'audit') && (
+                <div className="space-y-xl">
+                  <MetaCard variant="checkout-summary" className="p-xl flex flex-col items-center justify-center text-center h-64">
+                    <div className="w-16 h-16 rounded-full bg-surface-soft flex items-center justify-center mb-md">
+                      <AlertTriangle className="w-8 h-8 text-slate" />
+                    </div>
+                    <h2 className="text-heading-md font-bold text-ink-deep mb-2">Section Coming Soon</h2>
+                    <p className="text-body-sm text-slate max-w-sm">
+                      We are currently rolling out the completely redesigned {activeTab} section. Check back in a few days.
+                    </p>
+                  </MetaCard>
+                </div>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
         </div>
-
-        {/* Test Email Logs Table */}
-        {emailStatus?.testEmailLogs && emailStatus.testEmailLogs.length > 0 && (
-          <div className="space-y-sm pt-md border-t border-hairline-soft">
-            <span className="text-body-xs font-bold text-slate uppercase tracking-wider block">Recent Dispatch Logs</span>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-body-xs">
-                <thead>
-                  <tr className="border-b border-hairline-soft text-slate font-bold">
-                    <th className="pb-xs">Recipient</th>
-                    <th className="pb-xs">Timestamp</th>
-                    <th className="pb-xs">Status</th>
-                    <th className="pb-xs">Message ID</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-hairline-soft/40">
-                  {emailStatus.testEmailLogs.map((log: any) => (
-                    <tr key={log._id} className="text-ink">
-                      <td className="py-sm font-mono">{log.recipient}</td>
-                      <td className="py-sm">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="py-sm">
-                        <span className={`inline-block px-xs py-0.5 rounded text-[10px] font-bold ${
-                          log.status === 'Delivered' || log.status === 'Opened' || log.status === 'Clicked' ? 'bg-success/15 text-success' : 'bg-critical/15 text-critical'
-                        }`}>
-                          {log.status}
-                        </span>
-                      </td>
-                      <td className="py-sm font-mono text-[10px] truncate max-w-[150px]" title={log.messageId}>{log.messageId}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </MetaCard>
+      </div>
     </div>
   );
 }

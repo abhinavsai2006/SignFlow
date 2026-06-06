@@ -159,7 +159,7 @@ function PdfPage({
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = (window.devicePixelRatio || 1) * 2;
         // Sync drawing surface buffer resolution
         canvas.width = dimensions.width * dpr;
         canvas.height = dimensions.height * dpr;
@@ -169,10 +169,9 @@ function PdfPage({
         canvas.style.height = `${dimensions.height}px`;
         canvas.style.display = "block";
 
-        context.scale(dpr, dpr);
-        context.clearRect(0, 0, dimensions.width, dimensions.height);
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
-        const viewport = page.getViewport({ scale, rotation });
+        const viewport = page.getViewport({ scale: scale * dpr, rotation });
 
         const renderContext = {
           canvasContext: context,
@@ -395,8 +394,9 @@ const DraggableField = memo(function DraggableField({
         const nextX = Math.max(0, Math.min(100 - sig.widthPercent, startLeft + dxPct));
         const nextY = Math.max(0, Math.min(100 - sig.heightPercent, startTop + dyPct));
 
-        element.style.left = `${nextX}%`;
-        element.style.top = `${nextY}%`;
+        const clampedDx = (nextX - startLeft) * (containerRect.width / 100);
+        const clampedDy = (nextY - startTop) * (containerRect.height / 100);
+        element.style.transform = `translate3d(${clampedDx}px, ${clampedDy}px, 0)`;
 
         if (tooltip) {
           tooltip.textContent = `X: ${Math.round(nextX)}% Y: ${Math.round(nextY)}%`;
@@ -422,6 +422,7 @@ const DraggableField = memo(function DraggableField({
       const finalX = Math.max(0, Math.min(100 - sig.widthPercent, startLeft + dxPct));
       const finalY = Math.max(0, Math.min(100 - sig.heightPercent, startTop + dyPct));
 
+      element.style.transform = '';
       onUpdateFieldPosition(index, finalX, finalY);
     };
 
@@ -923,17 +924,19 @@ function PdfThumbnail({ pdfDoc, pageNum, onClick, isActive }: PdfThumbnailProps)
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const viewport = page.getViewport({ scale: 0.2 });
+        const dpr = (window.devicePixelRatio || 1) * 2;
+        const viewport = page.getViewport({ scale: 0.2 * dpr });
+        const cssViewport = page.getViewport({ scale: 0.2 });
+
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = viewport.width * dpr;
-        canvas.height = viewport.height * dpr;
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-        
-        context.scale(dpr, dpr);
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${cssViewport.width}px`;
+        canvas.style.height = `${cssViewport.height}px`;
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
         const renderContext = {
           canvasContext: context,

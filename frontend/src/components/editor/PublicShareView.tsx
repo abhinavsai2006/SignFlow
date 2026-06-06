@@ -169,16 +169,16 @@ export default function PublicShareView() {
 
     try {
       const page = await pdfDoc.getPage(pageNum);
-      const viewport = page.getViewport({ scale });
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = (window.devicePixelRatio || 1) * 2;
+      const viewport = page.getViewport({ scale: scale * dpr });
+      const cssViewport = page.getViewport({ scale });
       
-      canvas.width = viewport.width * dpr;
-      canvas.height = viewport.height * dpr;
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${cssViewport.width}px`;
+      canvas.style.height = `${cssViewport.height}px`;
 
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.scale(dpr, dpr);
 
       const renderTask = page.render({ canvasContext: context, viewport } as any);
       renderTaskRefs.current[pageNum] = renderTask;
