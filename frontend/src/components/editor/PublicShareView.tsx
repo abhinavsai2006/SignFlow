@@ -60,6 +60,23 @@ export default function PublicShareView() {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.2);
+
+  // Auto-scale PDF viewer on mobile viewports to prevent layout collapsing or excessive horizontal overflow
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 480) {
+        setScale(0.5);
+      } else if (window.innerWidth < 768) {
+        setScale(0.75);
+      } else {
+        setScale(1.2);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [fields, setFields] = useState<SignatureField[]>([]);
   const pageContainerRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const viewerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -687,7 +704,7 @@ export default function PublicShareView() {
       </header>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden w-full">
         {/* Left instructions panel */}
         <aside className="w-64 bg-[#13131a] border-r border-white/10 p-4 flex flex-col gap-4 shrink-0 hidden md:flex overflow-y-auto">
           <div>
@@ -724,7 +741,7 @@ export default function PublicShareView() {
         </aside>
 
         {/* PDF Viewer */}
-        <main ref={viewerContainerRef} className="flex-1 overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14]">
+        <main ref={viewerContainerRef} className="flex-1 overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14] w-full min-w-0">
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
             <div
               key={pageNum}

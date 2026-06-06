@@ -104,14 +104,14 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
           } catch (e) {}
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(`[Resend Service] Email sent successfully: ${data}`);
+            console.log("RESEND RESPONSE:", data);
             logEntry.status = 'Delivered';
             logEntry.messageId = responseId;
             logEntry.providerResponse = data;
             logEntry.save().catch(()=>{});
             resolve({ success: true, id: responseId });
           } else {
-            console.error(`[Resend Service] Resend API error: Status ${res.statusCode}, Body: ${data}`);
+            console.log("RESEND ERROR:", data);
             logEntry.status = 'Failed';
             logEntry.errorMessage = `Status ${res.statusCode}: ${data}`;
             logEntry.save().catch(()=>{});

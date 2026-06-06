@@ -30,7 +30,8 @@ async function runTests() {
     { name: 'Password Reset', fn: () => emailService.sendPasswordResetEmail(testEmail, 'Test User', 'https://signflow.abhinavsai.com/reset') },
     { name: 'Signature Request', fn: () => emailService.sendInviteEmail(testEmail, 'Test User', 'NDA.pdf', 'https://signflow.abhinavsai.com/sign', 'Sender', '2026-12-31') },
     { name: 'Document Completed', fn: () => emailService.sendCompletionEmail(testEmail, 'NDA.pdf', 'https://signflow.abhinavsai.com/download', 'Test User') },
-    { name: 'Billing Success', fn: () => emailService.sendPaymentSuccessfulEmail(testEmail, 'Test User', '$19.00', 'https://signflow.abhinavsai.com/invoice') }
+    { name: 'Billing Success', fn: () => emailService.sendPaymentSuccessfulEmail(testEmail, 'Test User', '$19.00', 'https://signflow.abhinavsai.com/invoice') },
+    { name: 'Login OTP Email', fn: () => emailService.sendLoginOtpEmail(testEmail, 'Test User', '999888') }
   ];
 
   const allTests = [

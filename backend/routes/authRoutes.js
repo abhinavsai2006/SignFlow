@@ -142,6 +142,10 @@ router.post('/login', async (req, res) => {
       user.loginOtpExpire = loginOtpExpire;
       await user.save();
 
+      console.log("OTP GENERATED:", loginOtp);
+      console.log("OTP STORED:", user.email);
+      console.log("OTP EMAIL TRIGGERED");
+      
       // Send Login OTP Email via Resend
       sendLoginOtpEmail(user.email, user.name, loginOtp)
         .catch(err => console.error('[Auth] Login OTP email failed:', err.message));
