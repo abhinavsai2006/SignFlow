@@ -223,23 +223,29 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
   const ownerName = owner ? owner.name : 'Unknown Owner';
   const ownerEmail = owner ? owner.email : '';
 
-  // Green trust header bar (Adobe Sign style dark blue/green)
-  certPage.drawRectangle({ x: 0, y: cH - 90, width: cW, height: 90, color: rgb(0.01, 0.28, 0.43) }); // Deep Adobe Blue
-  certPage.drawText('SignFlow', { x: 40, y: cH - 42, size: 24, font: certFont, color: rgb(1, 1, 1) });
-  certPage.drawText('Final Audit Report & Certificate of Completion', { x: 40, y: cH - 64, size: 14, font: certFont, color: rgb(1, 1, 1) });
+  // Premium dark-themed header bar (SignFlow aesthetic)
+  certPage.drawRectangle({ x: 0, y: cH - 110, width: cW, height: 110, color: rgb(0.06, 0.06, 0.08) }); // Rich dark gray/black
+  
+  // Title and subtitle
+  certPage.drawText('SignFlow', { x: 40, y: cH - 45, size: 28, font: certFont, color: rgb(1, 1, 1) });
+  certPage.drawText('Certificate of Completion', { x: 40, y: cH - 75, size: 16, font: certFontRegular, color: rgb(0.8, 0.8, 0.8) });
+  certPage.drawText('Final Audit Report', { x: cW - 160, y: cH - 75, size: 14, font: certFontRegular, color: rgb(0.5, 0.5, 0.5) });
 
-  // Document details section
-  certPage.drawText('Document Information', { x: 40, y: cH - 120, size: 12, font: certFont, color: rgb(0.1, 0.1, 0.1) });
-  certPage.drawText(`Document Name: ${document.filename}`, { x: 40, y: cH - 138, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
-  certPage.drawText(`Document ID: ${document._id}`, { x: 40, y: cH - 152, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
-  certPage.drawText(`Sender: ${ownerName} (${ownerEmail})`, { x: 40, y: cH - 166, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
-  certPage.drawText(`Completed Date: ${new Date(document.updatedAt || Date.now()).toUTCString()}`, { x: 40, y: cH - 180, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  // Document details section with a subtle background box
+  certPage.drawRectangle({ x: 40, y: cH - 200, width: cW - 80, height: 75, color: rgb(0.97, 0.97, 0.98), borderColor: rgb(0.9, 0.9, 0.9), borderWidth: 1 });
+  
+  certPage.drawText('Document Information', { x: 55, y: cH - 145, size: 12, font: certFont, color: rgb(0.1, 0.1, 0.1) });
+  certPage.drawText(`Document Name: ${document.filename}`, { x: 55, y: cH - 165, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  certPage.drawText(`Document ID: ${document._id}`, { x: 55, y: cH - 180, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  
+  certPage.drawText(`Sender: ${ownerName} (${ownerEmail})`, { x: 300, y: cH - 165, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
+  certPage.drawText(`Completed Date: ${new Date(document.updatedAt || Date.now()).toUTCString()}`, { x: 300, y: cH - 180, size: 9, font: certFontRegular, color: rgb(0.3, 0.3, 0.3) });
 
-  // Verification status pills (Green Ribbon)
-  certPage.drawRectangle({ x: 40, y: cH - 216, width: cW - 80, height: 26, color: rgb(0.93, 0.98, 0.95), borderColor: rgb(0.07, 0.64, 0.38), borderWidth: 1 });
-  certPage.drawText('[VERIFIED]  |  [TAMPER PROTECTED]  |  [LEGALLY BINDING]  |  [AUDIT TRAIL COMPLETE]', { x: 50, y: cH - 207, size: 9, font: certFont, color: rgb(0.07, 0.5, 0.3) });
+  // Verification status pills (Sleek minimalist style)
+  certPage.drawRectangle({ x: 40, y: cH - 240, width: cW - 80, height: 26, color: rgb(0.95, 0.97, 1), borderColor: rgb(0.8, 0.85, 0.95), borderWidth: 1 });
+  certPage.drawText('✓ VERIFIED   |   ✓ TAMPER PROTECTED   |   ✓ LEGALLY BINDING   |   ✓ AUDIT TRAIL COMPLETE', { x: 50, y: cH - 231, size: 9, font: certFont, color: rgb(0.1, 0.4, 0.8) });
 
-  let boxY = cH - 350;
+  let boxY = cH - 370;
   for (const field of fields) {
     if (field.status !== 'Signed') continue;
     const signerDisplayName = field.signerName || 'Signer';

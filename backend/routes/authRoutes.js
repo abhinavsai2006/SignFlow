@@ -485,14 +485,25 @@ router.get('/me', protect, async (req, res) => {
   res.json(req.user);
 });
 
+// @route   PUT /api/auth/me
+// @desc    Update user profile (e.g. name)
+router.put('/me', protect, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (name) req.user.name = name;
+    await req.user.save();
+    res.json({ message: 'Profile updated successfully', user: req.user });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update profile', error: error.message });
+  }
+});
+
 // @route   GET /api/auth/google
 // @desc    Initiate Google OAuth 2.0 Flow
 router.get('/google', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
-    console.warn('[OAuth] GOOGLE_CLIENT_ID not configured. Redirecting to demo OAuth mode.');
-    // Graceful fallback to simulated code callback if credentials are not configured in dev env
-    return res.redirect(`${BACKEND_URL}/api/auth/google/callback?code=mock_dev_google_oauth_code`);
+    return res.status(500).json({ message: 'Google OAuth is not configured on the server.' });
   }
 
   const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
@@ -514,40 +525,37 @@ router.get('/google/callback', async (req, res) => {
     let name = '';
 
     // Handle real Google token exchange
-    if (code !== 'mock_dev_google_oauth_code' && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-      const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
-      
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-        })
-      });
-
-      const tokenData = await tokenResponse.json();
-      if (!tokenResponse.ok) {
-        throw new Error(tokenData.error_description || 'Failed to exchange Google OAuth code.');
-      }
-
-      // Fetch user profile info
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` }
-      });
-      const userInfo = await userInfoResponse.json();
-      
-      email = userInfo.email;
-      name = userInfo.name;
-    } else {
-      // Graceful fallback for test runners / local mock callbacks
-      email = `google_oauth_user_${Math.floor(Math.random() * 10000)}@example.com`;
-      name = 'Google Dev User';
-      console.log('[OAuth] Dev Mode: Bypassed real exchange; generated mock user:', email);
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error('Server misconfiguration: Google OAuth credentials missing.');
     }
+
+    const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
+    
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok) {
+      throw new Error(tokenData.error_description || 'Failed to exchange Google OAuth code.');
+    }
+
+    // Fetch user profile info
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const userInfo = await userInfoResponse.json();
+    
+    email = userInfo.email;
+    name = userInfo.name;
 
     if (!email) {
       throw new Error('Google did not return email profile data.');

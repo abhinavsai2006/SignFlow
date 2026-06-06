@@ -8,6 +8,7 @@ import MetaButton from '../ui/MetaButton';
 export default function Settings() {
   const { user } = useOutletContext<{ user: any }>();
   const [name, setName] = useState(user?.name || '');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -41,11 +42,34 @@ export default function Settings() {
     setIsUpdating(true);
     setStatusMessage(null);
     
-    // Simulate updating API (will link to backend auth later)
-    setTimeout(() => {
+    try {
+      if (name !== user?.name) {
+        await api.put('/auth/me', { name });
+      }
+
+      if (password) {
+        if (!currentPassword) {
+          throw new Error('Current password is required to set a new password');
+        }
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+        await api.post('/auth/change-password', { 
+          currentPassword, 
+          newPassword: password 
+        });
+      }
+
+      setStatusMessage('Profile updated successfully');
+      setCurrentPassword('');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage(err.response?.data?.message || err.message || 'Update failed');
+    } finally {
       setIsUpdating(false);
-      setStatusMessage('Profile updated successfully (Simulated)');
-    }, 1000);
+    }
   };
 
   const handleSendTestEmail = async () => {
@@ -99,6 +123,15 @@ export default function Settings() {
           <div className="border-t border-hairline-soft pt-xl space-y-xl">
             <h3 className="text-body-sm-bold font-bold text-slate uppercase tracking-wider">Change Password</h3>
             <div>
+              <label className="block text-body-sm-bold text-ink-deep mb-xs">Current Password</label>
+              <MetaInput 
+                type="password" 
+                value={currentPassword} 
+                onChange={(e) => setCurrentPassword(e.target.value)} 
+                placeholder="Current password" 
+              />
+            </div>
+            <div>
               <label className="block text-body-sm-bold text-ink-deep mb-xs">New Password</label>
               <MetaInput 
                 type="password" 
@@ -118,7 +151,22 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-xl">
+          <div className="flex justify-end pt-xl gap-md">
+            <MetaButton 
+              variant="secondary" 
+              type="button" 
+              onClick={async () => {
+                try {
+                  await api.post('/auth/logout-all');
+                  window.location.href = '/login';
+                } catch (err: any) {
+                  setStatusMessage(err.response?.data?.message || 'Logout failed');
+                }
+              }}
+              className="text-critical hover:bg-critical/10 hover:border-critical/30"
+            >
+              Logout All Devices
+            </MetaButton>
             <MetaButton variant="buy-cta" type="submit" isLoading={isUpdating}>
               Save Changes
             </MetaButton>
