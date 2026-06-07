@@ -4,83 +4,118 @@ import fs from 'fs';
 import path from 'path';
 
 let s3Client = null;
-const bucketName = process.env.R2_BUCKET_NAME;
-const accountId = process.env.R2_ACCOUNT_ID;
-const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+
+const bucketName = process.env.STORAGE_BUCKET || process.env.R2_BUCKET_NAME;
+const endpoint = process.env.STORAGE_ENDPOINT;
+const accessKeyId = process.env.STORAGE_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID;
+const secretAccessKey = process.env.STORAGE_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY;
+const region = process.env.STORAGE_REGION || 'auto';
 const customDomain = process.env.R2_PUBLIC_CUSTOM_DOMAIN; // e.g. https://pub-xxx.r2.dev
 
-const isConfigured = bucketName && accountId && accessKeyId && secretAccessKey;
+const isConfigured = bucketName && accessKeyId && secretAccessKey;
 
 if (isConfigured) {
   try {
-    s3Client = new S3Client({
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      region: 'auto',
+    const s3Config = {
+      region,
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
-    });
-    console.log('[Storage Service] Cloudflare R2 storage initialized successfully.');
+      forcePathStyle: true, // Highly recommended for generic S3/Railway Buckets
+    };
+
+    if (endpoint) {
+      s3Config.endpoint = endpoint;
+    } else if (process.env.R2_ACCOUNT_ID) {
+      s3Config.endpoint = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+    }
+
+    s3Client = new S3Client(s3Config);
+    console.log('[Storage Service] S3-compatible storage client initialized successfully.');
   } catch (err) {
-    console.error('[Storage Service] Failed to initialize S3Client for R2:', err.message);
+    console.error('[Storage Service] Failed to initialize S3Client:', err.message);
   }
 } else {
-  console.warn('[Storage Service] R2 credentials not fully set — falling back to local storage.');
+  console.warn('[Storage Service] Storage credentials not fully set — falling back to local storage.');
 }
 
 export const isR2Active = () => !!s3Client;
 
 /**
- * Upload a local file to Cloudflare R2
+ * Upload a local file (or file object) to the storage bucket
  */
-export const uploadFile = async (localFilePath, originalName, mimeType = 'application/pdf') => {
+export const uploadFile = async (fileOrPath, originalName, mimeType = 'application/pdf') => {
   if (!s3Client || !bucketName) {
-    console.log('[Storage Service] R2 not active — using local file path fallback.');
-    return localFilePath.replace(/\\/g, '/');
+    console.log('[Storage Service] Storage client not active — using local file path fallback.');
+    const pathStr = typeof fileOrPath === 'object' && fileOrPath !== null ? fileOrPath.path : fileOrPath;
+    return pathStr.replace(/\\/g, '/');
   }
 
   try {
+    let localFilePath;
+    let name;
+    let type;
+
+    if (typeof fileOrPath === 'object' && fileOrPath !== null) {
+      localFilePath = fileOrPath.path || fileOrPath.tempFilePath;
+      name = fileOrPath.originalname || fileOrPath.name;
+      type = fileOrPath.mimetype || fileOrPath.type || 'application/pdf';
+    } else {
+      localFilePath = fileOrPath;
+      name = originalName || path.basename(fileOrPath);
+      type = mimeType || 'application/pdf';
+    }
+
     const fileBuffer = fs.readFileSync(localFilePath);
-    const fileKey = `uploads/${Date.now()}-${path.basename(originalName)}`;
+    const fileKey = `uploads/${Date.now()}-${path.basename(name)}`;
     
-    console.log(`[Storage Service] Uploading ${originalName} to R2 bucket ${bucketName}...`);
+    console.log(`[Storage Service] Uploading ${name} to S3 bucket ${bucketName}...`);
     
     await s3Client.send(new PutObjectCommand({
       Bucket: bucketName,
       Key: fileKey,
       Body: fileBuffer,
-      ContentType: mimeType,
+      ContentType: type,
     }));
     
     console.log(`[Storage Service] Upload successful. Key: ${fileKey}`);
 
+    if (endpoint) {
+      const cleanEndpoint = endpoint.replace(/\/$/, '');
+      return `${cleanEndpoint}/${bucketName}/${fileKey}`;
+    }
     if (customDomain) {
       return `${customDomain.replace(/\/$/, '')}/${fileKey}`;
     }
-    return `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${fileKey}`;
+    if (process.env.R2_ACCOUNT_ID) {
+      return `https://${bucketName}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${fileKey}`;
+    }
+    return `${fileKey}`;
   } catch (err) {
-    console.error('[Storage Service] Cloudflare R2 Upload failed:', err.message);
-    return localFilePath.replace(/\\/g, '/');
+    console.error('[Storage Service] S3 upload failed:', err.message);
+    const pathStr = typeof fileOrPath === 'object' && fileOrPath !== null ? fileOrPath.path : fileOrPath;
+    return pathStr.replace(/\\/g, '/');
   }
 };
 
 /**
- * Delete a file from Cloudflare R2
+ * Delete a file from the storage bucket
  */
 export const deleteFile = async (fileUrlOrKey) => {
   if (!s3Client || !bucketName) return;
 
   try {
     let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
+    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+      fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
+    } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
     } else if (customDomain && fileUrlOrKey.includes(customDomain)) {
       fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');
     }
 
-    console.log(`[Storage Service] Deleting key: ${fileKey} from R2...`);
+    console.log(`[Storage Service] Deleting key: ${fileKey} from bucket ${bucketName}...`);
 
     await s3Client.send(new DeleteObjectCommand({
       Bucket: bucketName,
@@ -89,17 +124,16 @@ export const deleteFile = async (fileUrlOrKey) => {
     
     console.log('[Storage Service] Deletion successful.');
   } catch (err) {
-    console.error('[Storage Service] Cloudflare R2 deletion failed:', err.message);
+    console.error('[Storage Service] S3 deletion failed:', err.message);
   }
 };
 
 /**
- * Download a file as a buffer from R2
+ * Download a file as a buffer from S3/R2
  */
 export const downloadFile = async (fileUrlOrKey) => {
   if (!s3Client || !bucketName) {
     console.log('[Storage Service] Local fallback for downloadFile:', fileUrlOrKey);
-    // If it's a relative path starting with uploads, resolve it properly
     let resolvedPath = fileUrlOrKey;
     if (!path.isAbsolute(resolvedPath)) {
       if (resolvedPath.startsWith('uploads/') && fs.existsSync('/data')) {
@@ -113,13 +147,15 @@ export const downloadFile = async (fileUrlOrKey) => {
 
   try {
     let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
+    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+      fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
+    } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
     } else if (customDomain && fileUrlOrKey.includes(customDomain)) {
       fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');
     }
 
-    console.log(`[Storage Service] Downloading key: ${fileKey} from R2...`);
+    console.log(`[Storage Service] Downloading key: ${fileKey} from bucket ${bucketName}...`);
 
     const response = await s3Client.send(new GetObjectCommand({
       Bucket: bucketName,
@@ -142,7 +178,7 @@ export const downloadFile = async (fileUrlOrKey) => {
 };
 
 /**
- * Generate a signed URL for a file in R2
+ * Generate a signed URL for a file in S3/R2
  */
 export const getSignedUrl = async (fileUrlOrKey, expiresIn = 3600) => {
   if (!s3Client || !bucketName) {
@@ -151,7 +187,9 @@ export const getSignedUrl = async (fileUrlOrKey, expiresIn = 3600) => {
 
   try {
     let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
+    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+      fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
+    } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
     } else if (customDomain && fileUrlOrKey.includes(customDomain)) {
       fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');

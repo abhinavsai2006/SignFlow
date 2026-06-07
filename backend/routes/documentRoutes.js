@@ -345,6 +345,27 @@ router.get('/:id/download-audit', protect, async (req, res) => {
     const { generateAuditPdf } = await import('../services/pdfService.js');
     const auditBytes = await generateAuditPdf(document, signedFields, document.sha256Checksum || 'N/A');
 
+    // Upload to S3 storage and record URL in DB
+    if (isR2Active()) {
+      try {
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const tempFilename = `audit-report-${document._id}-${Date.now()}.pdf`;
+        const tempPath = path.join(uploadsDir, tempFilename);
+        fs.writeFileSync(tempPath, auditBytes);
+        const auditUrl = await uploadFile(tempPath, tempFilename, 'application/pdf');
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+        document.auditFileUrl = auditUrl;
+        await document.save();
+      } catch (uploadErr) {
+        console.error('[Download Audit] Failed to upload audit PDF to S3:', uploadErr.message);
+      }
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="audit-report-${document._id}.pdf"`);
     res.send(Buffer.from(auditBytes));
