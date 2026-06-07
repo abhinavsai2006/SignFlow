@@ -347,11 +347,8 @@ const DraggableField = memo(function DraggableField({
   onRightClickField,
   onRemoveField,
   onOpenDetailsModal,
-  onToggleLock,
-  onDuplicateField,
   onUpdateFieldPosition,
   onUpdateFieldDimensions,
-  onChangeRecipient,
   recipients
 }: DraggableFieldProps) {
   const fieldRef = useRef<HTMLDivElement | null>(null);

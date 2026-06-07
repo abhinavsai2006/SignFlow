@@ -729,17 +729,6 @@ export default function PublicShareView() {
     const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
     const cleanSignerName = f.signerName || (isMine ? signerName : '') || f.recipientEmail.split('@')[0];
 
-    const formatSignatureDate = (dateString?: string) => {
-      const d = dateString ? new Date(dateString) : new Date();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const month = months[d.getUTCMonth()];
-      const year = d.getUTCFullYear();
-      const hours = String(d.getUTCHours()).padStart(2, '0');
-      const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-      return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
-    };
-
     if (isSigned && f.value) {
       if (f.type === 'Checkbox') {
         return (
