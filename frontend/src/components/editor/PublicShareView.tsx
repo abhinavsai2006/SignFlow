@@ -787,21 +787,22 @@ export default function PublicShareView() {
 
           {/* Bottom Section: Metadata */}
           <div className={`flex-1 p-1 flex flex-col justify-between ${baseTextSize} font-medium`}>
-            <div className="font-bold text-[6px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
-            <div className="font-bold text-[8px] truncate">{cleanSignerName}</div>
+            <div className="font-bold text-[8px] truncate">Signed By: {cleanSignerName}</div>
             {f.showDate !== false && (
-              <div>Date: {formatSignatureDate(f.updatedAt)}</div>
-            )}
-            {f.hideReason !== true && (
-              <div>Reason: Approved</div>
+              <>
+                <div>Date: {(() => {
+                  const d = f.updatedAt ? new Date(f.updatedAt) : new Date();
+                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                  return `${String(d.getUTCDate()).padStart(2, '0')} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+                })()}</div>
+                <div>Time: {(() => {
+                  const d = f.updatedAt ? new Date(f.updatedAt) : new Date();
+                  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC`;
+                })()}</div>
+              </>
             )}
             {f.hideCertId !== true && (
               <div className="truncate text-gray-500">Cert ID: {certId}</div>
-            )}
-            {f.hideSha256 !== true && (
-              <div className="font-bold text-emerald-700 flex items-center gap-0.5 mt-0.5">
-                ✓ SHA256 Verified
-              </div>
             )}
           </div>
         </div>
@@ -999,7 +1000,7 @@ export default function PublicShareView() {
             mobileActiveTab === 'fields' ? 'border-primary text-primary font-bold' : 'border-transparent text-slate'
           }`}
         >
-          Fields ({myPendingFields.length})
+          Sign ({myPendingFields.length})
         </button>
         <button
           onClick={() => setMobileActiveTab('details')}
@@ -1015,12 +1016,12 @@ export default function PublicShareView() {
       <div className="flex-1 w-full flex md:grid md:grid-cols-[320px_1fr] overflow-hidden bg-canvas min-h-0">
         
         {/* Left sidebar: hidden on mobile, visible on desktop */}
-        <aside className="bg-surface-soft border-r border-hairline-soft p-4 w-[320px] shrink-0 hidden md:flex flex-col gap-4 overflow-y-auto">
+        <aside className="bg-surface-soft border-r border-hairline-soft p-4 w-[320px] min-w-[320px] max-w-[320px] shrink-0 hidden md:flex flex-col gap-4 overflow-y-auto" style={{ wordBreak: 'normal', whiteSpace: 'normal' }}>
           {renderSidebarContent()}
         </aside>
 
         {/* Mobile Tab View Content */}
-        <div className="md:hidden flex-1 flex flex-col overflow-hidden w-full bg-canvas">
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden w-full bg-canvas min-w-[280px] ${mobileActiveTab === 'document' ? 'hidden' : 'flex'}`}>
           {mobileActiveTab === 'fields' && (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <p className="text-xs font-bold text-slate uppercase tracking-wider mb-2">Your Pending Fields</p>

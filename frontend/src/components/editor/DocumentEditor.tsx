@@ -12,7 +12,7 @@ import {
   ArrowLeft, Trash2, Type, Edit3, Users,
   ZoomIn, ZoomOut, RotateCw, Maximize, Activity, ClipboardList, CheckCircle2,
   ChevronLeft, ChevronRight, Maximize2, X, Undo, Redo, Upload, Calendar, AlignLeft, CheckSquare,
-  Lock, Unlock, Copy, GripHorizontal, Settings
+  Lock, Unlock, Copy, GripHorizontal, Settings, MoreVertical
 } from 'lucide-react';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import SigningModal from './SigningModal';
@@ -783,7 +783,7 @@ const DraggableField = memo(function DraggableField({
       {/* Floating Toolbar */}
       {isSelected && (
         <div 
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl shadow-2xl p-1.5 flex items-center space-x-1.5 z-50 select-none pointer-events-auto toolbar-button"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl shadow-2xl p-1.5 flex items-center space-x-1.5 z-50 select-none pointer-events-auto toolbar-button animate-fast"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Drag Handle (Move) */}
@@ -795,89 +795,40 @@ const DraggableField = memo(function DraggableField({
 
           {/* Edit Signature (Unsigned/Signed signature fields) */}
           {(sig.type === 'Signature' || sig.type === 'Initials') && (
-            <button
-              onClick={() => !isLocked && onOpenSigningModal(index)}
-              disabled={isLocked}
-              className="h-11 px-3 flex items-center justify-center text-xs font-medium text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-30"
-              title="Edit Signature"
-            >
-              Edit Signature
-            </button>
+            <>
+              <button
+                onClick={() => !isLocked && onOpenSigningModal(index)}
+                disabled={isLocked}
+                className="h-11 px-3 flex items-center justify-center text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-30"
+                title="Edit Signature"
+              >
+                Sign Field
+              </button>
+              <span className="w-[1px] h-6 bg-slate-800" />
+            </>
           )}
 
           {/* View Details (Only if signed) */}
           {isSigned && (
-            <button
-              onClick={() => onOpenDetailsModal(sig)}
-              className="h-11 px-3 flex items-center justify-center text-xs font-medium text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 rounded-lg transition-colors"
-              title="View Certificate Details"
-            >
-              View Details
-            </button>
+            <>
+              <button
+                onClick={() => onOpenDetailsModal(sig)}
+                className="h-11 px-3 flex items-center justify-center text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 rounded-lg transition-colors"
+                title="View Certificate Details"
+              >
+                Details
+              </button>
+              <span className="w-[1px] h-6 bg-slate-800" />
+            </>
           )}
 
-          {/* Replace Signer Dropdown */}
-          <div className="flex items-center space-x-1 bg-slate-800/30 px-2 rounded-lg border border-slate-800">
-            <span className="text-[10px] text-slate-500 font-medium">Assign:</span>
-            <select
-              value={sig.recipientEmail}
-              disabled={isLocked}
-              onChange={(e) => onChangeRecipient && onChangeRecipient(index, e.target.value)}
-              className="h-11 bg-slate-800 text-xs text-white border-0 rounded-lg focus:ring-0 focus:outline-none"
-              style={{ minWidth: '100px' }}
-              title="Replace Signer"
-            >
-              {recipients.map((r, idx) => (
-                <option key={idx} value={r.email} className="bg-slate-900 text-white">
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <span className="w-[1px] h-6 bg-slate-800" />
-
-          {/* Lock / Unlock */}
-          <button
-            onClick={() => onToggleLock(index)}
-            className={`w-11 h-11 flex items-center justify-center hover:bg-slate-800 rounded-lg transition-colors ${isLocked ? 'text-yellow-500' : 'text-slate-400 hover:text-white'}`}
-            title={isLocked ? "Unlock Field" : "Lock Field"}
-          >
-            {isLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
-          </button>
-          
-          {/* Duplicate */}
-          <button
-            onClick={() => !isLocked && onDuplicateField(index)}
-            disabled={isLocked}
-            className="w-11 h-11 flex items-center justify-center hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Duplicate Field"
-          >
-            <Copy className="w-5 h-5" />
-          </button>
-
-          {/* Properties */}
-          <button
-            onClick={() => {
-              onSelectField(index);
-              document.getElementById('fields-tab-btn')?.click();
-            }}
-            className="w-11 h-11 flex items-center justify-center hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
-            title="Field Properties"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-
-          <span className="w-[1px] h-6 bg-slate-800" />
-
-          {/* Delete (Large accessibility target) */}
+          {/* Delete (Compact accessibility target) */}
           <button
             onClick={() => onRemoveField(index)}
-            className="h-11 px-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg transition-colors flex items-center justify-center font-bold text-xs"
+            className="w-11 h-11 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg transition-colors flex items-center justify-center"
             title="Delete Field"
           >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Delete
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -1101,6 +1052,7 @@ export default function DocumentEditor() {
 
   // Selected Field Tracking
   const [selectedFieldIdx, setSelectedFieldIdx] = useState<number | null>(null);
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, idx: number } | null>(null);
@@ -1642,6 +1594,10 @@ export default function DocumentEditor() {
     });
   }, []);
 
+  useEffect(() => {
+    setIsOverflowOpen(false);
+  }, [selectedFieldIdx]);
+
   // Global Keyboard listener for editor shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2166,6 +2122,220 @@ export default function DocumentEditor() {
             </MetaButton>
           )}
         </div>
+      </div>
+
+      {/* Secondary Editor Toolbar (Contextual Actions or Page Utilities) */}
+      <div className="bg-canvas border-b border-hairline-soft py-xs px-md md:px-xl flex items-center justify-between min-h-[48px] shrink-0 select-none z-30">
+        {selectedFieldIdx !== null && signatures[selectedFieldIdx] ? (
+          // Field Contextual Actions
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center space-x-sm">
+              <span className="text-caption-bold text-slate uppercase tracking-wider hidden sm:inline-block">
+                Field Properties ({signatures[selectedFieldIdx].type})
+              </span>
+              
+              {/* Assign Recipient Dropdown */}
+              <div className="flex items-center space-x-xs bg-surface-soft px-sm py-xxs rounded-full border border-hairline-soft">
+                <span className="text-[10px] text-slate font-bold uppercase">Assign:</span>
+                <select
+                  value={signatures[selectedFieldIdx].recipientEmail}
+                  disabled={signatures[selectedFieldIdx].status === 'Signed' || signatures[selectedFieldIdx].isLocked}
+                  onChange={(e) => {
+                    const email = e.target.value;
+                    const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, recipientEmail: email } : sig);
+                    setSignatures(updated);
+                    pushHistory(updated);
+                  }}
+                  className="bg-transparent border-0 outline-none text-body-xs font-bold text-ink-deep pr-xs focus:ring-0 max-w-[120px] md:max-w-[160px] truncate"
+                >
+                  {recipients.map((rec) => (
+                    <option key={rec.email} value={rec.email}>
+                      {rec.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Actions: Desktop (Full), Tablet (Compact), Mobile (Overflow) */}
+            <div className="flex items-center space-x-sm">
+              {/* Desktop view (lg and above) */}
+              <div className="hidden lg:flex items-center space-x-sm">
+                <MetaButton
+                  variant="ghost"
+                  onClick={() => {
+                    setActiveSidebarTab('fields');
+                  }}
+                  className="!py-1 !px-2 flex items-center text-xs"
+                >
+                  <Settings className="w-3.5 h-3.5 mr-1" /> Field Settings
+                </MetaButton>
+
+                <MetaButton
+                  variant="ghost"
+                  onClick={() => handleToggleLock(selectedFieldIdx)}
+                  className="!py-1 !px-2 flex items-center text-xs"
+                >
+                  {signatures[selectedFieldIdx].isLocked ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 mr-1 text-yellow-600" /> Unlock
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-3.5 h-3.5 mr-1" /> Lock
+                    </>
+                  )}
+                </MetaButton>
+
+                <MetaButton
+                  variant="ghost"
+                  disabled={signatures[selectedFieldIdx].isLocked}
+                  onClick={() => handleDuplicateField(selectedFieldIdx)}
+                  className="!py-1 !px-2 flex items-center text-xs"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1" /> Duplicate
+                </MetaButton>
+
+                <MetaButton
+                  variant="ghost"
+                  onClick={() => handleRemoveField(selectedFieldIdx)}
+                  className="!py-1 !px-2 flex items-center text-xs !bg-critical/5 !text-critical hover:!bg-critical/10 !border-critical/20"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                </MetaButton>
+              </div>
+
+              {/* Tablet view (md and sm, but hidden on mobile) */}
+              <div className="hidden sm:flex lg:hidden items-center space-x-xs">
+                <button
+                  onClick={() => {
+                    setActiveSidebarTab('fields');
+                    if (window.innerWidth < 1024) {
+                      setMobileDrawerTab('fields');
+                    }
+                  }}
+                  className="p-sm bg-surface-soft hover:bg-hairline-soft rounded-circle text-slate hover:text-ink-deep transition-colors"
+                  title="Field Settings"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => handleToggleLock(selectedFieldIdx)}
+                  className={`p-sm bg-surface-soft hover:bg-hairline-soft rounded-circle transition-colors ${
+                    signatures[selectedFieldIdx].isLocked ? 'text-yellow-600 bg-yellow-500/10' : 'text-slate hover:text-ink-deep'
+                  }`}
+                  title={signatures[selectedFieldIdx].isLocked ? 'Unlock Field' : 'Lock Field'}
+                >
+                  {signatures[selectedFieldIdx].isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                </button>
+
+                <button
+                  disabled={signatures[selectedFieldIdx].isLocked}
+                  onClick={() => handleDuplicateField(selectedFieldIdx)}
+                  className="p-sm bg-surface-soft hover:bg-hairline-soft rounded-circle text-slate hover:text-ink-deep transition-colors disabled:opacity-30"
+                  title="Duplicate Field"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => handleRemoveField(selectedFieldIdx)}
+                  className="p-sm bg-critical/5 hover:bg-critical/10 rounded-circle text-critical border border-critical/10 transition-colors"
+                  title="Delete Field"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Mobile overflow menu (< 640px) */}
+              <div className="flex sm:hidden relative">
+                <button
+                  onClick={() => setIsOverflowOpen(!isOverflowOpen)}
+                  className="p-sm bg-surface-soft hover:bg-hairline-soft rounded-circle text-slate hover:text-ink-deep transition-colors"
+                  title="More Actions"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {isOverflowOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setIsOverflowOpen(false)} 
+                    />
+                    <div className="absolute right-0 top-full mt-xs bg-canvas border border-hairline-soft rounded-xl shadow-lg py-xs w-40 z-50 animate-fast">
+                      <button
+                        onClick={() => {
+                          setIsOverflowOpen(false);
+                          setMobileDrawerTab('fields');
+                        }}
+                        className="w-full px-md py-xs text-left text-body-xs font-semibold text-ink-deep hover:bg-surface-soft flex items-center"
+                      >
+                        <Settings className="w-3.5 h-3.5 mr-2" /> Field Settings
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsOverflowOpen(false);
+                          handleToggleLock(selectedFieldIdx);
+                        }}
+                        className="w-full px-md py-xs text-left text-body-xs font-semibold text-ink-deep hover:bg-surface-soft flex items-center"
+                      >
+                        {signatures[selectedFieldIdx].isLocked ? (
+                          <>
+                            <Unlock className="w-3.5 h-3.5 mr-2 text-yellow-600" /> Unlock Field
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5 mr-2" /> Lock Field
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        disabled={signatures[selectedFieldIdx].isLocked}
+                        onClick={() => {
+                          setIsOverflowOpen(false);
+                          handleDuplicateField(selectedFieldIdx);
+                        }}
+                        className="w-full px-md py-xs text-left text-body-xs font-semibold text-ink-deep hover:bg-surface-soft flex items-center disabled:opacity-30"
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-2" /> Duplicate
+                      </button>
+
+                      <hr className="border-hairline-soft my-xs" />
+
+                      <button
+                        onClick={() => {
+                          setIsOverflowOpen(false);
+                          handleRemoveField(selectedFieldIdx);
+                        }}
+                        className="w-full px-md py-xs text-left text-body-xs font-bold text-critical hover:bg-critical/5 flex items-center"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete Field
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Default: Zoom and navigation for quick access when no field is selected
+          <div className="flex items-center justify-between w-full">
+            <div className="text-body-xs font-semibold text-slate">
+              Select a field to customize properties
+            </div>
+            
+            {/* Quick stats / page viewer indicator */}
+            <div className="flex items-center space-x-sm">
+              <span className="text-[11px] font-bold text-slate">
+                Page {currentPage} / {numPages}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3-Pane Layout Grid */}
@@ -2962,42 +3132,156 @@ export default function DocumentEditor() {
             {/* Scrollable content container */}
             <div className="overflow-y-auto flex-1 min-h-0 space-y-md">
               {mobileDrawerTab === 'fields' && (
-                <div className="space-y-xl">
-                  <div>
-                    <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Field Type</label>
-                    <select
-                      value={placedFieldType}
-                      onChange={(e) => setPlacedFieldType(e.target.value as any)}
-                      className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue"
-                    >
-                      <option value="Signature">Signature Field</option>
-                      <option value="Initials">Initials Placeholder</option>
-                      <option value="Date">Date Stamp</option>
-                      <option value="Text">Standard Text Input</option>
-                      <option value="Checkbox">Checkbox</option>
-                    </select>
-                  </div>
+                selectedFieldIdx !== null && signatures[selectedFieldIdx] ? (
+                  <div className="space-y-xl animate-fast">
+                    <div className="flex justify-between items-center pb-xs border-b border-hairline-soft">
+                      <h4 className="text-body-sm-bold font-bold text-ink-deep">Field Properties ({signatures[selectedFieldIdx].type})</h4>
+                      <button 
+                        onClick={() => setSelectedFieldIdx(null)}
+                        className="text-body-xs text-primary font-bold"
+                      >
+                        Deselect
+                      </button>
+                    </div>
 
-                  <div>
-                    <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Assigned Recipient</label>
-                    <select
-                      value={recipientEmail}
-                      onChange={(e) => setRecipientEmail(e.target.value)}
-                      className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue"
-                    >
-                      <option value={user?.email}>{user?.name} (You)</option>
-                      {recipients.map((rec) => (
-                        <option key={rec._id} value={rec.email}>
-                          {rec.name} ({rec.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    <div>
+                      <label className="block text-body-xs font-bold text-slate mb-xxs">Assigned Recipient</label>
+                      <select
+                        value={signatures[selectedFieldIdx].recipientEmail}
+                        disabled={signatures[selectedFieldIdx].status === 'Signed' || signatures[selectedFieldIdx].isLocked}
+                        onChange={(e) => {
+                          const email = e.target.value;
+                          const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, recipientEmail: email } : sig);
+                          setSignatures(updated);
+                          pushHistory(updated);
+                        }}
+                        className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue disabled:opacity-50"
+                      >
+                        {recipients.map((rec) => (
+                          <option key={rec.email} value={rec.email}>{rec.name} ({rec.email})</option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <MetaButton variant="primary" onClick={handleAddSignatureField} className="w-full flex items-center justify-center">
-                    Place Field on Page {currentPage}
-                  </MetaButton>
-                </div>
+                    {(signatures[selectedFieldIdx].type === 'Signature' || signatures[selectedFieldIdx].type === 'Initials') && (
+                      <div className="space-y-md pt-xs border-t border-hairline-soft">
+                        <h5 className="text-[10px] font-bold text-slate uppercase tracking-wider">Stamp Customization</h5>
+                        
+                        <div>
+                          <label className="flex justify-between text-body-xs font-bold text-slate mb-xxs">
+                            <span>Signature Scale</span>
+                            <span className="text-ink-deep font-bold">{signatures[selectedFieldIdx].signatureScale || 100}%</span>
+                          </label>
+                          <input
+                            type="range"
+                            min="25"
+                            max="200"
+                            step="25"
+                            value={signatures[selectedFieldIdx].signatureScale || 100}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, signatureScale: val } : sig);
+                              setSignatures(updated);
+                              pushHistory(updated);
+                            }}
+                            className="w-full h-1 bg-surface-soft rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-body-xs font-bold text-slate mb-xxs">Font Size</label>
+                          <select
+                            value={signatures[selectedFieldIdx].fontSize || 12}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, fontSize: val } : sig);
+                              setSignatures(updated);
+                              pushHistory(updated);
+                            }}
+                            className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue"
+                          >
+                            {[12, 14, 16, 18, 20].map(sz => (
+                              <option key={sz} value={sz}>{sz}px</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-sm pt-md border-t border-hairline-soft">
+                      <MetaButton 
+                        variant="secondary" 
+                        onClick={() => {
+                          handleToggleLock(selectedFieldIdx);
+                          setMobileDrawerTab(null);
+                        }}
+                        className="flex-1 flex justify-center text-xs"
+                      >
+                        {signatures[selectedFieldIdx].isLocked ? 'Unlock' : 'Lock'}
+                      </MetaButton>
+                      
+                      <MetaButton 
+                        variant="secondary" 
+                        disabled={signatures[selectedFieldIdx].isLocked}
+                        onClick={() => {
+                          handleDuplicateField(selectedFieldIdx);
+                          setMobileDrawerTab(null);
+                        }}
+                        className="flex-1 flex justify-center text-xs"
+                      >
+                        Duplicate
+                      </MetaButton>
+                    </div>
+
+                    <MetaButton 
+                      variant="ghost" 
+                      onClick={() => {
+                        handleRemoveField(selectedFieldIdx);
+                        setMobileDrawerTab(null);
+                      }}
+                      className="w-full flex justify-center text-xs !bg-critical/5 !text-critical hover:!bg-critical/10 !border-critical/20"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Field
+                    </MetaButton>
+                  </div>
+                ) : (
+                  <div className="space-y-xl">
+                    <div>
+                      <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Field Type</label>
+                      <select
+                        value={placedFieldType}
+                        onChange={(e) => setPlacedFieldType(e.target.value as any)}
+                        className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue"
+                      >
+                        <option value="Signature">Signature Field</option>
+                        <option value="Initials">Initials Placeholder</option>
+                        <option value="Date">Date Stamp</option>
+                        <option value="Text">Standard Text Input</option>
+                        <option value="Checkbox">Checkbox</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Assigned Recipient</label>
+                      <select
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
+                        className="w-full px-md py-xs bg-canvas border border-hairline-soft rounded-full text-body-sm font-bold text-ink-deep outline-none focus:border-fb-blue"
+                      >
+                        <option value={user?.email}>{user?.name} (You)</option>
+                        {recipients.map((rec) => (
+                          <option key={rec._id} value={rec.email}>
+                            {rec.name} ({rec.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <MetaButton variant="primary" onClick={handleAddSignatureField} className="w-full flex items-center justify-center">
+                      Place Field on Page {currentPage}
+                    </MetaButton>
+                  </div>
+                )
               )}
 
               {mobileDrawerTab === 'recipients' && (

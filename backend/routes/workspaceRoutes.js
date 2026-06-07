@@ -48,35 +48,51 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// @route   POST /api/workspaces/:id/members
-// @desc    Add a member to the workspace
 router.post('/:id/members', protect, async (req, res) => {
   try {
+    console.log('INVITE_START:', { workspaceId: req.params.id });
+    console.log('INVITE_PAYLOAD:', req.body);
+
     const { email, role } = req.body;
     if (!email) {
+      console.log('INVITE_FAIL: Missing email');
       return res.status(400).json({ message: 'Member email is required' });
     }
 
     const workspace = await Workspace.findById(req.params.id);
     if (!workspace) {
+      console.log('INVITE_FAIL: Workspace not found');
       return res.status(404).json({ message: 'Workspace not found' });
     }
 
     // Verify requesting user is Owner or Admin
     const memberRequest = workspace.members.find(m => m.userId.toString() === req.user._id.toString());
     if (!memberRequest || (memberRequest.role !== 'Owner' && memberRequest.role !== 'Admin')) {
+      console.log('INVITE_FAIL: Unauthorized');
       return res.status(403).json({ message: 'Not authorized to invite members to this workspace' });
     }
 
-    // Find user by email
-    const userToInvite = await User.findOne({ email });
+    // Find user by email or auto-provision placeholder
+    let userToInvite = await User.findOne({ email: email.toLowerCase() });
+    let isNewUser = false;
+    
     if (!userToInvite) {
-      return res.status(404).json({ message: 'User with this email not registered yet' });
+      const crypto = await import('crypto');
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      userToInvite = await User.create({
+        name: email.split('@')[0],
+        email: email.toLowerCase(),
+        password: randomPassword,
+        isVerified: false
+      });
+      isNewUser = true;
+      console.log('[Workspace Service] Auto-provisioned placeholder user for invited email:', email);
     }
 
     // Check if user already in members
     const isAlreadyMember = workspace.members.some(m => m.userId.toString() === userToInvite._id.toString());
     if (isAlreadyMember) {
+      console.log('INVITE_FAIL: Already a member');
       return res.status(400).json({ message: 'User is already a member of this workspace' });
     }
 
@@ -87,10 +103,19 @@ router.post('/:id/members', protect, async (req, res) => {
 
     await workspace.save();
     
+    // Trigger invite email
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5177';
+    const inviteUrl = `${FRONTEND_URL}/register?email=${encodeURIComponent(email)}`;
+    
+    sendTeamInviteEmail(email, req.user.name, workspace.name, inviteUrl)
+      .then(() => console.log('[Workspace] Invitation email sent to:', email))
+      .catch(err => console.error('[Workspace] Invitation email dispatch failed:', err));
+
     const updatedWorkspace = await Workspace.findById(workspace._id)
       .populate('ownerId', 'name email')
       .populate('members.userId', 'name email');
 
+    console.log('INVITE_SUCCESS:', { workspaceId: workspace._id, email });
     res.json(updatedWorkspace);
   } catch (error) {
     res.status(500).json({ message: 'Failed to add workspace member', error: error.message });

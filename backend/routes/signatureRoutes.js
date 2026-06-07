@@ -510,14 +510,17 @@ router.delete('/:id', protect, async (req, res) => {
 // @route   POST /api/signatures/finalize
 // @desc    Embed placed signatures and generate finalized document with SHA-256 hash
 router.post('/finalize', protect, async (req, res) => {
+  const { documentId } = req.body;
+  console.log('FINALIZE_START:', { documentId });
   try {
-    const { documentId } = req.body;
     if (!documentId) {
+      console.log('FINALIZE_FAIL: Missing documentId');
       return res.status(400).json({ message: 'documentId is required' });
     }
 
     const document = await Document.findById(documentId);
     if (!document) {
+      console.log('FINALIZE_FAIL: Document not found');
       return res.status(404).json({ message: 'Document not found' });
     }
 
@@ -604,6 +607,7 @@ router.post('/finalize', protect, async (req, res) => {
     // Store finalized path separately — do NOT overwrite originalPath
     document.finalizedPath = targetPath;
     document.finalizedFileUrl = finalizedFileUrl;
+    document.finalizedFileKey = targetPath;
     document.status = 'Signed';
     document.sha256Checksum = sha256Checksum;
     
@@ -611,6 +615,7 @@ router.post('/finalize', protect, async (req, res) => {
       await document.save();
     } catch (dbError) {
       console.error('[Finalize] Database save failed:', dbError.message);
+      console.log('FINALIZE_FAIL:', { documentId: document._id, error: dbError.message });
       // Cleanup the file if it still exists
       if (fs.existsSync(finalizedPath)) {
         fs.unlinkSync(finalizedPath);
@@ -658,6 +663,7 @@ router.post('/finalize', protect, async (req, res) => {
       // Don't fail the entire request for signer emails
     }
 
+    console.log('FINALIZE_SUCCESS:', { documentId: document._id, finalizedFileKey: document.finalizedFileKey });
     res.json({ 
       message: 'PDF finalized with Certificate of Completion and cryptographic stamp.', 
       document,
@@ -666,6 +672,7 @@ router.post('/finalize', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('[Finalize] Unexpected error:', error);
+    console.log('FINALIZE_FAIL:', { documentId: req.body.documentId, error: error.message });
     res.status(500).json({ 
       message: 'Failed to finalize PDF document', 
       error: error.message,

@@ -305,14 +305,18 @@ router.get('/:id', protect, async (req, res) => {
 // @route   GET /api/docs/:id/download
 // @desc    Download the signed finalized PDF document file
 router.get('/:id/download', protect, async (req, res) => {
+  const documentId = req.params.id;
+  console.log('DOWNLOAD_START:', { documentId });
   try {
-    const document = await Document.findById(req.params.id);
+    const document = await Document.findById(documentId);
     if (!document) {
+      console.log('DOWNLOAD_FAIL: Document not found', { documentId });
       return res.status(404).json({ message: 'Document not found' });
     }
 
     const isAuthorized = await checkDocumentAccess(document, req.user._id, 'download');
     if (!isAuthorized) {
+      console.log('DOWNLOAD_FAIL: Unauthorized access', { documentId, userId: req.user._id });
       return res.status(403).json({ message: 'Not authorized to download this document' });
     }
 
@@ -342,6 +346,7 @@ router.get('/:id/download', protect, async (req, res) => {
           finalBytes = compiledBytes;
         } catch (genErr) {
           console.error('[Download] PDF regeneration failed:', genErr.message);
+          console.log('DOWNLOAD_FAIL: Regeneration failed', { documentId, error: genErr.message });
           return res.status(404).json({
             message: 'Finalized PDF not found on server. The file may have been lost after a deployment. Please re-finalize the document.',
             error: genErr.message
@@ -353,6 +358,7 @@ router.get('/:id/download', protect, async (req, res) => {
         try {
           finalBytes = await readPdfBytes(originalPath);
         } catch (e) {
+          console.log('DOWNLOAD_FAIL: Original not found', { documentId, error: e.message });
           return res.status(404).json({
             message: 'Original PDF not found on server. The file may have been lost after a deployment.',
             error: e.message
@@ -365,9 +371,11 @@ router.get('/:id/download', protect, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${document.filename}"`);
     res.send(Buffer.from(finalBytes));
 
+    console.log('DOWNLOAD_SUCCESS:', { documentId });
     await logAuditEvent(document._id, req.user._id, 'Download', req);
   } catch (error) {
     console.error('[Download] Unexpected error:', error.message);
+    console.log('DOWNLOAD_FAIL: Unexpected error', { documentId, error: error.message });
     res.status(500).json({ message: 'Download failed', error: error.message });
   }
 });
@@ -428,18 +436,23 @@ router.get('/:id/download-audit', protect, async (req, res) => {
 // @route   GET /api/docs/:id/public-download
 // @desc    Download the signed finalized PDF document file publicly
 router.get('/:id/public-download', async (req, res) => {
+  const documentId = req.params.id;
+  console.log('DOWNLOAD_START (public):', { documentId });
   try {
     const { password } = req.query;
-    const document = await Document.findById(req.params.id);
+    const document = await Document.findById(documentId);
     if (!document || !document.sharingEnabled) {
+      console.log('DOWNLOAD_FAIL (public): Not found or disabled', { documentId });
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
     }
 
     if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
+      console.log('DOWNLOAD_FAIL (public): Expired link', { documentId });
       return res.status(410).json({ message: 'This public shared link has expired' });
     }
 
     if (document.sharePassword && document.sharePassword !== password) {
+      console.log('DOWNLOAD_FAIL (public): Password required', { documentId });
       return res.status(401).json({ message: 'Password protection required to download' });
     }
 
@@ -465,6 +478,7 @@ router.get('/:id/public-download', async (req, res) => {
           const { finalBytes: compiled } = await generateFinalizedPdf(document, signedFields);
           finalBytes = compiled;
         } catch (genErr) {
+          console.log('DOWNLOAD_FAIL (public): Regeneration failed', { documentId, error: genErr.message });
           return res.status(404).json({
             message: 'Finalized PDF not found. Please re-finalize the document.',
             error: genErr.message
@@ -475,6 +489,7 @@ router.get('/:id/public-download', async (req, res) => {
         try {
           finalBytes = await readPdfBytes(originalPath);
         } catch (e) {
+          console.log('DOWNLOAD_FAIL (public): Original not found', { documentId, error: e.message });
           return res.status(404).json({
             message: 'Original PDF not found on server.',
             error: e.message
@@ -487,9 +502,11 @@ router.get('/:id/public-download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${document.filename}"`);
     res.send(Buffer.from(finalBytes));
 
+    console.log('DOWNLOAD_SUCCESS (public):', { documentId });
     await logAuditEvent(document._id, null, 'Public Download', req);
   } catch (error) {
     console.error('[Public Download] Unexpected error:', error.message);
+    console.log('DOWNLOAD_FAIL (public): Unexpected error', { documentId, error: error.message });
     res.status(500).json({ message: 'Public download failed', error: error.message });
   }
 });

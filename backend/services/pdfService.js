@@ -135,28 +135,30 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
       if (field.metadataScale === 'Small') baseSize *= 0.8;
       if (field.metadataScale === 'Large') baseSize *= 1.25;
 
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      const hour = String(d.getHours()).padStart(2, '0');
+      const minute = String(d.getMinutes()).padStart(2, '0');
+      const dateStr = `Date: ${day} ${month} ${year}`;
+      const timeStr = `Time: ${hour}:${minute} UTC`;
+
       let cursorY = metaArea.y + metaArea.h - (baseSize + 2.5);
       const textX = metaArea.x + 4;
 
-      page.drawText('Digitally Signed By', { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaBold, color: rgb(0.2, 0.2, 0.2) });
-      cursorY -= (baseSize + 1.5);
-      page.drawText(signerName, { x: textX, y: cursorY, size: baseSize, font: helveticaBold, color: rgb(0, 0, 0) });
+      page.drawText(`Signed By: ${signerName}`, { x: textX, y: cursorY, size: baseSize, font: helveticaBold, color: rgb(0, 0, 0) });
       
-      if (dateString) {
+      if (showDate) {
         cursorY -= (baseSize + 1.5);
-        page.drawText(`Date: ${dateString}`, { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+        page.drawText(dateStr, { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
       }
-      if (field.hideReason !== true) {
+      if (showTime) {
         cursorY -= (baseSize + 1.5);
-        page.drawText('Reason: Approved', { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+        page.drawText(timeStr, { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
       }
       if (field.hideCertId !== true) {
         cursorY -= (baseSize + 1.5);
-        page.drawText(`Certificate ID: ${certId}`, { x: textX, y: cursorY, size: baseSize * 0.75, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
-      }
-      if (field.hideSha256 !== true) {
-        cursorY -= (baseSize + 1.5);
-        page.drawText('SHA256 Verified', { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaBold, color: rgb(0, 0.5, 0.1) });
+        page.drawText(`Cert ID: ${certId}`, { x: textX, y: cursorY, size: baseSize * 0.75, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
       }
     }
   }

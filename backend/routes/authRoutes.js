@@ -87,8 +87,33 @@ router.post('/register', async (req, res) => {
     // 2. Handle duplicate emails securely
     const userExists = await User.findOne({ email: email.toLowerCase() });
     if (userExists) {
-      // Return 400 Bad Request but with a clearer message
-      return res.status(400).json({ message: 'An account with this email already exists' });
+      if (userExists.isVerified) {
+        return res.status(400).json({ message: 'An account with this email already exists' });
+      }
+      
+      // Update placeholder
+      userExists.name = name.trim();
+      userExists.password = password; // hashed on save
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      userExists.verificationCode = verificationCode;
+      await userExists.save();
+
+      // Send emails
+      sendWelcomeEmail(email, name).catch(err => console.error('Failed to send welcome email:', err));
+      sendVerificationEmail(email, name, `${FRONTEND_URL}/verify-email?code=${verificationCode}&email=${encodeURIComponent(email)}`).catch(err => console.error('Failed to send verification email:', err));
+
+      const accessToken = generateAccessToken(userExists._id);
+      const refreshToken = await generateRefreshToken(userExists._id);
+      setCookieToken(res, refreshToken);
+
+      return res.status(201).json({
+        _id: userExists._id,
+        name: userExists.name,
+        email: userExists.email,
+        accessToken,
+        isVerified: userExists.isVerified,
+        verificationCode,
+      });
     }
 
     // 3. Generate OTP
