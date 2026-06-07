@@ -763,7 +763,7 @@ const DraggableField = memo(function DraggableField({
       onContextMenu={(e) => onRightClickField(e, index)}
       className={`absolute cursor-pointer flex flex-col justify-between select-none group transition-all duration-150 ${
         isSigned
-          ? 'rounded-[16px] bg-white border border-slate-200 shadow-sm'
+          ? 'bg-transparent border-0'
           : isSelected
           ? `rounded-lg border-4 border-double ${theme.borderClass} bg-canvas shadow-lg ring-2 ring-fb-blue/20`
           : `rounded-lg border-4 border-double ${theme.borderClass} bg-canvas hover:bg-surface-soft/40 hover:shadow-md`
@@ -1889,12 +1889,15 @@ export default function DocumentEditor() {
         setContextMenu(null);
       }}
     >
-      <div className="hidden md:block">
+      <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
         <Navbar user={user} onMenuClick={() => {}} onLogout={handleLogout} />
       </div>
 
       {/* Desktop Header */}
-      <div className="hidden md:flex bg-canvas border-b border-hairline-soft h-[56px] shrink-0 items-center justify-between px-xl select-none">
+      <div 
+        onClick={(e) => e.stopPropagation()} 
+        className="hidden md:flex bg-canvas border-b border-hairline-soft h-[56px] shrink-0 items-center justify-between px-xl select-none"
+      >
         {/* Left Section */}
         <div className="flex items-center space-x-md">
           <MetaButton variant="ghost" className="!py-[6px] !px-[12px] flex items-center !h-[36px]" onClick={() => navigate('/dashboard')}>
@@ -2334,7 +2337,10 @@ export default function DocumentEditor() {
       <div className="flex flex-1 overflow-hidden bg-surface-soft">
         
         {/* Left Sidebar: Thumbnail Nav Panel */}
-        <aside className="hidden md:flex flex-col w-[160px] bg-canvas border-r border-hairline-soft overflow-y-auto p-md space-y-md shrink-0">
+        <aside 
+          onClick={(e) => e.stopPropagation()} 
+          className="hidden md:flex flex-col w-[160px] bg-canvas border-r border-hairline-soft overflow-y-auto p-md space-y-md shrink-0"
+        >
           <p className="text-caption-bold text-slate uppercase tracking-wider">Pages</p>
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
             <PdfThumbnail

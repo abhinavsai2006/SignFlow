@@ -872,13 +872,63 @@ router.post('/:id/sign-public', async (req, res) => {
     });
 
     if (remaining === 0) {
-      document.status = 'Signed';
-      await document.save();
+      console.log('[sign-public] All fields signed, finalising document automatically...');
+      // 1. Verify and compile PDF
+      const allFields = await SignatureField.find({ documentId: field.documentId });
+      const uploadsDir = resolveStoragePath();
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      let finalBytes, sha256Checksum;
+      try {
+        const result = await generateFinalizedPdf(document, allFields);
+        finalBytes = result.finalBytes;
+        sha256Checksum = result.sha256Checksum;
+
+        // 2. Save finalized PDF to disk
+        const timestamp = Date.now();
+        const relativeFilename = `finalized-${timestamp}-${document.filename}`;
+        const finalizedPath = path.join(uploadsDir, relativeFilename);
+        fs.writeFileSync(finalizedPath, finalBytes);
+
+        // 3. Upload to Cloudflare R2
+        const targetPath = `uploads/${relativeFilename}`;
+        let finalizedFileUrl = targetPath;
+        try {
+          finalizedFileUrl = await uploadFile(finalizedPath, relativeFilename, 'application/pdf');
+          if (isR2Active() && fs.existsSync(finalizedPath)) {
+            fs.unlinkSync(finalizedPath);
+          }
+        } catch (r2Err) {
+          console.warn('[sign-public finalize] R2 upload failed, falling back to local path:', r2Err.message);
+        }
+
+        // 4. Update Document
+        document.finalizedPath = targetPath;
+        document.finalizedFileUrl = finalizedFileUrl;
+        document.finalizedFileKey = targetPath;
+        document.status = 'Signed';
+        document.sha256Checksum = sha256Checksum;
+        await document.save();
+
+        console.log('[sign-public] Automatic finalisation complete. Saved document hash:', sha256Checksum);
+      } catch (pdfErr) {
+        console.error('[sign-public automatic finalize] PDF generation failed:', pdfErr.message);
+        // Fallback: still set status to 'Signed' to not block the signer
+        document.status = 'Signed';
+        await document.save();
+      }
 
       const owner = await User.findById(document.ownerId);
       if (owner) {
         const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
-        await sendCompletionEmail(owner.email, document.filename, downloadUrl);
+        sendCompletionEmail(owner.email, document.filename, downloadUrl, owner.name)
+          .catch(err => console.error('[sign-public] Completion email failed:', err.message));
+        sendAllSignersCompletedEmail(owner.email, owner.name, document.filename, downloadUrl)
+          .catch(err => console.error('[sign-public] All signers completed email failed:', err.message));
+        sendDownloadReadyEmail(owner.email, owner.name, document.filename, downloadUrl)
+          .catch(err => console.error('[sign-public] Download ready email failed:', err.message));
       }
     }
 

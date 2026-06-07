@@ -6,7 +6,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import {
   FileText, Lock, AlertTriangle, ChevronLeft, ChevronRight,
   ZoomIn, ZoomOut, Edit3, Type, Upload, CheckCircle2, X, Undo,
-  Shield, Maximize, ClipboardList, Settings
+  Shield, Maximize, ClipboardList, Settings, Download
 } from 'lucide-react';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -158,7 +158,26 @@ export default function PublicShareView() {
     }
   }, [recipientToken, id]);
 
-  const loadDocument = useCallback(async (pw = '') => {
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
+  const loadPdfFile = useCallback(async (pw = '') => {
+    if (!id) return;
+    try {
+      setIsPdfLoading(true);
+      const pdfUrl = `${BASE_URL}/api/docs/${id}/public-download${pw ? `?password=${encodeURIComponent(pw)}` : ''}`;
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      setPdfDoc(pdf);
+      setNumPages(pdf.numPages);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error('Failed to load PDF file:', err);
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }, [id]);
+
+  const loadDocumentMetadata = useCallback(async (pw = '') => {
     try {
       setIsLoading(true);
       setError(null);
@@ -169,13 +188,6 @@ export default function PublicShareView() {
       setRecipients(data.recipients || []);
       setAuditLogs(data.auditLogs || []);
       setIsPasswordRequired(false);
-
-      const pdfUrl = `${BASE_URL}/api/docs/${id}/public-download${pw ? `?password=${encodeURIComponent(pw)}` : ''}`;
-      const loadingTask = pdfjsLib.getDocument(pdfUrl);
-      const pdf = await loadingTask.promise;
-      setPdfDoc(pdf);
-      setNumPages(pdf.numPages);
-      setCurrentPage(1);
     } catch (err: any) {
       if (err.response?.status === 401) {
         setIsPasswordRequired(true);
@@ -189,9 +201,15 @@ export default function PublicShareView() {
 
   useEffect(() => {
     Promise.resolve().then(() => {
-      loadDocument();
+      loadDocumentMetadata();
     });
-  }, [loadDocument]);
+  }, [loadDocumentMetadata]);
+
+  useEffect(() => {
+    if (identityConfirmed && !pdfDoc && !isPdfLoading) {
+      loadPdfFile(password);
+    }
+  }, [identityConfirmed, pdfDoc, isPdfLoading, loadPdfFile, password]);
 
   // Render each page into its canvas
   const renderPage = useCallback(async (pageNum: number) => {
@@ -434,17 +452,17 @@ export default function PublicShareView() {
     setIdentityError('');
   };
 
-  const myFields = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.toLowerCase());
+  const myFields = fields.filter(f => f.recipientEmail.trim().toLowerCase() === signerEmail.trim().toLowerCase());
   const myPendingFields = myFields.filter(f => f.status !== 'Signed');
 
   // Open signing modal for a field
   const openSigningModal = useCallback((field: SignatureField) => {
     if (!identityConfirmed) return;
-    if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) return;
+    if (field.recipientEmail.trim().toLowerCase() !== signerEmail.trim().toLowerCase()) return;
     if (field.status === 'Signed') return;
     setActiveField(field);
     setSignatureType('draw');
-    setTypedName(signerName || signerEmail.split('@')[0]);
+    setTypedName(signerName || signerEmail.trim().split('@')[0]);
     setUploadedBase64('');
   }, [identityConfirmed, signerEmail, signerName]);
 
@@ -565,7 +583,7 @@ export default function PublicShareView() {
             <h2 className="text-xl font-bold text-ink-deep mb-1">Password Protected</h2>
             <p className="text-slate text-sm">Enter the password to access this document.</p>
           </div>
-          <form onSubmit={e => { e.preventDefault(); loadDocument(password); }} className="space-y-4">
+          <form onSubmit={e => { e.preventDefault(); loadDocumentMetadata(password); }} className="space-y-4">
             <input
               type="password"
               placeholder="Document password"
@@ -925,10 +943,20 @@ export default function PublicShareView() {
                   <span className="font-bold text-blue-300">{f.type}</span>
                   <span className="text-slate-500 text-[10px] block">Page {f.page}</span>
                 </div>
-                <span className="text-[9px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold uppercase">Sign</span>
               </button>
             ))
           )}
+        </div>
+
+        {/* Standalone Download Action */}
+        <div className="pt-2">
+          <button
+            onClick={handleDownloadPublicPDF}
+            className="w-full bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-xs"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download PDF Document</span>
+          </button>
         </div>
       </div>
     );
@@ -968,6 +996,16 @@ export default function PublicShareView() {
               </button>
             </div>
           )}
+          {/* Download PDF Button */}
+          <button
+            onClick={handleDownloadPublicPDF}
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-ink-deep text-xs font-bold px-3 py-1.5 rounded-full transition cursor-pointer"
+            title="Download PDF"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download</span>
+          </button>
+
           {/* Signer badge */}
           <div className="text-xs bg-blue-500/10 text-blue-300 px-3 py-1 rounded-full border border-blue-500/20 font-medium hidden sm:block">
             Signing as {signerEmail}
@@ -1133,7 +1171,7 @@ export default function PublicShareView() {
               {fields
                 .filter(f => f.page === pageNum)
                 .map(f => {
-                  const isMine = f.recipientEmail.toLowerCase() === signerEmail.toLowerCase();
+                  const isMine = f.recipientEmail.trim().toLowerCase() === signerEmail.trim().toLowerCase();
                   const isSigned = f.status === 'Signed';
                   return (
                     <div
@@ -1153,7 +1191,7 @@ export default function PublicShareView() {
                       }}
                       className={`select-none transition-all flex items-center justify-center ${
                         isSigned
-                          ? 'rounded-[16px] bg-white border border-slate-200 shadow-sm'
+                          ? 'bg-transparent border-0'
                           : isMine
                           ? 'rounded-lg border-4 border-double border-blue-400 bg-blue-400/10 hover:bg-blue-400/20'
                           : 'rounded-lg border-4 border-double border-slate-400/40 bg-slate-400/5'
