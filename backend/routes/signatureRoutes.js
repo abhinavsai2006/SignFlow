@@ -19,7 +19,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { generateFinalizedPdf } from '../services/pdfService.js';
 import { readPdfBytes } from '../utils/fileLoader.js';
-import { uploadToR2 } from '../services/r2Service.js';
+import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -738,16 +738,27 @@ router.post('/finalize', protect, async (req, res) => {
     } catch (writeError) {
       console.error('[Finalize] File write failed:', writeError.message);
       return res.status(500).json({ 
-        message: 'Failed to save finalized PDF',
+        message: 'Failed to save finalized PDF to disk',
         error: writeError.message
       });
     }
 
-    // Use local volume instead of R2
+    // Upload to Cloudflare R2
     const targetPath = `uploads/${relativeFilename}`;
+    let finalizedFileUrl = targetPath;
+    try {
+      finalizedFileUrl = await uploadFile(finalizedPath, relativeFilename, 'application/pdf');
+      // Clean up the temporary local file on disk only if R2 is active
+      if (isR2Active() && fs.existsSync(finalizedPath)) {
+        fs.unlinkSync(finalizedPath);
+      }
+    } catch (r2Err) {
+      console.warn('[Finalize] R2 upload failed, falling back to local file path:', r2Err.message);
+    }
 
     // Store finalized path separately — do NOT overwrite originalPath
     document.finalizedPath = targetPath;
+    document.finalizedFileUrl = finalizedFileUrl;
     document.status = 'Signed';
     document.sha256Checksum = sha256Checksum;
     
@@ -755,8 +766,10 @@ router.post('/finalize', protect, async (req, res) => {
       await document.save();
     } catch (dbError) {
       console.error('[Finalize] Database save failed:', dbError.message);
-      // Cleanup the file since DB save failed
-      fs.unlinkSync(finalizedPath);
+      // Cleanup the file if it still exists
+      if (fs.existsSync(finalizedPath)) {
+        fs.unlinkSync(finalizedPath);
+      }
       return res.status(500).json({ 
         message: 'Failed to update document record',
         error: dbError.message
@@ -875,6 +888,8 @@ router.post('/:id/sign-public', async (req, res) => {
       return res.status(404).json({ message: 'Signature field not found' });
     }
 
+    console.log("SIGNING_STARTED:", field.documentId, signerEmail);
+
     if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) {
       return res.status(403).json({
         message: `This field is assigned to ${field.recipientEmail}, not ${signerEmail}.`
@@ -920,6 +935,7 @@ router.post('/:id/sign-public', async (req, res) => {
     field.documentHash = crypto.createHash('sha256').update(docHashSource).digest('hex');
 
     await field.save();
+    console.log("SIGNING_COMPLETED:", field.documentId, signerEmail);
 
     await logAuditEvent(field.documentId, null, `Public Sign by ${signerEmail}`, req);
 

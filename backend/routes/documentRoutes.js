@@ -20,7 +20,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
-import { uploadToR2 } from '../services/r2Service.js';
+import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
 import { readPdfBytes } from '../utils/fileLoader.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,13 +119,25 @@ router.post('/upload', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'Uploaded file is empty (0 bytes) on disk', path: pathString });
     }
 
-    // Use local storage / Railway volume instead of R2
     const targetPath = `uploads/${req.file.filename}`;
+
+    // Upload to Cloudflare R2
+    let fileUrl = targetPath;
+    try {
+      fileUrl = await uploadFile(pathString, req.file.originalname, req.file.mimetype);
+      // Clean up the local file only if R2 is active (so we don't delete local fallback files)
+      if (isR2Active() && fs.existsSync(pathString)) {
+        fs.unlinkSync(pathString);
+      }
+    } catch (r2Err) {
+      console.warn('[Upload] R2 upload failed, falling back to local file path:', r2Err.message);
+    }
 
     const document = await Document.create({
       ownerId: req.user._id,
       filename: req.file.originalname,
       originalPath: targetPath,
+      originalFileUrl: fileUrl,
       status: 'Pending',
       workspaceId,
       versions: [{
@@ -309,6 +321,38 @@ router.get('/:id/download', protect, async (req, res) => {
   } catch (error) {
     console.error('[Download] Unexpected error:', error.message);
     res.status(500).json({ message: 'Download failed', error: error.message });
+  }
+});
+
+// @route   GET /api/docs/:id/download-audit
+// @desc    Download the audit trail certificate page dynamically as a separate PDF
+router.get('/:id/download-audit', protect, async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const isAuthorized = await checkDocumentAccess(document, req.user._id, 'read');
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Not authorized to access this document\'s audit logs' });
+    }
+
+    const fields = await SignatureField.find({ documentId: document._id });
+    const signedFields = fields.filter(f => f.status === 'Signed');
+
+    // Generate certificate page PDF
+    const { generateAuditPdf } = await import('../services/pdfService.js');
+    const auditBytes = await generateAuditPdf(document, signedFields, document.sha256Checksum || 'N/A');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="audit-report-${document._id}.pdf"`);
+    res.send(Buffer.from(auditBytes));
+
+    await logAuditEvent(document._id, req.user._id, 'Download Audit Report', req);
+  } catch (error) {
+    console.error('[Download Audit] Failed:', error.message);
+    res.status(500).json({ message: 'Failed to generate audit report PDF', error: error.message });
   }
 });
 
@@ -667,7 +711,12 @@ router.post('/:id/recipients', protect, async (req, res) => {
       status: 'Waiting'
     });
 
-    const signingUrl = `${FRONTEND_URL}/share/${req.params.id}`;
+    console.log("RECIPIENT_CREATED:", recipient._id);
+    console.log("RECIPIENT_EMAIL_FOUND:", recipient.email);
+    console.log("TOKEN_CREATED:", recipient.token);
+
+    const signingUrl = `${FRONTEND_URL}/share/${req.params.id}?token=${recipient.token}`;
+    console.log("SHARE_URL_CREATED:", signingUrl);
     
     let shouldSendEmail = true;
     if (document.signingOrder === 'Sequential' && recipient.role === 'Signer') {
@@ -688,7 +737,18 @@ router.post('/:id/recipients', protect, async (req, res) => {
     if (shouldSendEmail && recipient.role === 'Signer') {
       recipient.status = 'Notified';
       await recipient.save();
-      await sendInviteEmail(recipient.email, recipient.name, document.filename, signingUrl);
+      console.log("EMAIL_TRIGGERED:", recipient.email);
+      console.log("EMAIL_QUEUED:", recipient.email);
+      
+      try {
+        const senderName = req.user?.name || 'A user';
+        const expiryDate = document.expiresAt ? new Date(document.expiresAt).toLocaleDateString() : 'N/A';
+        
+        await sendInviteEmail(recipient.email, recipient.name, document.filename, signingUrl, senderName, expiryDate);
+        console.log("EMAIL_SENT:", recipient.email);
+      } catch (emailErr) {
+        console.error("EMAIL_SEND_FAILED for recipient:", recipient.email, emailErr.message);
+      }
     }
 
     res.status(201).json(recipient);
@@ -807,6 +867,7 @@ router.put('/:id/share', protect, async (req, res) => {
     await document.save();
 
     const publicUrl = `${FRONTEND_URL}/share/${document._id}`;
+    console.log("SHARE_LINK_CREATED:", document._id, publicUrl);
 
     // Trigger share link created email when sharing is newly enabled
     if (sharingEnabled === true && !document.sharingEnabled) {
@@ -860,6 +921,8 @@ router.get('/:id/public', async (req, res) => {
     if (!document || !document.sharingEnabled) {
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
     }
+
+    console.log("SHARE_LINK_OPENED:", document._id);
 
     if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
       return res.status(410).json({ message: 'This public shared link has expired' });

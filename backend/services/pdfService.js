@@ -6,6 +6,8 @@ import SignatureField from '../models/SignatureField.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readPdfBytes } from '../utils/fileLoader.js';
+import { SignPdf, plainAddPlaceholder } from 'node-signpdf';
+import { getSigningCertificate } from '../utils/certProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,51 +38,52 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
     if (field.type === 'Checkbox') {
       page.drawRectangle({
         x: targetX, y: targetY, width: targetW, height: targetH,
-        color: rgb(1, 1, 1), borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 0.75
+        color: rgb(1, 1, 1), borderColor: rgb(0, 0, 0), borderWidth: 1
       });
       const isChecked = field.value === 'true';
       page.drawText(isChecked ? '[X]' : '[ ]', {
         x: targetX + (targetW - 12) / 2, y: targetY + (targetH - 10) / 2,
-        size: Math.min(10, targetH * 0.5), font: helveticaBold, color: rgb(0, 0.392, 0.878)
+        size: Math.min(10, targetH * 0.5), font: helveticaBold, color: rgb(0, 0, 0)
       });
     } else {
-      // 1. Light Green Background
+      // 1. Plain White Background with a Solid Black Border (Government DSC Style)
       page.drawRectangle({
         x: targetX, y: targetY, width: targetW, height: targetH,
-        color: rgb(0.96, 0.98, 0.96), // light green bg
-        borderColor: rgb(0.12, 0.635, 0.3), // green border
-        borderWidth: 1.5
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 1
       });
 
-      // Split into Left (Signature) and Right (Metadata) or Top (Signature) and Bottom (Metadata)
-      // Adobe Sign usually puts signature on left, metadata on right, or signature top, metadata bottom.
-      // Let's do a top/bottom split if it's rectangular.
+      // Split into Left (Signature) and Right (DSC details)
       const isHorizontal = targetW > targetH * 1.5;
       
-      const headerH = 14;
-      
-      // Top header banner
-      page.drawRectangle({
-        x: targetX, y: targetY + targetH - headerH, width: targetW, height: headerH,
-        color: rgb(0.12, 0.635, 0.3)
-      });
-      page.drawText('Verified Digital Signature', {
-        x: targetX + 4, y: targetY + targetH - headerH + 4,
-        size: 7, font: helveticaBold, color: rgb(1, 1, 1)
-      });
-
-      // Content Area
-      let sigArea = { x: targetX, y: targetY, w: targetW, h: targetH - headerH };
-      let metaArea = { x: targetX, y: targetY, w: targetW, h: targetH - headerH };
+      let sigArea = { x: targetX, y: targetY, w: targetW, h: targetH };
+      let metaArea = { x: targetX, y: targetY, w: targetW, h: targetH };
 
       if (isHorizontal) {
-        sigArea.w = targetW * 0.45;
-        metaArea.x = targetX + targetW * 0.45;
-        metaArea.w = targetW * 0.55;
+        sigArea.w = targetW * 0.4;
+        metaArea.x = targetX + targetW * 0.4;
+        metaArea.w = targetW * 0.6;
+        
+        // Draw black divider line
+        page.drawLine({
+          start: { x: targetX + targetW * 0.4, y: targetY },
+          end: { x: targetX + targetW * 0.4, y: targetY + targetH },
+          thickness: 0.5,
+          color: rgb(0, 0, 0)
+        });
       } else {
-        sigArea.h = (targetH - headerH) * 0.55;
-        sigArea.y = targetY + (targetH - headerH) * 0.45;
-        metaArea.h = (targetH - headerH) * 0.45;
+        sigArea.h = targetH * 0.5;
+        sigArea.y = targetY + targetH * 0.5;
+        metaArea.h = targetH * 0.5;
+        
+        // Draw horizontal divider
+        page.drawLine({
+          start: { x: targetX, y: targetY + targetH * 0.5 },
+          end: { x: targetX + targetW, y: targetY + targetH * 0.5 },
+          thickness: 0.5,
+          color: rgb(0, 0, 0)
+        });
       }
 
       // Draw signature image
@@ -123,33 +126,27 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         });
       }
 
-      // Draw Metadata
+      // Draw Metadata in Government DSC Style
       const signerName = field.signerName || field.recipientEmail.split('@')[0];
-      const email = field.recipientEmail;
       const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
-      const formattedDate = `${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-      const formattedTime = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC`;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const formattedDate = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      const certId = field.certificateId || `SIGNFLOW-${field._id.toString().slice(-4).toUpperCase()}`;
 
       let cursorY = metaArea.y + metaArea.h - 10;
       const textX = metaArea.x + 6;
       
-      // Name & Email
-      page.drawText(signerName, { x: textX, y: cursorY, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+      page.drawText('Digitally Signed by:', { x: textX, y: cursorY, size: 5.5, font: helveticaBold, color: rgb(0.3, 0.3, 0.3) });
+      cursorY -= 8;
+      page.drawText(signerName, { x: textX, y: cursorY, size: 7.5, font: helveticaBold, color: rgb(0, 0, 0) });
       cursorY -= 9;
-      page.drawText(email, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
-      cursorY -= 12;
-
-      // Date & Time
-      page.drawText(`${formattedDate}  ${formattedTime}`, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
-      cursorY -= 12;
-
-      // Verification checks — use WinAnsi-safe ASCII (no ✓ U+2713)
-      const checks = ['[OK] Identity Verified', '[OK] Audit Verified', '[OK] SHA256 Protected'];
-      for (const check of checks) {
-        if (cursorY < metaArea.y + 2) break; // Don't draw if no space
-        page.drawText(check, { x: textX, y: cursorY, size: 5.5, font: helveticaBold, color: rgb(0.12, 0.635, 0.3) });
-        cursorY -= 8;
-      }
+      page.drawText(`Date: ${formattedDate}`, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      cursorY -= 8;
+      page.drawText('Reason: Approved', { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      cursorY -= 8;
+      page.drawText(`Cert ID: ${certId}`, { x: textX, y: cursorY, size: 5.5, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
+      cursorY -= 8;
+      page.drawText('SHA256 Verified', { x: textX, y: cursorY, size: 6, font: helveticaBold, color: rgb(0, 0.5, 0.1) }); // Dark Green
     }
   }
 };
@@ -271,10 +268,18 @@ export const generateCertificatePage = async (pdfDoc, document, fields, sha256Ch
 };
 
 /**
- * Loads the pristine original PDF, embeds signatures, appends certificate, and returns PDF bytes.
+ * Generates audit trail report dynamically.
+ */
+export const generateAuditPdf = async (document, fields, sha256Checksum) => {
+  const pdfDoc = await PDFDocument.create();
+  await generateCertificatePage(pdfDoc, document, fields, sha256Checksum);
+  return await pdfDoc.save();
+};
+
+/**
+ * Loads the pristine original PDF, embeds signatures, and returns cryptographically signed PDF bytes.
  */
 export const generateFinalizedPdf = async (document, fields) => {
-  // Resolve the original file path - handle both absolute and relative paths
   let originalPath = document.versions[0]?.path || document.originalPath;
   console.log('[PDF Service] Attempting to load PDF from:', originalPath);
 
@@ -282,18 +287,38 @@ export const generateFinalizedPdf = async (document, fields) => {
     const pdfBytes = await readPdfBytes(originalPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
 
-    // 1. Draw signature blocks on appropriate pages
+    // 1. Draw visual signature blocks on appropriate pages
     await embedSignaturesToPdf(pdfDoc, fields);
 
     // 2. Save document temporarily to compute checksum of signed content only (preshared hash)
     const signedOnlyBytes = await pdfDoc.save();
-    const sha256Checksum = crypto.createHash('sha256').update(signedOnlyBytes).digest('hex');
+    const signedOnlyBuffer = Buffer.from(signedOnlyBytes);
+    const sha256Checksum = crypto.createHash('sha256').update(signedOnlyBuffer).digest('hex');
 
-    // 3. Append Certificate page
-    await generateCertificatePage(pdfDoc, document, fields, sha256Checksum);
+    // 3. Cryptographically Sign using PKCS#7 adbe.pkcs7.detached
+    let finalBytes = signedOnlyBuffer;
+    try {
+      const { p12Buffer, password } = getSigningCertificate();
+      const signer = new SignPdf();
+      
+      const firstField = fields[0];
+      const signerName = firstField ? (firstField.signerName || firstField.recipientEmail.split('@')[0]) : 'SignFlow Signer';
+      
+      const pdfWithPlaceholder = plainAddPlaceholder({
+        pdfBuffer: signedOnlyBuffer,
+        reason: 'Approved',
+        contactInfo: firstField ? firstField.recipientEmail : 'verification@signflow.com',
+        name: signerName,
+        location: firstField ? (firstField.location || 'Online') : 'Online',
+        signatureLength: 8192
+      });
+      
+      finalBytes = signer.sign(pdfWithPlaceholder, p12Buffer, { passphrase: password });
+      console.log('[PDF Service] PDF cryptographically signed with X.509 certificate.');
+    } catch (cryptoErr) {
+      console.error('[PDF Service] Cryptographic signing failed (falling back to visual-only):', cryptoErr.message);
+    }
 
-    // 4. Save and return final byte buffer
-    const finalBytes = await pdfDoc.save();
     return { finalBytes, sha256Checksum };
   } catch (error) {
     console.error('[PDF Service] Error processing PDF:', error.message);

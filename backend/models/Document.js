@@ -18,6 +18,18 @@ const documentSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  originalFileUrl: {
+    type: String,
+    default: null,
+  },
+  finalizedFileUrl: {
+    type: String,
+    default: null,
+  },
+  auditFileUrl: {
+    type: String,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['Draft', 'Pending', 'Viewed', 'PartiallySigned', 'Signed', 'Rejected', 'Expired', 'Archived'],

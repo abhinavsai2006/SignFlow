@@ -1,4 +1,5 @@
 import express from 'express';
+import passport from 'passport';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
@@ -503,96 +504,42 @@ router.put('/me', protect, async (req, res) => {
 
 // @route   GET /api/auth/google
 // @desc    Initiate Google OAuth 2.0 Flow
-router.get('/google', (req, res) => {
+router.get('/google', (req, res, next) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
     return res.status(500).json({ message: 'Google OAuth is not configured on the server.' });
   }
-
-  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${BACKEND_URL}/api/auth/google/callback`;
-  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('profile email')}&prompt=select_account`;
-  
-  res.redirect(oauthUrl);
-});
+  next();
+}, passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
 
 // @route   GET /api/auth/google/callback
 // @desc    Google OAuth Authorization Code Exchange Callback
-router.get('/google/callback', async (req, res) => {
-  try {
-    const { code } = req.query;
-    if (!code) {
-      return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent('Google authentication cancelled.')}`);
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
+    if (err || !user) {
+      console.error('[OAuth Callback Error]:', err || 'User not found');
+      const errMsg = err ? err.message : 'Google authentication failed';
+      return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(errMsg)}`);
     }
 
-    let email = '';
-    let name = '';
+    try {
+      // Generate platform authentication tokens
+      const accessToken = generateAccessToken(user._id);
+      const refreshToken = await generateRefreshToken(user._id);
+      setCookieToken(res, refreshToken);
 
-    // Handle real Google token exchange
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      throw new Error('Server misconfiguration: Google OAuth credentials missing.');
+      // Redirect user to the dashboard with access credentials
+      res.redirect(`${FRONTEND_URL}/login?token=${accessToken}&user=${encodeURIComponent(JSON.stringify({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isVerified: user.isVerified
+      }))}`);
+    } catch (err) {
+      console.error('[OAuth Callback Error]:', err.message);
+      res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
     }
-
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${BACKEND_URL}/api/auth/google/callback`;
-    
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      })
-    });
-
-    const tokenData = await tokenResponse.json();
-    if (!tokenResponse.ok) {
-      throw new Error(tokenData.error_description || 'Failed to exchange Google OAuth code.');
-    }
-
-    // Fetch user profile info
-    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` }
-    });
-    const userInfo = await userInfoResponse.json();
-    
-    email = userInfo.email;
-    name = userInfo.name;
-
-    if (!email) {
-      throw new Error('Google did not return email profile data.');
-    }
-
-    // Find or create the user in MongoDB
-    let user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      user = await User.create({
-        name: name || 'Google Signer',
-        email: email.toLowerCase(),
-        password: crypto.randomBytes(24).toString('hex'), // Secure random password
-        isVerified: true
-      });
-      // Send welcome email upon OAuth signup
-      sendWelcomeEmail(user.email, user.name).catch(() => {});
-    }
-
-    // Generate platform authentication tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = await generateRefreshToken(user._id);
-    setCookieToken(res, refreshToken);
-
-    // Redirect user to the dashboard with access credentials
-    res.redirect(`${FRONTEND_URL}/login?token=${accessToken}&user=${encodeURIComponent(JSON.stringify({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isVerified: user.isVerified
-    }))}`);
-  } catch (err) {
-    console.error('[OAuth Callback Error]:', err.message);
-    res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
-  }
+  })(req, res, next);
 });
 
 // ============================================================================

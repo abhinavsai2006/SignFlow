@@ -95,6 +95,7 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
 
     console.log(`[Resend Service] Dispatching email to <${to}> with subject: "${subject}"...`);
 
+    console.log("EMAIL_SEND_START:", to, subject);
     EmailLog.create({
       recipient: Array.isArray(to) ? to.join(', ') : to,
       template: templateName,
@@ -113,6 +114,7 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
             console.log("RESEND RESPONSE:", data);
+            console.log("EMAIL_SEND_SUCCESS:", to, responseId);
             logEntry.status = 'Delivered';
             logEntry.messageId = responseId;
             logEntry.providerResponse = data;
@@ -120,6 +122,7 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
             resolve({ success: true, id: responseId });
           } else {
             console.log("RESEND ERROR:", data);
+            console.log("EMAIL_SEND_FAIL:", to, `Status ${res.statusCode}: ${data}`);
             logEntry.status = 'Failed';
             logEntry.errorMessage = `Status ${res.statusCode}: ${data}`;
             logEntry.save().catch(()=>{});
@@ -130,6 +133,7 @@ const sendResendEmail = (to, subject, payload, templateName = 'Unknown') => {
 
       req.on('error', (e) => {
         console.error(`[Resend Service] HTTPS Request Error: ${e.message}`);
+        console.log("EMAIL_SEND_FAIL:", to, e.message);
         logEntry.status = 'Failed';
         logEntry.errorMessage = e.message;
         logEntry.save().catch(()=>{});

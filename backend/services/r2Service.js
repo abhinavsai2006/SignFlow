@@ -1,4 +1,5 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl as s3GetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs';
 import path from 'path';
 
@@ -29,17 +30,14 @@ if (isConfigured) {
   console.warn('[Storage Service] R2 credentials not fully set — falling back to local storage.');
 }
 
+export const isR2Active = () => !!s3Client;
+
 /**
  * Upload a local file to Cloudflare R2
- * @param {string} localFilePath - Path to local file on disk
- * @param {string} originalName - Original filename
- * @param {string} mimeType - File MIME type (e.g. application/pdf)
- * @returns {Promise<string>} - Publicly accessible URL of the file
  */
-export const uploadToR2 = async (localFilePath, originalName, mimeType = 'application/pdf') => {
+export const uploadFile = async (localFilePath, originalName, mimeType = 'application/pdf') => {
   if (!s3Client || !bucketName) {
     console.log('[Storage Service] R2 not active — using local file path fallback.');
-    // Return path relative to server root
     return localFilePath.replace(/\\/g, '/');
   }
 
@@ -58,24 +56,20 @@ export const uploadToR2 = async (localFilePath, originalName, mimeType = 'applic
     
     console.log(`[Storage Service] Upload successful. Key: ${fileKey}`);
 
-    // Generate public URL
     if (customDomain) {
       return `${customDomain.replace(/\/$/, '')}/${fileKey}`;
     }
-    // Standard R2 public endpoint endpoint (if bucket is public)
     return `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${fileKey}`;
   } catch (err) {
     console.error('[Storage Service] Cloudflare R2 Upload failed:', err.message);
-    // Fall back to local path rather than crashing the upload request
     return localFilePath.replace(/\\/g, '/');
   }
 };
 
 /**
  * Delete a file from Cloudflare R2
- * @param {string} fileUrlOrKey - Full URL or key of the file
  */
-export const deleteFromR2 = async (fileUrlOrKey) => {
+export const deleteFile = async (fileUrlOrKey) => {
   if (!s3Client || !bucketName) return;
 
   try {
@@ -99,4 +93,78 @@ export const deleteFromR2 = async (fileUrlOrKey) => {
   }
 };
 
-export const isR2Active = () => !!s3Client;
+/**
+ * Download a file as a buffer from R2
+ */
+export const downloadFile = async (fileUrlOrKey) => {
+  if (!s3Client || !bucketName) {
+    console.log('[Storage Service] Local fallback for downloadFile:', fileUrlOrKey);
+    // If it's a relative path starting with uploads, resolve it properly
+    let resolvedPath = fileUrlOrKey;
+    if (!path.isAbsolute(resolvedPath)) {
+      if (resolvedPath.startsWith('uploads/') && fs.existsSync('/data')) {
+        resolvedPath = path.join('/data', resolvedPath);
+      } else {
+        resolvedPath = path.resolve(resolvedPath);
+      }
+    }
+    return fs.readFileSync(resolvedPath);
+  }
+
+  try {
+    let fileKey = fileUrlOrKey;
+    if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
+      fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
+    } else if (customDomain && fileUrlOrKey.includes(customDomain)) {
+      fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');
+    }
+
+    console.log(`[Storage Service] Downloading key: ${fileKey} from R2...`);
+
+    const response = await s3Client.send(new GetObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+    }));
+
+    const streamToBuffer = (stream) =>
+      new Promise((resolve, reject) => {
+        const chunks = [];
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('error', reject);
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+
+    return await streamToBuffer(response.Body);
+  } catch (err) {
+    console.error('[Storage Service] Download failed:', err.message);
+    throw err;
+  }
+};
+
+/**
+ * Generate a signed URL for a file in R2
+ */
+export const getSignedUrl = async (fileUrlOrKey, expiresIn = 3600) => {
+  if (!s3Client || !bucketName) {
+    return fileUrlOrKey;
+  }
+
+  try {
+    let fileKey = fileUrlOrKey;
+    if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
+      fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
+    } else if (customDomain && fileUrlOrKey.includes(customDomain)) {
+      fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+    });
+
+    return await s3GetSignedUrl(s3Client, command, { expiresIn });
+  } catch (err) {
+    console.error('[Storage Service] GetSignedUrl failed:', err.message);
+    return fileUrlOrKey;
+  }
+};

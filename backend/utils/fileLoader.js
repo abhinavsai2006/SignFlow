@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { downloadFile, isR2Active } from '../services/r2Service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,16 @@ const __dirname = path.dirname(__filename);
 export const readPdfBytes = async (pathOrUrl) => {
   if (!pathOrUrl) {
     throw new Error('No path or URL provided to readPdfBytes.');
+  }
+
+  // Use R2 Secure Download if active
+  if (isR2Active()) {
+    try {
+      console.log(`[File Loader] Fetching resource via StorageService download: ${pathOrUrl}`);
+      return await downloadFile(pathOrUrl);
+    } catch (r2Err) {
+      console.warn(`[File Loader] StorageService download failed, trying standard fetch/fs fallback:`, r2Err.message);
+    }
   }
 
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {

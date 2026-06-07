@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 const documentRecipientSchema = new mongoose.Schema({
   documentId: {
@@ -27,6 +28,10 @@ const documentRecipientSchema = new mongoose.Schema({
   sequence: {
     type: Number,
     default: 1,
+  },
+  token: {
+    type: String,
+    default: () => crypto.randomBytes(16).toString('hex'),
   },
 }, { timestamps: true });
 
