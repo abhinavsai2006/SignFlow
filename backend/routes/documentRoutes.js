@@ -13,11 +13,13 @@ import {
   sendViewedEmail,
   sendShareLinkCreatedEmail,
   sendDocumentCancelledEmail,
-  sendAuditReportGeneratedEmail
+  sendAuditReportGeneratedEmail,
+  sendLoginOtpEmail
 } from '../middleware/emailService.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
 import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
 import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
@@ -1245,6 +1247,128 @@ router.post('/templates/:templateId/use', protect, async (req, res) => {
     res.status(201).json(newDoc);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create document from template', error: error.message });
+  }
+});
+
+// @route   POST /api/docs/:id/verify-recipient
+// @desc    Verify recipient email from sharing token and generate/send OTP
+router.post('/:id/verify-recipient', async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    if (!token || !email) {
+      return res.status(400).json({ message: 'Token and email are required' });
+    }
+
+    const document = await Document.findById(req.params.id);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    if (document.isDeleted) {
+      return res.status(410).json({ message: 'This document has been deleted' });
+    }
+    if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
+      return res.status(410).json({ message: 'This secure share link has expired' });
+    }
+
+    const recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
+    if (!recipient) {
+      return res.status(404).json({ message: 'Access Denied: Invalid sharing link' });
+    }
+
+    // Trim and lowercase comparison
+    if (recipient.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(403).json({ message: 'Access Denied: The email address entered does not match the invitation.' });
+    }
+
+    if (recipient.status === 'Signed') {
+      return res.status(400).json({ message: 'This recipient has already signed this document.' });
+    }
+
+    // Check sequential signing order
+    if (document.signingOrder === 'Sequential') {
+      const allRecipients = await DocumentRecipient.find({ documentId: document._id, role: 'Signer' }).sort({ sequence: 1 });
+      const currentRecipient = allRecipients.find(r => r.email.toLowerCase() === recipient.email.toLowerCase());
+      if (currentRecipient) {
+        const precedingRecipients = allRecipients.filter(r => r.sequence < currentRecipient.sequence);
+        for (const prec of precedingRecipients) {
+          if (prec.status !== 'Signed') {
+            return res.status(403).json({ 
+              message: `It is not your turn to sign. ${prec.name} (${prec.email}) must sign first.` 
+            });
+          }
+        }
+      }
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    recipient.recipientOtp = otp;
+    recipient.recipientOtpExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    await recipient.save();
+
+    console.log("OTP_GENERATED:", otp);
+    console.log("OTP_STORED:", recipient.email);
+
+    // Send OTP email
+    console.log("OTP_SENT: triggering Resend for recipient", recipient.email);
+    sendLoginOtpEmail(recipient.email, recipient.name, otp)
+      .catch(err => console.error('[Docs] Failed to send recipient verification OTP:', err.message));
+
+    res.json({ message: 'Verification OTP code sent to your email address' });
+  } catch (error) {
+    res.status(500).json({ message: 'Recipient verification failed', error: error.message });
+  }
+});
+
+// @route   POST /api/docs/:id/verify-recipient-otp
+// @desc    Verify OTP and return signed JWT recipient verification token
+router.post('/:id/verify-recipient-otp', async (req, res) => {
+  try {
+    const { token, email, otp } = req.body;
+    if (!token || !email || !otp) {
+      return res.status(400).json({ message: 'Token, email, and OTP are required' });
+    }
+
+    const recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
+    if (!recipient) {
+      return res.status(404).json({ message: 'Recipient not found' });
+    }
+
+    if (recipient.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(403).json({ message: 'Access Denied: Email mismatch' });
+    }
+
+    // Check OTP and expiry
+    if (!recipient.recipientOtp || recipient.recipientOtp.toString() !== otp.toString()) {
+      return res.status(401).json({ message: 'Invalid verification code' });
+    }
+    if (recipient.recipientOtpExpire && new Date(recipient.recipientOtpExpire) < new Date()) {
+      return res.status(401).json({ message: 'Verification code has expired. Please verify email again.' });
+    }
+
+    console.log("OTP_VERIFIED:", recipient.email);
+
+    // Clear OTP fields
+    recipient.recipientOtp = undefined;
+    recipient.recipientOtpExpire = undefined;
+    await recipient.save();
+
+    // Issue JWT recipient signature authorization token
+    const _JWT_SECRET = process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production';
+    const recipientToken = jwt.sign(
+      { recipientId: recipient._id, email: recipient.email, name: recipient.name },
+      _JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    res.json({
+      message: 'Recipient identity verified successfully',
+      recipientToken,
+      signerName: recipient.name,
+      signerEmail: recipient.email
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'OTP verification failed', error: error.message });
   }
 });
 

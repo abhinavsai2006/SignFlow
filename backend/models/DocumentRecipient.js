@@ -33,6 +33,24 @@ const documentRecipientSchema = new mongoose.Schema({
     type: String,
     default: () => crypto.randomBytes(16).toString('hex'),
   },
+  recipientOtp: {
+    type: String,
+  },
+  recipientOtpExpire: {
+    type: Date,
+  },
+  inviteEmailSent: {
+    type: Boolean,
+    default: false,
+  },
+  inviteEmailSentAt: {
+    type: Date,
+  },
+  inviteEmailStatus: {
+    type: String,
+    enum: ['Pending', 'Sent', 'Failed', 'None'],
+    default: 'None',
+  },
 }, { timestamps: true });
 
 const DocumentRecipient = mongoose.model('DocumentRecipient', documentRecipientSchema);

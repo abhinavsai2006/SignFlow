@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import MetaButton from '../ui/MetaButton';
 import MetaInput from '../ui/MetaInput';
@@ -15,16 +15,13 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-type Step = 'register' | 'verify-otp';
+type Step = 'register' | 'check-email';
 
 export default function Register() {
-  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<Step>('register');
   const [registeredEmail, setRegisteredEmail] = useState('');
-  const [pendingToken, setPendingToken] = useState('');
-  const [otp, setOtp] = useState('');
 
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -34,16 +31,9 @@ export default function Register() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await api.post('/auth/register', data);
-
-      // Store temp token for the OTP verification step
-      if (response.data.accessToken) {
-        setPendingToken(response.data.accessToken);
-      }
+      await api.post('/auth/register', data);
       setRegisteredEmail(data.email);
-
-      // Move to OTP step
-      setStep('verify-otp');
+      setStep('check-email');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -51,103 +41,63 @@ export default function Register() {
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      setError('Please enter the 6-digit code from your email');
-      return;
-    }
-
+  const handleResendEmail = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Verify the OTP using the temp token for authorization
-      const response = await api.post(
-        '/auth/verify-email',
-        { code: otp },
-        { headers: { Authorization: `Bearer ${pendingToken}` } }
-      );
-
-      if (response.data.isVerified) {
-        // Now store final credentials and go to dashboard
-        localStorage.setItem('token', pendingToken);
-        navigate('/dashboard');
-      }
+      await api.post('/auth/resend-verification', { email: registeredEmail });
+      setError('A new verification email link has been sent.');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid verification code. Please try again.');
+      setError(err.response?.data?.message || 'Failed to resend verification email.');
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResendOtp = async () => {
-    setError(null);
-    try {
-      await api.post('/auth/resend-verification', { email: registeredEmail });
-    } catch {
-      // Silent — still show success message
-    }
-    setError('A new verification code has been sent to your email.');
-  };
-
-  if (step === 'verify-otp') {
+  if (step === 'check-email') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas p-6">
-        <div className="w-full max-w-[480px]">
-          <div className="text-center mb-section-sm">
-            <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center mx-auto mb-md">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand">
-                <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
-            </div>
-            <h1 className="text-display-lg text-ink-deep mb-xs tracking-tight">Verify your email</h1>
+        <div className="w-full max-w-[480px] bg-surface-soft border border-hairline-soft rounded-2xl p-xl shadow-2xl text-center space-y-lg">
+          <div className="w-16 h-16 rounded-full bg-brand/10 text-brand flex items-center justify-center mx-auto">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+            </svg>
+          </div>
+          <div className="space-y-sm">
+            <h1 className="text-display-sm text-ink-deep font-bold tracking-tight">Verify your email</h1>
             <p className="text-body-md text-slate">
-              We sent a 6-digit code to<br />
-              <span className="text-ink-deep font-semibold">{registeredEmail}</span>
+              We have sent a verification link to:<br />
+              <span className="text-ink-deep font-bold">{registeredEmail}</span>
+            </p>
+            <p className="text-body-xs text-slate-500">
+              Please click the link in the email to activate your account. Once verified, you can sign in to your dashboard.
             </p>
           </div>
 
           {error && (
-            <div className={`border px-md py-sm rounded-lg mb-xl text-body-sm-bold text-center ${
-              error.includes('sent') 
-                ? 'bg-success/10 border-success text-success'
-                : 'bg-critical/10 border-critical-strong text-critical-strong'
+            <div className={`border px-md py-sm rounded-lg text-body-xs font-bold text-center ${
+              error.includes('sent') || error.includes('resent') || error.includes('link')
+                ? 'bg-success/15 border-success text-success'
+                : 'bg-critical/15 border-critical text-critical'
             }`}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleOtpSubmit} className="space-y-md">
-            <MetaInput
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="123456"
-              maxLength={6}
-              className="text-center text-heading-lg tracking-widest font-mono"
-              autoFocus
-            />
+          <div className="space-y-sm pt-md border-t border-hairline-soft">
             <MetaButton
-              type="submit"
-              variant="primary"
-              isLoading={isLoading}
-              className="w-full"
+              onClick={handleResendEmail}
+              disabled={isLoading}
+              variant="secondary"
+              className="w-full py-md"
             >
-              Verify Email & Continue
+              {isLoading ? 'Sending...' : 'Resend Verification Link'}
             </MetaButton>
-          </form>
 
-          <div className="mt-xl text-center space-y-sm">
-            <p className="text-body-sm text-slate">
-              Didn't receive the code?{' '}
-              <button
-                onClick={handleResendOtp}
-                className="text-meta-link hover:underline font-medium"
-              >
-                Resend
-              </button>
-            </p>
             <button
-              onClick={() => { setStep('register'); setOtp(''); setError(null); }}
-              className="text-body-sm text-slate hover:text-ink-deep transition-colors"
+              onClick={() => { setStep('register'); setError(null); }}
+              className="text-body-sm text-slate hover:text-ink-deep transition-colors w-full text-center mt-2 cursor-pointer"
             >
               ← Back to registration
             </button>

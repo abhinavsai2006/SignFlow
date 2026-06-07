@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import * as pdfjsLib from 'pdfjs-dist';
 import SignatureCanvas from 'react-signature-canvas';
@@ -59,8 +59,22 @@ interface DocumentData {
   signatureFields: SignatureField[];
 }
 
+function decodeToken(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export default function PublicShareView() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
 
   // Document & PDF state
   const [docData, setDocData] = useState<DocumentData | null>(null);
@@ -100,6 +114,10 @@ export default function PublicShareView() {
   const [signerName, setSignerName] = useState('');
   const [identityConfirmed, setIdentityConfirmed] = useState(false);
   const [identityError, setIdentityError] = useState('');
+  const [recipientToken, setRecipientToken] = useState<string>(() => localStorage.getItem(`recipientToken_${id}`) || '');
+  const [verificationStep, setVerificationStep] = useState<'email' | 'otp'>('email');
+  const [otpCode, setOtpCode] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   // Signing modal state
   const [activeField, setActiveField] = useState<SignatureField | null>(null);
@@ -124,6 +142,21 @@ export default function PublicShareView() {
 
   // Page canvas render tasks cleanup
   const renderTaskRefs = useRef<Record<number, any>>({});
+
+  useEffect(() => {
+    if (recipientToken) {
+      const decoded = decodeToken(recipientToken);
+      if (decoded && decoded.email) {
+        setSignerEmail(decoded.email);
+        setSignerName(decoded.name || '');
+        setIdentityConfirmed(true);
+      } else {
+        localStorage.removeItem(`recipientToken_${id}`);
+        setRecipientToken('');
+        setVerificationStep('email');
+      }
+    }
+  }, [recipientToken, id]);
 
   const loadDocument = useCallback(async (pw = '') => {
     try {
@@ -333,20 +366,72 @@ export default function PublicShareView() {
     };
   }, [pdfDoc, scale, handleFitWidth]);
 
-  // Identity gate
-  const handleIdentitySubmit = (e: React.FormEvent) => {
+  // Identity verification (signer gate)
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signerEmail.trim()) {
       setIdentityError('Email is required to identify you as a signer.');
       return;
     }
-    const myFields = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.trim().toLowerCase());
-    if (myFields.length === 0) {
-      setIdentityError('No signature fields are assigned to this email address.');
+    const token = searchParams.get('token') || '';
+    if (!token) {
+      setIdentityError('Security Check Failed: Invitation token is missing from the link.');
       return;
     }
+
+    setIsSendingOtp(true);
     setIdentityError('');
-    setIdentityConfirmed(true);
+    try {
+      await axios.post(`${BASE_URL}/api/docs/${id}/verify-recipient`, {
+        token,
+        email: signerEmail.trim()
+      });
+      setVerificationStep('otp');
+    } catch (err: any) {
+      setIdentityError(err.response?.data?.message || 'Failed to verify recipient email.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim()) {
+      setIdentityError('OTP code is required.');
+      return;
+    }
+    const token = searchParams.get('token') || '';
+    if (!token) {
+      setIdentityError('Security Check Failed: Invitation token is missing from the link.');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    setIdentityError('');
+    try {
+      const response = await axios.post(`${BASE_URL}/api/docs/${id}/verify-recipient-otp`, {
+        token,
+        email: signerEmail.trim(),
+        otp: otpCode.trim()
+      });
+      
+      const { recipientToken: rToken, signerName: verifiedName, signerEmail: verifiedEmail } = response.data;
+      localStorage.setItem(`recipientToken_${id}`, rToken);
+      setRecipientToken(rToken);
+      setSignerEmail(verifiedEmail);
+      setSignerName(verifiedName || '');
+      setIdentityConfirmed(true);
+    } catch (err: any) {
+      setIdentityError(err.response?.data?.message || 'Invalid or expired OTP code.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleResetVerification = () => {
+    setVerificationStep('email');
+    setOtpCode('');
+    setIdentityError('');
   };
 
   const myFields = fields.filter(f => f.recipientEmail.toLowerCase() === signerEmail.toLowerCase());
@@ -396,6 +481,10 @@ export default function PublicShareView() {
         signatureValue: signatureVal,
         signerEmail,
         signerName: signerName || signerEmail
+      }, {
+        headers: {
+          'x-recipient-token': recipientToken
+        }
       });
 
       const updatedField = response.data.field;
@@ -555,41 +644,78 @@ export default function PublicShareView() {
           <div className="flex items-center gap-3">
             <FileText className="w-8 h-8 text-blue-400" />
             <div>
-              <h1 className="text-lg font-bold text-ink-deep">{docData?.filename}</h1>
-              <p className="text-slate text-xs">You've been requested to sign this document</p>
+              <h1 className="text-lg font-bold text-ink-deep truncate max-w-[240px]">{docData?.filename}</h1>
+              <p className="text-slate text-xs">Recipient Identity Verification</p>
             </div>
           </div>
           <div className="border-t border-hairline-soft" />
-          <form onSubmit={handleIdentitySubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate mb-1">Your Full Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Abhinav Sai"
-                value={signerName}
-                onChange={e => setSignerName(e.target.value)}
-                className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 text-ink-deep placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate mb-1">Your Email Address <span className="text-red-400">*</span></label>
-              <input
-                type="email"
-                placeholder="e.g. signer@example.com"
-                value={signerEmail}
-                onChange={e => setSignerEmail(e.target.value)}
-                className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 text-ink-deep placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
-                required
-              />
-            </div>
-            {identityError && (
-              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">{identityError}</p>
-            )}
-            <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition mt-2">
-              Continue to Sign
-            </button>
-          </form>
-          <p className="text-slate-600 text-xs text-center">Your identity is used only to verify your assigned signature fields.</p>
+
+          {verificationStep === 'email' ? (
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <p className="text-xs text-slate font-medium">
+                Please enter your email address as listed in the invitation to request a verification OTP code.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-slate mb-1">Your Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  placeholder="e.g. signer@example.com"
+                  value={signerEmail}
+                  onChange={e => setSignerEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 text-ink-deep placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                  required
+                />
+              </div>
+              {identityError && (
+                <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg p-3">{identityError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={isSendingOtp}
+                className="w-full bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition mt-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isSendingOtp ? 'Sending OTP...' : 'Send Verification OTP'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-300">
+                A 6-digit verification code has been sent to <strong>{signerEmail}</strong>.
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate mb-1">Enter Verification Code <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  placeholder="e.g. 123456"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 text-center text-lg font-mono font-bold text-ink-deep placeholder-slate-500 focus:outline-none focus:border-blue-500 transition tracking-widest"
+                  required
+                />
+              </div>
+              {identityError && (
+                <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg p-3">{identityError}</p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleResetVerification}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-slate border border-hairline-soft font-bold py-3 rounded-xl transition cursor-pointer"
+                >
+                  Change Email
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingOtp}
+                  className="flex-1 bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isSendingOtp ? 'Verifying...' : 'Verify OTP & Enter'}
+                </button>
+              </div>
+            </form>
+          )}
+          <p className="text-slate-600 text-[10px] text-center">Your identity is cryptographically signed and audited via Resend & MongoDB.</p>
         </div>
       </div>
     );

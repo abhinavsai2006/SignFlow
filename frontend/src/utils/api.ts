@@ -77,7 +77,11 @@ api.interceptors.response.use(
         // Clear auth on refresh failure
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        const PUBLIC_PATHS = ['/share', '/verify-email', '/login', '/register', '/forgot-password', '/reset-password', '/unsubscribe'];
+        const isPublicPath = PUBLIC_PATHS.some(path => window.location.pathname.startsWith(path)) || window.location.pathname === '/';
+        if (!isPublicPath) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

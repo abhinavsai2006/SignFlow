@@ -52,6 +52,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/share/:id" element={<PublicShareView />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
 
           {/* Layout Protected Routes */}
           <Route element={<Layout />}>
@@ -66,14 +67,6 @@ function App() {
           </Route>
 
           {/* Standalone Protected Routes */}
-          <Route
-            path="/verify-email"
-            element={
-              <ProtectedRoute>
-                <EmailVerification />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/edit/:id"
             element={

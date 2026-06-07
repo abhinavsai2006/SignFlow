@@ -104,7 +104,7 @@ router.post('/register', async (req, res) => {
 
     // Send welcome and verification emails via Resend
     sendWelcomeEmail(email, name).catch(err => console.error('Failed to send welcome email:', err));
-    sendVerificationEmail(email, name, `${FRONTEND_URL}/verify-email?code=${verificationCode}`).catch(err => console.error('Failed to send verification email:', err));
+    sendVerificationEmail(email, name, `${FRONTEND_URL}/verify-email?code=${verificationCode}&email=${encodeURIComponent(email)}`).catch(err => console.error('Failed to send verification email:', err));
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = await generateRefreshToken(user._id);
@@ -327,7 +327,7 @@ router.post('/resend-verification', async (req, res) => {
     user.verificationCode = newCode;
     await user.save();
 
-    sendVerificationEmail(user.email, user.name, `${FRONTEND_URL}/verify-email?code=${newCode}`)
+    sendVerificationEmail(user.email, user.name, `${FRONTEND_URL}/verify-email?code=${newCode}&email=${encodeURIComponent(user.email)}`)
       .catch(err => console.error('[Auth] Resend verification email failed:', err.message));
 
     res.json({ message: 'A new verification code has been sent to your email.' });
@@ -401,13 +401,33 @@ router.post('/change-password', protect, async (req, res) => {
 
 // @route   POST /api/auth/verify-email
 // @desc    Verify user email code
-router.post('/verify-email', protect, async (req, res) => {
+router.post('/verify-email', async (req, res) => {
   try {
-    const { code } = req.body;
-    const user = await User.findById(req.user._id);
-    console.log("VERIFY EMAIL INPUT:", { code, dbCode: user ? user.verificationCode : 'None' });
+    const { code, email } = req.body;
+    let user;
+    
+    if (email) {
+      user = await User.findOne({ email: email.toLowerCase() });
+    }
+    
+    // Fallback: decode token from auth headers if present
+    if (!user && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production');
+        user = await User.findById(decoded.id || decoded.userId);
+      } catch (jwtErr) {
+        // Ignore JWT verify failure
+      }
+    }
 
-    if (user && user.verificationCode && user.verificationCode.toString() === code.toString()) {
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log("VERIFY EMAIL INPUT:", { code, dbCode: user.verificationCode });
+
+    if (user.verificationCode && user.verificationCode.toString() === code.toString()) {
       user.isVerified = true;
       user.verificationCode = undefined;
       await user.save();

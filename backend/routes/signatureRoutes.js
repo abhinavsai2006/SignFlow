@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { generateFinalizedPdf } from '../services/pdfService.js';
 import { readPdfBytes } from '../utils/fileLoader.js';
 import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
+import jwt from 'jsonwebtoken';
 import { resolveStoragePath } from '../utils/storagePath.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -330,21 +331,22 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// @route   PUT /api/signatures/:id/sign
-// @desc    Sign a signature field and log audit event
-router.put('/:id/sign', protect, async (req, res) => {
+const signFieldHandler = async (req, res) => {
+  console.log(`SIGN_ROUTE_HIT: ${req.params.id}`);
   console.log(`SIGN_FIELD_START: ${req.params.id}`);
   try {
     const { status, signatureValue } = req.body;
     const field = await SignatureField.findById(req.params.id);
     if (!field) {
       console.error(`SIGN_FIELD_FAIL: Field not found - ${req.params.id}`);
+      console.log(`SIGN_ROUTE_FAIL: Field not found - ${req.params.id}`);
       return res.status(404).json({ message: 'Signature field not found' });
     }
 
     // Verify ownership/recipient assignment
     if (field.recipientEmail.toLowerCase() !== req.user.email.toLowerCase()) {
       console.error(`SIGN_FIELD_FAIL: Email mismatch - field assigned to ${field.recipientEmail}, signed by ${req.user.email}`);
+      console.log(`SIGN_ROUTE_FAIL: Email mismatch for ${req.params.id}`);
       return res.status(403).json({ message: `This signature field is assigned to ${field.recipientEmail}, not you.` });
     }
 
@@ -364,6 +366,7 @@ router.put('/:id/sign', protect, async (req, res) => {
           });
           if (pendingCount > 0) {
             console.error(`SIGN_FIELD_FAIL: Out of order signing - ${prec.email} must sign first`);
+            console.log(`SIGN_ROUTE_FAIL: Out of order signing for ${req.params.id}`);
             return res.status(403).json({ 
               message: `It is not your turn to sign. ${prec.name} (${prec.email}) must sign first.` 
             });
@@ -467,12 +470,22 @@ router.put('/:id/sign', protect, async (req, res) => {
     }
 
     console.log(`SIGN_FIELD_SUCCESS: ${field._id}`);
+    console.log(`SIGN_ROUTE_SUCCESS: ${field._id}`);
     res.json(field);
   } catch (error) {
     console.error(`SIGN_FIELD_FAIL: Error during signing - ${error.message}`);
+    console.log(`SIGN_ROUTE_FAIL: ${error.message}`);
     res.status(500).json({ message: 'Failed to sign signature field', error: error.message });
   }
-});
+};
+
+// @route   PUT /api/signatures/:id/sign
+// @route   POST /api/signatures/:id/sign
+// @route   PATCH /api/signatures/:id/sign
+// @desc    Sign a signature field and log audit event
+router.put('/:id/sign', protect, signFieldHandler);
+router.post('/:id/sign', protect, signFieldHandler);
+router.patch('/:id/sign', protect, signFieldHandler);
 
 // @route   DELETE /api/signatures/:id
 // @desc    Remove a signature field
@@ -508,11 +521,30 @@ router.post('/finalize', protect, async (req, res) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    // Load placed fields with populated user info
-    const fields = await SignatureField.find({ documentId, status: 'Signed' }).populate('userId');
-    if (fields.length === 0) {
-      return res.status(400).json({ message: 'Please sign all placed placeholders before finalization.' });
+    // Verify all signature fields for this document are signed
+    const allFields = await SignatureField.find({ documentId }).populate('userId');
+    if (allFields.length === 0) {
+      return res.status(400).json({ message: 'No signature placeholders found in document.' });
     }
+    const unsignedFields = allFields.filter(f => f.status !== 'Signed');
+    if (unsignedFields.length > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot finalize document. There are still unsigned fields.',
+        details: `${unsignedFields.length} unsigned field(s) remain.`
+      });
+    }
+
+    // Verify all recipients with 'Signer' role have signed
+    const recipients = await DocumentRecipient.find({ documentId, role: 'Signer' });
+    const incompleteRecipients = recipients.filter(r => r.status !== 'Signed');
+    if (incompleteRecipients.length > 0) {
+      return res.status(400).json({
+        message: 'Cannot finalize document. All invited signers must complete signing first.',
+        pendingRecipients: incompleteRecipients.map(r => r.email)
+      });
+    }
+
+    const fields = allFields; // fields is now fully verified to contain only signed fields
 
     // Use unified storage path helper
     const uploadsDir = resolveStoragePath();
@@ -704,18 +736,54 @@ router.post('/:id/sign-public', async (req, res) => {
       return res.status(404).json({ message: 'Signature field not found' });
     }
 
-    console.log("SIGNING_STARTED:", field.documentId, signerEmail);
-
-    if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) {
-      console.error(`SIGN_FIELD_FAIL: Email mismatch - field assigned to ${field.recipientEmail}, signed by ${signerEmail}`);
-      return res.status(403).json({
-        message: `This field is assigned to ${field.recipientEmail}, not ${signerEmail}.`
-      });
+    const document = await Document.findById(field.documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
     }
+
+    // Recipient Token Verification Check
+    const recipientToken = req.headers['x-recipient-token'] || req.body.recipientToken;
+    if (!recipientToken) {
+      console.error(`SIGN_FIELD_FAIL: Missing recipientToken - ${req.params.id}`);
+      return res.status(401).json({ message: 'Access Denied: Recipient identity verification token required' });
+    }
+
+    const _JWT_SECRET = process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production';
+    let decoded;
+    try {
+      decoded = jwt.verify(recipientToken, _JWT_SECRET);
+    } catch (jwtErr) {
+      console.error(`SIGN_FIELD_FAIL: Invalid recipientToken - ${req.params.id}`);
+      return res.status(401).json({ message: 'Access Denied: Invalid or expired recipient verification token' });
+    }
+
+    if (decoded.email.trim().toLowerCase() !== signerEmail.trim().toLowerCase() ||
+        field.recipientEmail.trim().toLowerCase() !== signerEmail.trim().toLowerCase()) {
+      console.error(`SIGN_FIELD_FAIL: Signer email mismatch - ${req.params.id}`);
+      return res.status(403).json({ message: 'Access Denied: Email mismatch' });
+    }
+
+    console.log("SIGNING_STARTED:", field.documentId, signerEmail);
 
     if (field.status === 'Signed') {
       console.error(`SIGN_FIELD_FAIL: Already signed - ${req.params.id}`);
       return res.status(409).json({ message: 'This field has already been signed.' });
+    }
+
+    // Verify signing order for public signer
+    if (document.signingOrder === 'Sequential') {
+      const allRecipients = await DocumentRecipient.find({ documentId: document._id, role: 'Signer' }).sort({ sequence: 1 });
+      const currentRecipient = allRecipients.find(r => r.email.toLowerCase() === signerEmail.toLowerCase());
+      if (currentRecipient) {
+        const precedingRecipients = allRecipients.filter(r => r.sequence < currentRecipient.sequence);
+        for (const prec of precedingRecipients) {
+          if (prec.status !== 'Signed') {
+            return res.status(403).json({ 
+              message: `It is not your turn to sign. ${prec.name} (${prec.email}) must sign first.` 
+            });
+          }
+        }
+      }
     }
 
     field.value = signatureValue;
@@ -757,6 +825,39 @@ router.post('/:id/sign-public', async (req, res) => {
 
     await logAuditEvent(field.documentId, null, `Public Sign by ${signerEmail}`, req);
 
+    // Update Recipient status to Signed if all their fields are now signed
+    const allRecipientFields = await SignatureField.find({ 
+      documentId: field.documentId, 
+      recipientEmail: field.recipientEmail 
+    });
+    const unsignedFields = allRecipientFields.filter(f => f.status !== 'Signed');
+    
+    if (unsignedFields.length === 0) {
+      if (recipient) {
+        recipient.status = 'Signed';
+        await recipient.save();
+
+        // Notify the document owner that an individual signer has completed
+        const owner = await User.findById(document.ownerId);
+        if (owner) {
+          sendDocumentSignedEmail(owner.email, owner.name, field.recipientEmail, document.filename)
+            .catch(err => console.error('[Sig] Document signed email failed:', err.message));
+        }
+
+        // If sequential, notify the next recipient in order
+        if (document.signingOrder === 'Sequential') {
+          const recipients = await DocumentRecipient.find({ documentId: document._id, role: 'Signer' }).sort({ sequence: 1 });
+          const nextRecipient = recipients.find(r => r.sequence > recipient.sequence && r.status === 'Waiting');
+          if (nextRecipient) {
+            nextRecipient.status = 'Notified';
+            await nextRecipient.save();
+            const signingUrl = `${FRONTEND_URL}/share/${document._id}`;
+            await sendInviteEmail(nextRecipient.email, nextRecipient.name, document.filename, signingUrl);
+          }
+        }
+      }
+    }
+
     // Check if all fields across the document are now signed
     const remaining = await SignatureField.countDocuments({
       documentId: field.documentId,
@@ -764,16 +865,13 @@ router.post('/:id/sign-public', async (req, res) => {
     });
 
     if (remaining === 0) {
-      const document = await Document.findById(field.documentId);
-      if (document) {
-        document.status = 'Signed';
-        await document.save();
+      document.status = 'Signed';
+      await document.save();
 
-        const owner = await User.findById(document.ownerId);
-        if (owner) {
-          const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
-          await sendCompletionEmail(owner.email, document.filename, downloadUrl);
-        }
+      const owner = await User.findById(document.ownerId);
+      if (owner) {
+        const downloadUrl = `${FRONTEND_URL}/edit/${document._id}`;
+        await sendCompletionEmail(owner.email, document.filename, downloadUrl);
       }
     }
 

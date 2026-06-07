@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogOut, Settings, User } from 'lucide-react';
 import MetaAvatar from '../ui/MetaAvatar';
 
@@ -10,6 +11,7 @@ interface UserMenuProps {
 export default function UserMenu({ user, onLogout }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -38,13 +40,19 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
           </div>
           
           <div className="px-sm">
-            <button className="w-full flex items-center px-md py-sm text-body-md text-ink hover:bg-surface-soft rounded-lg transition-colors">
+            <button 
+              onClick={() => { setIsOpen(false); navigate('/settings?tab=profile'); }}
+              className="w-full flex items-center px-md py-sm text-body-md text-ink hover:bg-surface-soft rounded-lg transition-colors cursor-pointer"
+            >
               <User className="w-4 h-4 mr-md text-steel" />
-              Profile
+              My Profile
             </button>
-            <button className="w-full flex items-center px-md py-sm text-body-md text-ink hover:bg-surface-soft rounded-lg transition-colors">
+            <button 
+              onClick={() => { setIsOpen(false); navigate('/settings?tab=account'); }}
+              className="w-full flex items-center px-md py-sm text-body-md text-ink hover:bg-surface-soft rounded-lg transition-colors cursor-pointer"
+            >
               <Settings className="w-4 h-4 mr-md text-steel" />
-              Settings
+              Account Settings
             </button>
           </div>
           

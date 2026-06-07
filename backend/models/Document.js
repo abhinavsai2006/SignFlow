@@ -22,11 +22,23 @@ const documentSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  originalFileKey: {
+    type: String,
+    default: null,
+  },
   finalizedFileUrl: {
     type: String,
     default: null,
   },
+  finalizedFileKey: {
+    type: String,
+    default: null,
+  },
   auditFileUrl: {
+    type: String,
+    default: null,
+  },
+  auditFileKey: {
     type: String,
     default: null,
   },
