@@ -1,4 +1,4 @@
-import { Download, CheckCircle2, PenLine, Clock, ChevronRight } from 'lucide-react';
+import { CheckCircle2, PenLine, Clock, ChevronRight } from 'lucide-react';
 import type { DocumentData, SignatureField } from '../../hooks/useShareDocument';
 import { normalizeEmail } from '../../utils/emailUtils';
 
@@ -8,7 +8,6 @@ interface ShareSidebarProps {
   recipients: any[];
   auditLogs: any[];
   signerEmail: string;
-  onDownload: () => void;
   onFieldClick: (f: SignatureField) => void;
 }
 
@@ -18,7 +17,6 @@ export function ShareSidebar({
   recipients,
   auditLogs,
   signerEmail,
-  onDownload,
   onFieldClick,
 }: ShareSidebarProps) {
   // Only compute pending fields when we have a signer email
@@ -31,16 +29,6 @@ export function ShareSidebar({
 
   return (
     <div className="space-y-4 text-sm">
-        {/* Start Signing CTA */}
-        {hasSigner && myPendingFields.length > 0 && (
-          <button
-            onClick={() => onFieldClick(myPendingFields[0])}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition"
-          >
-            <PenLine className="w-4 h-4" />
-            Start Signing
-          </button>
-        )}
 
       {/* ── Signing Action Card ── */}
       {hasSigner && myFields.length > 0 && (
@@ -180,15 +168,6 @@ export function ShareSidebar({
           </div>
         </div>
       )}
-
-      {/* ── Download Button ── */}
-      <button
-        onClick={onDownload}
-        className="w-full bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-xs"
-      >
-        <Download className="w-4 h-4" />
-        <span>Download PDF</span>
-      </button>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useLayoutEffect, type ChangeEvent } from 'react';
+import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { X, Undo, Upload, Type, Edit3, CheckCircle2, RotateCcw } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import type { SignatureField } from '../../hooks/useShareDocument';
@@ -55,19 +55,29 @@ export function SignatureModal({
     return () => clearTimeout(t);
   }, [activeField, signerName, signerEmail]);
 
-  // Fix canvas sizing: set canvas pixel width to match its CSS container
-  useLayoutEffect(() => {
+  // Fix canvas sizing: set canvas pixel width to match its CSS container dynamically
+  useEffect(() => {
     if (tab !== 'draw' || !canvasContainerRef.current) return;
     const container = canvasContainerRef.current;
     const canvas = container.querySelector('canvas');
     if (!canvas) return;
-    const width = container.clientWidth;
-    if (canvas.width !== width && width > 0) {
-      // Preserve content by temporarily saving
-      signatureCanvasRef.current?.clear();
-      canvas.width = width;
-      setIsEmpty(true);
-    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        if (width > 0 && canvas.width !== width) {
+          canvas.width = width;
+          // When canvas is resized, its backing store is cleared
+          signatureCanvasRef.current?.clear();
+          setIsEmpty(true);
+        }
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [tab, activeField]);
 
   if (!activeField) return null;
@@ -115,7 +125,7 @@ export function SignatureModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
       {/* Sheet / Modal */}
-      <div className="bg-white w-full sm:max-w-xl sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
+      <div className="bg-white w-[90vw] sm:w-[500px] sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">

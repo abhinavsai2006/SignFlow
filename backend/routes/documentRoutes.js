@@ -1277,12 +1277,13 @@ const otpLimiter = rateLimit({
 });
 
 // @route   POST /api/docs/:id/verify-recipient
+// @route   POST /api/docs/:id/verify-recipient
 // @desc    Verify recipient email from sharing token and generate/send OTP
 router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
   try {
     const { token, email } = req.body;
-    if (!token || !email) {
-      return res.status(400).json({ message: 'Token and email are required' });
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
     }
 
     const document = await Document.findById(req.params.id);
@@ -1296,14 +1297,30 @@ router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
       return res.status(410).json({ message: 'This secure share link has expired' });
     }
 
-    const recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
-    if (!recipient) {
-      return res.status(404).json({ message: 'Access Denied: Invalid sharing link' });
+    let recipient = null;
+    if (token) {
+      recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
     }
 
-    // Trim and lowercase comparison
-    if (recipient.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
-      return res.status(403).json({ message: 'Access Denied: The email address entered does not match the invitation.' });
+    if (!recipient) {
+      recipient = await DocumentRecipient.findOne({
+        documentId: req.params.id,
+        email: email.trim().toLowerCase()
+      });
+    }
+
+    // If still not found, create a new recipient on the fly for this email
+    if (!recipient) {
+      const randomToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      recipient = await DocumentRecipient.create({
+        documentId: req.params.id,
+        name: email.trim().split('@')[0],
+        email: email.trim().toLowerCase(),
+        role: 'Signer',
+        sequence: 1,
+        status: 'Waiting',
+        token: randomToken
+      });
     }
 
     if (recipient.status === 'Signed') {
@@ -1351,17 +1368,24 @@ router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
 router.post('/:id/verify-recipient-otp', otpLimiter, async (req, res) => {
   try {
     const { token, email, otp } = req.body;
-    if (!token || !email || !otp) {
-      return res.status(400).json({ message: 'Token, email, and OTP are required' });
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
+    let recipient = null;
+    if (token) {
+      recipient = await DocumentRecipient.findOne({ documentId: req.params.id, token: token });
+    }
+
+    if (!recipient) {
+      recipient = await DocumentRecipient.findOne({
+        documentId: req.params.id,
+        email: email.trim().toLowerCase()
+      });
+    }
+
     if (!recipient) {
       return res.status(404).json({ message: 'Recipient not found' });
-    }
-
-    if (recipient.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
-      return res.status(403).json({ message: 'Access Denied: Email mismatch' });
     }
 
     // Check OTP and expiry

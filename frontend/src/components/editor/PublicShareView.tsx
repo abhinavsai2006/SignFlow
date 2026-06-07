@@ -297,7 +297,6 @@ export default function PublicShareView() {
             recipients={recipients}
             auditLogs={auditLogs}
             signerEmail={signerEmail}
-            onDownload={handleDownload}
             onFieldClick={handleFieldClick}
           />
         }

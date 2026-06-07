@@ -40,10 +40,6 @@ export function useRecipientVerification(id: string | undefined) {
       return;
     }
     const token = searchParams.get('token') || '';
-    if (!token) {
-      setIdentityError('Security Check Failed: Invitation token is missing from the link.');
-      return;
-    }
 
     setIsSendingOtp(true);
     setIdentityError('');
@@ -67,10 +63,6 @@ export function useRecipientVerification(id: string | undefined) {
       return;
     }
     const token = searchParams.get('token') || '';
-    if (!token) {
-      setIdentityError('Security Check Failed: Invitation token is missing from the link.');
-      return;
-    }
 
     setIsSendingOtp(true);
     setIdentityError('');
