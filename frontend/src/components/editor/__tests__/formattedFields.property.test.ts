@@ -63,7 +63,7 @@ function arbitraryApiSignatureField() {
     auditId: fc.string(),
     documentHash: fc.string(),
     tamperStatus: fc.string(),
-    updatedAt: fc.date().map(d => d.toISOString()),
+    updatedAt: fc.date().filter(d => !isNaN(d.getTime())).map(d => d.toISOString()),
     signatureScale: fc.oneof(...([25, 50, 75, 100, 125, 150, 175, 200] as const).map(v => fc.constant(v))),
     metadataScale: fc.constantFrom('Small', 'Medium', 'Large'),
   });

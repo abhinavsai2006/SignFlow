@@ -12,10 +12,11 @@ import {
   ArrowLeft, Trash2, Type, Edit3, Users,
   ZoomIn, ZoomOut, RotateCw, Maximize, Activity, ClipboardList, CheckCircle2,
   ChevronLeft, ChevronRight, Maximize2, X, Undo, Redo, Upload, Calendar, AlignLeft, CheckSquare,
-  Lock, Unlock, Copy, GripHorizontal, Settings, AlertTriangle
+  Lock, Unlock, Copy, GripHorizontal, Settings
 } from 'lucide-react';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import SignatureCanvas from 'react-signature-canvas';
+import SigningModal from './SigningModal';
+import CertificatePanel from './CertificatePanel';
 
 // Configure PDFJS Worker locally
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -1107,27 +1108,10 @@ export default function DocumentEditor() {
   // Signing Modal State
   const [isSigningModalOpen, setIsSigningModalOpen] = useState(false);
   const [activeSigningFieldIdx, setActiveSigningFieldIdx] = useState<number | null>(null);
-  const [signatureType, setSignatureType] = useState<'draw' | 'type' | 'upload'>('draw');
   const [signatureDetails, setSignatureDetails] = useState<SignatureField | null>(null);
   
-  // Signature profiles state
+  // Saved profiles configuration
   const [savedProfiles, setSavedProfiles] = useState<SignatureProfile[]>([]);
-  const [saveToProfiles, setSaveToProfiles] = useState(false);
-
-  // Draw Mode Canvas state
-  const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
-  const drawingHistory = useRef<string[]>([]);
-  const [drawnProfileName, setDrawnProfileName] = useState('My Drawn Signature');
-  const [signatureColor, setSignatureColor] = useState<'black' | 'darkgray' | 'blue'>('black');
-
-  // Type Mode state
-  const [typedName, setTypedName] = useState('');
-  const [selectedFont, setSelectedFont] = useState<'great-vibes' | 'dancing-script' | 'allura' | 'cursive'>('great-vibes');
-  const [typedProfileName, setTypedProfileName] = useState('My Typed Signature');
-
-  // Upload Mode state
-  const [uploadedBase64, setUploadedBase64] = useState<string | null>(null);
-  const [uploadedProfileName, setUploadedProfileName] = useState('My Uploaded Signature');
   
   // Element refs
   const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -1845,99 +1829,7 @@ export default function DocumentEditor() {
     }
 
     setActiveSigningFieldIdx(index);
-    setTypedName(user.name);
     setIsSigningModalOpen(true);
-    // Clear drawing pad configs
-    drawingHistory.current = [];
-  };
-
-  // SignatureCanvas interaction callbacks
-  const onDrawEnd = () => {
-    if (signatureCanvasRef.current) {
-      drawingHistory.current.push(signatureCanvasRef.current.toDataURL());
-    }
-  };
-
-  const clearDrawingCanvas = () => {
-    if (signatureCanvasRef.current) {
-      signatureCanvasRef.current.clear();
-      drawingHistory.current = [];
-    }
-  };
-
-  const undoDrawingCanvas = () => {
-    if (signatureCanvasRef.current && drawingHistory.current.length > 0) {
-      drawingHistory.current.pop();
-      signatureCanvasRef.current.clear();
-      if (drawingHistory.current.length > 0) {
-        signatureCanvasRef.current.fromDataURL(drawingHistory.current[drawingHistory.current.length - 1]);
-      }
-    }
-  };
-
-  // Upload validation
-  const handleSignatureUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be less than 2MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUploadedBase64(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const applySavedProfile = (profile: SignatureProfile) => {
-    if (activeSigningFieldIdx === null) return;
-    confirmSigningValue(profile.imageData);
-  };
-
-  const handleSignConfirm = async () => {
-    if (activeSigningFieldIdx === null) return;
-    const field = signatures[activeSigningFieldIdx];
-    if (!field._id) return;
-
-    let signatureVal = '';
-    let profileName = 'My Signature';
-
-    if (signatureType === 'draw') {
-      const canvas = signatureCanvasRef.current;
-      if (!canvas) return;
-      signatureVal = canvas.toDataURL();
-      profileName = drawnProfileName;
-    } else if (signatureType === 'type') {
-      if (!typedName.trim()) return;
-      // We store typed values wrapped in font identifiers or just text
-      signatureVal = `${selectedFont}:${typedName}`;
-      profileName = typedProfileName;
-    } else if (signatureType === 'upload') {
-      if (!uploadedBase64) return;
-      signatureVal = uploadedBase64;
-      profileName = uploadedProfileName;
-    }
-
-    // Save profile to database templates if requested
-    if (saveToProfiles && signatureVal) {
-      try {
-        await api.post('/signatures/profiles', {
-          name: profileName,
-          type: signatureType,
-          imageData: signatureVal,
-          fontName: signatureType === 'type' ? selectedFont : undefined,
-          color: signatureType === 'draw' ? signatureColor : undefined
-        });
-        fetchSavedProfiles();
-      } catch (err) {
-        console.error('Failed to save signature profile template:', err);
-      }
-    }
-
-    confirmSigningValue(signatureVal);
   };
 
   const confirmSigningValue = async (signatureVal: string) => {
@@ -2844,7 +2736,6 @@ export default function DocumentEditor() {
         </aside>
       </div>
 
-      {/* Right-Click Context Menu */}
       {contextMenu && (
         <div 
           style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
@@ -2862,376 +2753,42 @@ export default function DocumentEditor() {
         </div>
       )}
 
-      {/* Signing modal */}
-      <MetaModal
+      <SigningModal
         isOpen={isSigningModalOpen}
+        field={activeSigningFieldIdx !== null ? signatures[activeSigningFieldIdx] : null}
+        savedProfiles={savedProfiles}
         onClose={() => setIsSigningModalOpen(false)}
-        title="Create & Place Signature"
-        footer={
-          <div className="flex justify-end space-x-md">
-            <MetaButton variant="ghost" onClick={() => setIsSigningModalOpen(false)}>
-              Cancel
-            </MetaButton>
-            <MetaButton 
-              variant="buy-cta" 
-              onClick={handleSignConfirm} 
-              disabled={
-                (signatureType === 'type' && !typedName.trim()) ||
-                (signatureType === 'upload' && !uploadedBase64)
-              }
-            >
-              Apply Signature
-            </MetaButton>
-          </div>
-        }
-      >
-        <div className="space-y-xl">
-          {/* Saved profiles picker list */}
-          {savedProfiles.length > 0 && (
-            <div className="border-b border-hairline-soft pb-md">
-              <label className="block text-body-xs-bold font-bold text-slate uppercase tracking-wider mb-sm">Saved Profiles</label>
-              <div className="flex space-x-sm overflow-x-auto py-xxs">
-                {savedProfiles.map((profile) => (
-                  <button
-                    key={profile._id}
-                    onClick={() => applySavedProfile(profile)}
-                    className="p-sm border border-hairline-soft hover:border-primary rounded-xl shrink-0 flex flex-col items-center bg-surface-soft max-w-[120px]"
-                  >
-                    {profile.imageData.startsWith('data:image') ? (
-                      <img src={profile.imageData} alt={profile.name} className="h-8 object-contain mb-xxs" />
-                    ) : (
-                      <span className="font-cursive text-body-xs truncate w-full text-center">{profile.imageData.split(':')[1] || profile.name}</span>
-                    )}
-                    <span className="text-[10px] text-slate truncate w-full text-center">{profile.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        onConfirm={async (signatureVal, profileName, typeVal, saveProfile) => {
+          if (activeSigningFieldIdx === null) return;
+          const field = signatures[activeSigningFieldIdx];
+          if (!field._id) return;
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex bg-surface-soft p-xs rounded-full border border-hairline-soft">
-            <MetaButton
-              variant="pill-tab"
-              active={signatureType === 'draw'}
-              onClick={() => setSignatureType('draw')}
-              className="flex-1"
-            >
-              <Edit3 className="w-4 h-4 mr-2" /> Draw
-            </MetaButton>
-            <MetaButton
-              variant="pill-tab"
-              active={signatureType === 'type'}
-              onClick={() => setSignatureType('type')}
-              className="flex-1"
-            >
-              <Type className="w-4 h-4 mr-2" /> Type
-            </MetaButton>
-            <MetaButton
-              variant="pill-tab"
-              active={signatureType === 'upload'}
-              onClick={() => setSignatureType('upload')}
-              className="flex-1"
-            >
-              <Upload className="w-4 h-4 mr-2" /> Upload
-            </MetaButton>
-          </div>
+          // Save profile to database templates if requested
+          if (saveProfile && signatureVal) {
+            try {
+              await api.post('/signatures/profiles', {
+                name: profileName,
+                type: typeVal,
+                imageData: signatureVal,
+                fontName: typeVal === 'type' ? 'great-vibes' : undefined,
+                color: typeVal === 'draw' ? 'black' : undefined
+              });
+              fetchSavedProfiles();
+            } catch (err) {
+              console.error('Failed to save signature profile template:', err);
+            }
+          }
+          confirmSigningValue(signatureVal);
+        }}
+      />
 
-          {/* Draw Mode */}
-          {signatureType === 'draw' && (
-            <div className="space-y-md">
-              <div className="flex justify-between items-center">
-                <label className="text-body-sm text-slate">Use mouse or touch pad to draw signature</label>
-                <div className="flex space-x-xs">
-                  <button 
-                    onClick={undoDrawingCanvas} 
-                    className="p-xs bg-surface-soft hover:bg-hairline-soft rounded-circle text-slate hover:text-ink"
-                    title="Undo"
-                  >
-                    <Undo className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={clearDrawingCanvas} 
-                    className="p-xs bg-surface-soft hover:bg-hairline-soft rounded-circle text-slate hover:text-ink"
-                    title="Clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="bg-surface-soft rounded-xxxl border border-hairline overflow-hidden">
-                <SignatureCanvas
-                  ref={signatureCanvasRef}
-                  penColor={signatureColor === 'black' ? '#000000' : signatureColor === 'darkgray' ? '#4A4A4A' : '#0064e0'}
-                  canvasProps={{ width: 460, height: 160, className: 'cursor-crosshair' }}
-                  velocityFilterWeight={0.6}
-                  minWidth={1.5}
-                  maxWidth={4.0}
-                  onEnd={onDrawEnd}
-                />
-              </div>
-              <div className="flex space-x-md items-center mb-md">
-                <span className="text-body-sm font-bold text-ink-deep">Ink Color:</span>
-                <button onClick={() => setSignatureColor('black')} className={`w-6 h-6 rounded-full bg-black ${signatureColor === 'black' ? 'ring-2 ring-offset-2 ring-primary' : ''}`} title="Black Ink" />
-                <button onClick={() => setSignatureColor('darkgray')} className={`w-6 h-6 rounded-full bg-[#4A4A4A] ${signatureColor === 'darkgray' ? 'ring-2 ring-offset-2 ring-primary' : ''}`} title="Dark Gray Ink" />
-                <button onClick={() => setSignatureColor('blue')} className={`w-6 h-6 rounded-full bg-[#0064e0] ${signatureColor === 'blue' ? 'ring-2 ring-offset-2 ring-primary' : ''}`} title="Blue Ink" />
-              </div>
-              <div>
-                <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Profile Name (to save)</label>
-                <MetaInput
-                  value={drawnProfileName}
-                  onChange={(e) => setDrawnProfileName(e.target.value)}
-                  placeholder="E.g. Draw Template"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Type Mode */}
-          {signatureType === 'type' && (
-            <div className="space-y-md">
-              <label className="text-body-sm text-slate">Type your name and choose a signature typography style</label>
-              <MetaInput
-                value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
-                placeholder="Type name here"
-              />
-              
-              <div className="grid grid-cols-4 gap-sm">
-                <button
-                  onClick={() => setSelectedFont('great-vibes')}
-                  className={`p-sm border rounded-xl text-center ${selectedFont === 'great-vibes' ? 'border-fb-blue bg-primary/5' : 'border-hairline-soft bg-canvas'}`}
-                >
-                  <span className="font-great-vibes text-[16px] text-primary block truncate">Great Vibes</span>
-                </button>
-                <button
-                  onClick={() => setSelectedFont('dancing-script')}
-                  className={`p-sm border rounded-xl text-center ${selectedFont === 'dancing-script' ? 'border-fb-blue bg-primary/5' : 'border-hairline-soft bg-canvas'}`}
-                >
-                  <span className="font-dancing-script text-[14px] font-bold text-primary block truncate">Dancing</span>
-                </button>
-                <button
-                  onClick={() => setSelectedFont('allura')}
-                  className={`p-sm border rounded-xl text-center ${selectedFont === 'allura' ? 'border-fb-blue bg-primary/5' : 'border-hairline-soft bg-canvas'}`}
-                >
-                  <span className="font-allura text-[16px] text-primary block truncate">Allura</span>
-                </button>
-                <button
-                  onClick={() => setSelectedFont('cursive')}
-                  className={`p-sm border rounded-xl text-center ${selectedFont === 'cursive' ? 'border-fb-blue bg-primary/5' : 'border-hairline-soft bg-canvas'}`}
-                >
-                  <span className="font-cursive text-[14px] text-primary block truncate">Cursive</span>
-                </button>
-              </div>
-
-              {/* Styled Preview Frame */}
-              <div className="p-xl bg-surface-soft rounded-xxxl border-2 border-dashed border-hairline text-center flex items-center justify-center min-h-[100px]">
-                <span className={`text-[36px] text-primary tracking-wider leading-none select-none ${
-                  selectedFont === 'great-vibes' ? 'font-great-vibes' : selectedFont === 'dancing-script' ? 'font-dancing-script' : selectedFont === 'allura' ? 'font-allura' : 'font-cursive'
-                }`}>
-                  {typedName || 'Signature Preview'}
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Profile Name (to save)</label>
-                <MetaInput
-                  value={typedProfileName}
-                  onChange={(e) => setTypedProfileName(e.target.value)}
-                  placeholder="E.g. Typed Template"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Upload Mode */}
-          {signatureType === 'upload' && (
-            <div className="space-y-md">
-              <label className="text-body-sm text-slate">Upload signature image (PNG, JPG, max 2MB)</label>
-              
-              <div className="border-2 border-dashed border-hairline-soft rounded-xxxl p-xl text-center bg-surface-soft cursor-pointer relative hover:border-hairline">
-                <input
-                  type="file"
-                  accept="image/png, image/jpeg, image/jpg"
-                  onChange={handleSignatureUploadChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <Upload className="w-8 h-8 mx-auto text-slate mb-xs" />
-                <p className="text-body-sm text-ink-deep font-bold">Select signature file</p>
-                <p className="text-caption text-slate">PNG, JPG, JPEG up to 2MB</p>
-              </div>
-
-              {uploadedBase64 && (
-                <div className="p-md bg-canvas border border-hairline-soft rounded-xl flex items-center justify-center max-h-[120px]">
-                  <img src={uploadedBase64} alt="Uploaded signature preview" className="max-h-[100px] object-contain" />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-body-xs-bold font-bold text-ink-deep mb-xxs">Profile Name (to save)</label>
-                <MetaInput
-                  value={uploadedProfileName}
-                  onChange={(e) => setUploadedProfileName(e.target.value)}
-                  placeholder="E.g. Uploaded Template"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Save to profiles checkbox */}
-          <div className="flex items-center space-x-md">
-            <input
-              type="checkbox"
-              id="saveToProfiles"
-              checked={saveToProfiles}
-              onChange={(e) => setSaveToProfiles(e.target.checked)}
-              className="h-4 w-4 accent-primary"
-            />
-            <label htmlFor="saveToProfiles" className="text-body-sm text-ink-deep select-none cursor-pointer">
-              Save signature layout to my profiles template list
-            </label>
-          </div>
-        </div>
-      </MetaModal>
-
-      {/* Signer Details Modal */}
-      <MetaModal
+      <CertificatePanel
         isOpen={!!signatureDetails}
+        field={signatureDetails}
+        recipients={recipients}
+        sha256Checksum={(document as any)?.sha256Checksum}
         onClose={() => setSignatureDetails(null)}
-        title="Verified Electronic Signature Certificate"
-        footer={
-          <div className="flex justify-end">
-            <MetaButton variant="primary" onClick={() => setSignatureDetails(null)}>
-              Close
-            </MetaButton>
-          </div>
-        }
-      >
-        {signatureDetails && (() => {
-          const recipient = recipients.find(r => r.email === signatureDetails.recipientEmail);
-          const signerName = recipient ? recipient.name : signatureDetails.recipientEmail.split('@')[0];
-          const certId = signatureDetails.certificateId || (signatureDetails._id ? `SIG-${new Date().getFullYear()}-${signatureDetails._id.slice(-6).toUpperCase()}` : `SIG-${new Date().getFullYear()}-TEMP`);
-          const auditId = signatureDetails.auditId || (signatureDetails._id ? `AUD-${signatureDetails._id.slice(-8).toUpperCase()}` : 'AUD-TEMP');
-          const browser = signatureDetails.browser || 'Unavailable';
-          const device = signatureDetails.device || 'Unavailable';
-          const os = signatureDetails.operatingSystem || 'Unavailable';
-          const location = signatureDetails.location || 'Unavailable';
-          const docId = signatureDetails.documentId;
-          const tamperStatus = signatureDetails.tamperStatus || 'Verified';
-          const docHash = (document as any)?.sha256Checksum || signatureDetails.documentHash || 'Pending Finalization';
-          const verificationStatus = signatureDetails.status === 'Signed' ? 'Verified Signature' : 'Pending';
-
-          const formatSignatureDate = (dateString?: string) => {
-            const d = dateString ? new Date(dateString) : new Date();
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const day = String(d.getUTCDate()).padStart(2, '0');
-            const month = months[d.getUTCMonth()];
-            const year = d.getUTCFullYear();
-            const hours = String(d.getUTCHours()).padStart(2, '0');
-            const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-            return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
-          };
-
-          const isLocal = !signatureDetails.ipAddress || signatureDetails.ipAddress === '127.0.5.1' || signatureDetails.ipAddress === '127.0.0.1' || signatureDetails.location === 'Local Development Environment';
-
-          return (
-            <div className="space-y-md">
-              {isLocal && (
-                <div className="flex items-center space-x-md p-md bg-yellow-50 rounded-xl border border-yellow-200">
-                  <AlertTriangle className="w-8 h-8 text-yellow-600 shrink-0" />
-                  <div>
-                    <h4 className="text-body-sm-bold font-bold text-yellow-950">Development Mode Active</h4>
-                    <p className="text-[11px] text-yellow-850">This signature was captured in a local development environment. Geolocation and network provider metadata are simulated.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center space-x-md p-md bg-emerald-50 rounded-xl border border-emerald-200">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
-                <div>
-                  <h4 className="text-body-sm-bold font-bold text-emerald-900">SignFlow Verified Signature</h4>
-                  <p className="text-[11px] text-emerald-700">This signature is cryptographically verified and legally binding under ESIGN & UETA regulations.</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-md bg-surface-soft p-md rounded-xl border border-hairline-soft">
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Signer Name</span>
-                  <span className="text-ink-deep text-body-sm-bold font-bold">{signerName}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Email Address</span>
-                  <span className="text-ink-deep text-body-sm truncate" title={signatureDetails.recipientEmail}>{signatureDetails.recipientEmail}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Verification Status</span>
-                  <span className="text-emerald-600 text-body-sm-bold font-bold">✓ {verificationStatus}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Timestamp</span>
-                  <span className="text-ink-deep text-body-sm font-mono">{formatSignatureDate(signatureDetails.updatedAt)}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">IP Address</span>
-                  <span className="text-ink-deep text-body-sm font-mono">{signatureDetails.ipAddress || 'Unavailable'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Location</span>
-                  <span className="text-ink-deep text-body-sm">{location}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Browser</span>
-                  <span className="text-ink-deep text-body-sm">{browser}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Device & OS</span>
-                  <span className="text-ink-deep text-body-sm">{device} ({os})</span>
-                </div>
-                <div className="flex flex-col col-span-2">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">User Agent</span>
-                  <span className="text-ink-deep text-[11px] font-mono break-all leading-tight bg-white p-xs rounded border border-hairline-soft mt-xxs">{signatureDetails.userAgent || 'Unknown Browser'}</span>
-                </div>
-              </div>
-
-              {/* Compliance Verification */}
-              <div className="bg-emerald-50 p-md rounded-xl border border-emerald-200 space-y-xs">
-                <h4 className="text-body-sm-bold font-bold text-emerald-900 mb-xs">Compliance Verification</h4>
-                <div className="grid grid-cols-2 gap-xs text-body-sm">
-                  <div className="flex justify-between"><span className="text-slate">Trust Score</span><span className="text-emerald-700 font-bold">100%</span></div>
-                  <div className="flex justify-between"><span className="text-slate">Document Integrity</span><span className="text-emerald-700 font-bold">Verified</span></div>
-                  <div className="flex justify-between"><span className="text-slate">Signature Integrity</span><span className="text-emerald-700 font-bold">Verified</span></div>
-                  <div className="flex justify-between"><span className="text-slate">Audit Trail</span><span className="text-emerald-700 font-bold">Verified</span></div>
-                  <div className="flex justify-between"><span className="text-slate">Tamper Detection</span><span className="text-emerald-700 font-bold">Passed</span></div>
-                </div>
-              </div>
-
-              <div className="bg-surface-soft p-md rounded-xl border border-hairline-soft space-y-sm">
-                <div className="flex justify-between items-center border-b border-hairline-soft pb-xxs">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Document ID</span>
-                  <span className="text-ink-deep text-body-sm font-mono">{docId}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-hairline-soft pb-xxs">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Certificate ID</span>
-                  <span className="text-ink-deep text-body-sm-bold font-mono">{certId}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-hairline-soft pb-xxs">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Audit ID</span>
-                  <span className="text-ink-deep text-body-sm-bold font-mono">{auditId}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate text-[10px] font-bold uppercase tracking-wider">Tamper Status</span>
-                  <span className="text-emerald-600 text-body-sm-bold font-bold">{tamperStatus}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-900 text-slate-100 p-md rounded-xl border border-slate-800 space-y-xxs">
-                <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider">Cryptographic SHA-256 Fingerprint</span>
-                <p className="text-[10px] font-mono break-all leading-tight text-slate-200">{docHash}</p>
-              </div>
-            </div>
-          );
-        })()}
-      </MetaModal>
+      />
 
       {/* Link Sharing Modal */}
       <MetaModal
