@@ -690,9 +690,9 @@ const DraggableField = memo(function DraggableField({
       else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+        <div className="flex flex-col w-full h-full bg-transparent rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
           {/* Top Section: Signature Scribble */}
-          <div className="h-[70%] bg-white flex items-center justify-center p-1 overflow-hidden">
+          <div className="h-[70%] bg-transparent flex items-center justify-center p-1 overflow-hidden">
             <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
               {sig.value.startsWith('data:image') ? (
                 <img src={sig.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
@@ -2114,7 +2114,10 @@ export default function DocumentEditor() {
       </div>
 
       {/* Secondary Editor Toolbar (Contextual Actions or Page Utilities) */}
-      <div className="bg-canvas border-b border-hairline-soft py-xs px-md md:px-xl flex items-center justify-between min-h-[48px] shrink-0 select-none z-30">
+      <div 
+        onClick={(e) => e.stopPropagation()} 
+        className="bg-canvas border-b border-hairline-soft py-xs px-md md:px-xl flex items-center justify-between min-h-[48px] shrink-0 select-none z-30"
+      >
         {selectedFieldIdx !== null && signatures[selectedFieldIdx] ? (
           // Field Contextual Actions
           <div className="flex items-center justify-between w-full">
@@ -2378,7 +2381,10 @@ export default function DocumentEditor() {
           </main>
 
         {/* Right Sidebar Timeline & Actions Panel */}
-        <aside className="hidden lg:flex w-[300px] bg-canvas border-l border-hairline-soft flex flex-col shrink-0 overflow-hidden">
+        <aside 
+          onClick={(e) => e.stopPropagation()} 
+          className="hidden lg:flex w-[300px] bg-canvas border-l border-hairline-soft flex flex-col shrink-0 overflow-hidden"
+        >
           {/* Tabs header */}
           <div className="flex bg-surface-soft p-xs rounded-lg border-b border-hairline-soft m-md shrink-0 select-none">
             <button
@@ -3102,7 +3108,10 @@ export default function DocumentEditor() {
           />
           
           {/* Drawer Body */}
-          <div className="relative bg-canvas rounded-t-xxxl border-t border-hairline-soft p-lg max-h-[75vh] flex flex-col z-50 animate-slide-up">
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative bg-canvas rounded-t-xxxl border-t border-hairline-soft p-lg max-h-[75vh] flex flex-col z-50 animate-slide-up"
+          >
             {/* Header / Drag Bar */}
             <div className="flex justify-between items-center border-b border-hairline-soft pb-sm mb-md select-none shrink-0">
               <span className="text-body-sm-bold font-bold text-ink-deep uppercase tracking-wider">

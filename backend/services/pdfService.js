@@ -46,12 +46,6 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         size: Math.min(10, targetH * 0.5), font: helveticaBold, color: rgb(0, 0, 0)
       });
     } else {
-      // 1. Plain White Background (Masking) without any solid border boxes (eSign / Aadhaar Style)
-      page.drawRectangle({
-        x: targetX, y: targetY, width: targetW, height: targetH,
-        color: rgb(1, 1, 1)
-      });
-
       // Split into Top (Signature Scribble) and Bottom (Metadata)
       const signatureHeight = targetH * 0.70;
       const metadataHeight = targetH * 0.30;

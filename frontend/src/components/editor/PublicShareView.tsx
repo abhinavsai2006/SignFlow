@@ -556,8 +556,8 @@ export default function PublicShareView() {
 
   if (isPasswordRequired) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6 text-center">
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md min-w-[280px] sm:min-w-[400px] bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6 text-center flex flex-col">
           <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
             <Lock className="w-7 h-7" />
           </div>
@@ -584,8 +584,8 @@ export default function PublicShareView() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6 text-center">
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md min-w-[280px] sm:min-w-[400px] bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6 text-center flex flex-col">
           <div className="w-14 h-14 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-7 h-7" />
           </div>
@@ -601,8 +601,8 @@ export default function PublicShareView() {
   // ─── All-Signed completion screen ─────────────────────────────────────────
   if (allSigned) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-surface-soft border border-hairline-soft rounded-2xl p-10 shadow-2xl space-y-6 text-center">
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-lg min-w-[280px] sm:min-w-[400px] bg-surface-soft border border-hairline-soft rounded-2xl p-10 shadow-2xl space-y-6 text-center flex flex-col">
           <div className="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10" />
           </div>
@@ -639,8 +639,8 @@ export default function PublicShareView() {
   // ─── Identity gate ─────────────────────────────────────────────────────────
   if (!identityConfirmed) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6">
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md min-w-[280px] sm:min-w-[400px] bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6 flex flex-col">
           <div className="flex items-center gap-3">
             <FileText className="w-8 h-8 text-blue-400" />
             <div>
@@ -753,9 +753,9 @@ export default function PublicShareView() {
       else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+        <div className="flex flex-col w-full h-full bg-transparent rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
           {/* Top Section: Signature Scribble */}
-          <div className="h-[70%] bg-white flex items-center justify-center p-1 overflow-hidden">
+          <div className="h-[70%] bg-transparent flex items-center justify-center p-1 overflow-hidden">
             <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
               {f.value.startsWith('data:image') ? (
                 <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
