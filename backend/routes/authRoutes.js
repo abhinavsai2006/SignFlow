@@ -58,9 +58,10 @@ const generateRefreshToken = async (userId) => {
 };
 
 const setCookieToken = (res, token) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.setHeader(
     'Set-Cookie',
-    `refreshToken=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${7 * 24 * 60 * 60}; Path=/`
+    `refreshToken=${token}; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`
   );
 };
 
@@ -350,7 +351,8 @@ router.post('/logout', async (req, res) => {
     }
 
     // Clear Cookie
-    res.setHeader('Set-Cookie', 'refreshToken=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/');
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=0; Path=/`);
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Logout failed', error: error.message });
@@ -362,7 +364,8 @@ router.post('/logout', async (req, res) => {
 router.post('/logout-all', protect, async (req, res) => {
   try {
     await RefreshToken.deleteMany({ userId: req.user._id });
-    res.setHeader('Set-Cookie', 'refreshToken=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/');
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=0; Path=/`);
     res.json({ message: 'Logged out from all devices successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Logout all failed', error: error.message });

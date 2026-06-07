@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import upload from '../middleware/uploadMiddleware.js';
 import Document from '../models/Document.js';
 import DocumentRecipient from '../models/DocumentRecipient.js';
@@ -1250,9 +1251,17 @@ router.post('/templates/:templateId/use', protect, async (req, res) => {
   }
 });
 
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15, // Stricter limit for OTP verification
+  message: { message: 'Too many verification attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // @route   POST /api/docs/:id/verify-recipient
 // @desc    Verify recipient email from sharing token and generate/send OTP
-router.post('/:id/verify-recipient', async (req, res) => {
+router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
   try {
     const { token, email } = req.body;
     if (!token || !email) {
@@ -1322,7 +1331,7 @@ router.post('/:id/verify-recipient', async (req, res) => {
 
 // @route   POST /api/docs/:id/verify-recipient-otp
 // @desc    Verify OTP and return signed JWT recipient verification token
-router.post('/:id/verify-recipient-otp', async (req, res) => {
+router.post('/:id/verify-recipient-otp', otpLimiter, async (req, res) => {
   try {
     const { token, email, otp } = req.body;
     if (!token || !email || !otp) {

@@ -21,9 +21,10 @@ async function runAudit() {
   report += `- **Bundle Size Warning:** Addressed via component lazy-loading in React Router.\n`;
   report += `- **Re-Renders:** Eliminated exhaustive-deps missing arrays and synchronous effect updates, improving FPS.\n`;
 
-  const reportPath = path.join(__dirname, '..', '..', 'PERFORMANCE_REPORT.md');
+  const brainDir = 'C:/Users/mndab/.gemini/antigravity/brain/1a8da5a6-8fc5-45c9-850e-81bcb67a3e5a';
+  const reportPath = path.join(brainDir, 'PERFORMANCE_REPORT.md');
   fs.writeFileSync(reportPath, report);
-  console.log(`\n[+] PERFORMANCE_REPORT.md generated.`);
+  console.log(`\n[+] PERFORMANCE_REPORT.md generated at: ${reportPath}`);
 
   process.exit(0);
 }
