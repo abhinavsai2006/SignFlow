@@ -291,7 +291,7 @@ export const generateFinalizedPdf = async (document, fields) => {
     await embedSignaturesToPdf(pdfDoc, fields);
 
     // 2. Save document temporarily to compute checksum of signed content only (preshared hash)
-    const signedOnlyBytes = await pdfDoc.save();
+    const signedOnlyBytes = await pdfDoc.save({ useObjectStreams: false });
     const signedOnlyBuffer = Buffer.from(signedOnlyBytes);
     const sha256Checksum = crypto.createHash('sha256').update(signedOnlyBuffer).digest('hex');
 

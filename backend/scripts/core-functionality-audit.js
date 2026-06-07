@@ -101,22 +101,22 @@ async function runCoreAudit() {
     const loginToken = loginOtpData.accessToken;
     addLog(4.5, 'Verify Login OTP', `${API_BASE}/auth/verify-login-otp`, 'POST', loginOtpPayload, loginOtpData, loginOtpRes.status);
 
-    // 5. Google Login (Simulated)
-    const googleRes = await fetch(`${API_BASE}/auth/oauth-callback?provider=google`, {
+    // 5. Google Login (Initiate Redirect Test)
+    const googleRes = await fetch(`${API_BASE}/auth/google`, {
       method: 'GET',
       redirect: 'manual'
     });
     let googleData = {};
     if (googleRes.status === 302 || googleRes.status === 200) {
-      googleData = { message: 'OAuth Success Redirect', headers: Object.fromEntries(googleRes.headers.entries()) };
+      googleData = { message: 'OAuth Redirect to Google Identity Provider Initialized', location: googleRes.headers.get('location') };
     } else {
       try {
         googleData = await googleRes.json();
       } catch (e) {
-        googleData = { message: 'Redirect/HTML Response' };
+        googleData = { message: 'Failed to initiate Google OAuth redirect' };
       }
     }
-    addLog(5, 'Google Login', `${API_BASE}/auth/oauth-callback?provider=google`, 'GET', {}, googleData, googleRes.status);
+    addLog(5, 'Google Login', `${API_BASE}/auth/google`, 'GET', {}, googleData, googleRes.status);
 
     // Create a real PDF bytes for upload
     const pdfDoc = await PDFDocument.create();
