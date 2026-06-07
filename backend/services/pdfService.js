@@ -54,39 +54,47 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         borderWidth: 1
       });
 
-      // Split into Left (Signature) and Right (DSC details)
-      const isHorizontal = targetW > targetH * 1.5;
+      // Split into Top (Metadata) and Bottom (Signature Scribble) - Govt DSC style
+      const metadataHeight = targetH * 0.65;
+      const signatureHeight = targetH * 0.35;
       
-      let sigArea = { x: targetX, y: targetY, w: targetW, h: targetH };
-      let metaArea = { x: targetX, y: targetY, w: targetW, h: targetH };
+      const metaArea = { x: targetX, y: targetY + signatureHeight, w: targetW, h: metadataHeight };
+      const sigArea = { x: targetX, y: targetY, w: targetW, h: signatureHeight };
 
-      if (isHorizontal) {
-        sigArea.w = targetW * 0.4;
-        metaArea.x = targetX + targetW * 0.4;
-        metaArea.w = targetW * 0.6;
-        
-        // Draw black divider line
-        page.drawLine({
-          start: { x: targetX + targetW * 0.4, y: targetY },
-          end: { x: targetX + targetW * 0.4, y: targetY + targetH },
-          thickness: 0.5,
-          color: rgb(0, 0, 0)
-        });
-      } else {
-        sigArea.h = targetH * 0.5;
-        sigArea.y = targetY + targetH * 0.5;
-        metaArea.h = targetH * 0.5;
-        
-        // Draw horizontal divider
-        page.drawLine({
-          start: { x: targetX, y: targetY + targetH * 0.5 },
-          end: { x: targetX + targetW, y: targetY + targetH * 0.5 },
-          thickness: 0.5,
-          color: rgb(0, 0, 0)
-        });
-      }
+      // Draw horizontal divider line between metadata (top) and signature (bottom)
+      page.drawLine({
+        start: { x: targetX, y: targetY + signatureHeight },
+        end: { x: targetX + targetW, y: targetY + signatureHeight },
+        thickness: 0.5,
+        color: rgb(0, 0, 0)
+      });
 
-      // Draw signature image
+      // Draw Metadata in Government DSC Style (Top Section)
+      const signerName = field.signerName || field.recipientEmail.split('@')[0];
+      const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const formattedDate = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      const certId = field.certificateId || `SIGNFLOW-${field._id.toString().slice(-4).toUpperCase()}`;
+
+      let cursorY = metaArea.y + metaArea.h - 8;
+      const textX = metaArea.x + 6;
+      
+      // We scale font sizes dynamically based on targetH to prevent text overflow
+      const baseSize = Math.max(4.5, Math.min(7.5, targetH * 0.06));
+
+      page.drawText('Digitally Signed By', { x: textX, y: cursorY, size: baseSize * 0.9, font: helveticaBold, color: rgb(0.2, 0.2, 0.2) });
+      cursorY -= (baseSize + 2.5);
+      page.drawText(`Name: ${signerName}`, { x: textX, y: cursorY, size: baseSize * 1.1, font: helveticaBold, color: rgb(0, 0, 0) });
+      cursorY -= (baseSize + 2);
+      page.drawText(`Date: ${formattedDate}`, { x: textX, y: cursorY, size: baseSize * 0.9, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      cursorY -= (baseSize + 2);
+      page.drawText('Reason: Approved', { x: textX, y: cursorY, size: baseSize * 0.9, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      cursorY -= (baseSize + 2);
+      page.drawText(`Certificate ID: ${certId}`, { x: textX, y: cursorY, size: baseSize * 0.8, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
+      cursorY -= (baseSize + 2);
+      page.drawText('SHA256 Verified', { x: textX, y: cursorY, size: baseSize * 0.9, font: helveticaBold, color: rgb(0, 0.5, 0.1) }); // Dark Green
+
+      // Draw signature image or text scribble (Bottom Section)
       if (field.value.startsWith('data:image')) {
         const base64Data = field.value.split(',')[1];
         const imageBuffer = Buffer.from(base64Data, 'base64');
@@ -95,7 +103,7 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
             ? await pdfDoc.embedPng(imageBuffer) 
             : await pdfDoc.embedJpg(imageBuffer);
           const imgSize = embeddedImage.scale(1);
-          const padding = 4;
+          const padding = 2;
           const contentW = sigArea.w - padding * 2;
           const contentH = sigArea.h - padding * 2;
           const scaleFactor = Math.min(contentW / imgSize.width, contentH / imgSize.height);
@@ -117,7 +125,7 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
           if (['cursive', 'great-vibes'].includes(parts[0])) fontStyle = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
           else if (['serif', 'dancing-script'].includes(parts[0])) fontStyle = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
         }
-        const textSize = Math.min(18, sigArea.h * 0.4);
+        const textSize = Math.min(11, sigArea.h * 0.65);
         const textWidth = fontStyle.widthOfTextAtSize(displayVal, textSize);
         page.drawText(displayVal, {
           x: sigArea.x + (sigArea.w - textWidth) / 2,
@@ -125,28 +133,6 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
           size: textSize, font: fontStyle, color: rgb(0.1, 0.1, 0.1)
         });
       }
-
-      // Draw Metadata in Government DSC Style
-      const signerName = field.signerName || field.recipientEmail.split('@')[0];
-      const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const formattedDate = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-      const certId = field.certificateId || `SIGNFLOW-${field._id.toString().slice(-4).toUpperCase()}`;
-
-      let cursorY = metaArea.y + metaArea.h - 10;
-      const textX = metaArea.x + 6;
-      
-      page.drawText('Digitally Signed by:', { x: textX, y: cursorY, size: 5.5, font: helveticaBold, color: rgb(0.3, 0.3, 0.3) });
-      cursorY -= 8;
-      page.drawText(signerName, { x: textX, y: cursorY, size: 7.5, font: helveticaBold, color: rgb(0, 0, 0) });
-      cursorY -= 9;
-      page.drawText(`Date: ${formattedDate}`, { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
-      cursorY -= 8;
-      page.drawText('Reason: Approved', { x: textX, y: cursorY, size: 6, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
-      cursorY -= 8;
-      page.drawText(`Cert ID: ${certId}`, { x: textX, y: cursorY, size: 5.5, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
-      cursorY -= 8;
-      page.drawText('SHA256 Verified', { x: textX, y: cursorY, size: 6, font: helveticaBold, color: rgb(0, 0.5, 0.1) }); // Dark Green
     }
   }
 };

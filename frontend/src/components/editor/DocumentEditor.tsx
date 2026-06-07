@@ -659,33 +659,38 @@ const DraggableField = memo(function DraggableField({
         );
       }
 
+      const certId = sig.certificateId || `SIGNFLOW-${sig._id.toString().slice(-4).toUpperCase()}`;
+
       return (
-        <div className="flex flex-row w-full h-full border-[1.5px] border-emerald-500 bg-emerald-50/30 rounded overflow-hidden">
-          {/* Left Column: Signature Value */}
-          <div className="flex-1 flex items-center justify-center min-w-0 p-1 bg-white/50">
+        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.15]">
+          {/* Top Section: Metadata */}
+          <div className="flex-1 p-1.5 flex flex-col justify-between text-[8px] text-black">
+            <div className="font-bold text-[7px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
+            <div className="font-bold text-[9px] truncate">{cleanSignerName}</div>
+            <div className="text-gray-700">Date: {formatSignatureDate(sig.updatedAt)}</div>
+            <div className="text-gray-700">Reason: Approved</div>
+            <div className="truncate text-gray-500">Cert ID: {certId}</div>
+            <div className="font-bold text-emerald-600 flex items-center gap-0.5 mt-0.5">
+              ✓ SHA256 Verified
+            </div>
+          </div>
+          
+          {/* Divider */}
+          <div className="border-t border-black w-full" />
+
+          {/* Bottom Section: Signature Scribble */}
+          <div className="h-[38%] bg-gray-50 flex items-center justify-center p-0.5">
             {sig.value.startsWith('data:image') ? (
               <img src={sig.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
             ) : (
               <span className={`truncate font-bold text-slate-800 ${
                 sig.type === 'Signature' || sig.type === 'Initials'
-                  ? (sig.value.includes(':') ? `font-${sig.value.split(':')[0]} italic text-[18px]` : 'font-cursive italic text-[18px]')
-                  : 'font-sans text-[14px]'
+                  ? (sig.value.includes(':') ? `font-${sig.value.split(':')[0]} italic text-[11px]` : 'font-cursive italic text-[11px]')
+                  : 'font-sans text-[9px]'
               }`}>
                 {sig.value.includes(':') ? sig.value.split(':')[1] : sig.value}
               </span>
             )}
-          </div>
-          
-          {/* Right Column: Audit Trail Details */}
-          <div className="w-[100px] sm:w-[120px] flex-shrink-0 bg-emerald-50 border-l border-emerald-200 flex flex-col justify-center px-1.5 py-1 text-left leading-tight">
-            <div className="flex items-center gap-1 mb-0.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <span className="text-[7px] uppercase font-bold tracking-wider text-emerald-700">Verified</span>
-            </div>
-            <span className="text-[9px] font-bold text-slate-800 truncate w-full">{cleanSignerName}</span>
-            <span className="text-[7px] text-slate-500 font-mono mt-0.5 truncate w-full">{formatSignatureDate(sig.updatedAt)}</span>
           </div>
         </div>
       );
