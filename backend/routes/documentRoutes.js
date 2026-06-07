@@ -222,11 +222,36 @@ router.get('/', protect, async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    const docsWithUrls = await Promise.allSettled(
+      documents.map(async (doc) => {
+        const plain = doc.toObject();
+        if (isR2Active() && plain.originalFileUrl) {
+          try {
+            plain.originalFileUrl = await getSignedUrl(plain.originalFileUrl);
+          } catch (err) {
+            console.error(`[docs] Failed to sign URL for doc ${plain._id}:`, err.message);
+            // Fall back to raw key so list still renders
+          }
+        }
+        if (isR2Active() && plain.finalizedFileUrl) {
+          try {
+            plain.finalizedFileUrl = await getSignedUrl(plain.finalizedFileUrl);
+          } catch (err) {
+            console.error(`[docs] Failed to sign finalizedFileUrl for doc ${plain._id}:`, err.message);
+          }
+        }
+        return plain;
+      })
+    );
+    const resolvedDocs = docsWithUrls.map(result =>
+      result.status === 'fulfilled' ? result.value : result.reason?.doc
+    );
+
     res.json({
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
-      documents,
+      documents: resolvedDocs,
     });
   } catch (error) {
     res.status(500).json({ message: 'List documents failed', error: error.message });
@@ -250,8 +275,24 @@ router.get('/:id', protect, async (req, res) => {
 
     await logAuditEvent(document._id, req.user._id, 'View', req);
 
-    console.log(`DOC_FETCH_SUCCESS: ${document._id}`);
-    res.json(document);
+    const plain = document.toObject();
+    if (isR2Active() && plain.originalFileUrl) {
+      try {
+        plain.originalFileUrl = await getSignedUrl(plain.originalFileUrl);
+      } catch (err) {
+        console.error(`[docs/:id] Failed to sign originalFileUrl:`, err.message);
+      }
+    }
+    if (isR2Active() && plain.finalizedFileUrl) {
+      try {
+        plain.finalizedFileUrl = await getSignedUrl(plain.finalizedFileUrl);
+      } catch (err) {
+        console.error(`[docs/:id] Failed to sign finalizedFileUrl:`, err.message);
+      }
+    }
+
+    console.log(`DOC_FETCH_SUCCESS: ${plain._id}`);
+    res.json(plain);
   } catch (error) {
     console.error(`DOC_FETCH_AUTH_FAIL: Error during fetch: ${error.message}`);
     res.status(500).json({ message: 'Fetch document error', error: error.message });

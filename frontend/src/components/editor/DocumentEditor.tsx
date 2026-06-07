@@ -54,6 +54,7 @@ interface SignatureField {
   device?: string;
   operatingSystem?: string;
   location?: string;
+  isp?: string;
   documentHash?: string;
   tamperStatus?: string;
   documentId?: string;
@@ -1195,17 +1196,40 @@ export default function DocumentEditor() {
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
 
       // Translate old signature schemas if necessary
-      const formattedFields = sigResponse.data.map((sig: any) => ({
+      const formattedFields = sigResponse.data.map((sig: any): SignatureField => ({
         _id: sig._id,
         type: sig.type || 'Signature',
         recipientEmail: sig.recipientEmail || currentUser?.email || '',
+        signerName: sig.signerName,
         xPercent: sig.xPercent !== undefined ? sig.xPercent : (sig.x || 35),
         yPercent: sig.yPercent !== undefined ? sig.yPercent : (sig.y || 40),
         widthPercent: sig.widthPercent || 15,
         heightPercent: sig.heightPercent || 5,
         page: sig.page || 1,
         status: sig.status || 'Pending',
-        value: sig.value || sig.signatureValue || ''
+        value: sig.value || sig.signatureValue || '',
+        // Metadata fields — preserve all
+        ipAddress: sig.ipAddress,
+        userAgent: sig.userAgent,
+        browser: sig.browser,
+        device: sig.device,
+        operatingSystem: sig.operatingSystem,
+        location: sig.location,
+        isp: sig.isp,
+        certificateId: sig.certificateId,
+        auditId: sig.auditId,
+        documentHash: sig.documentHash,
+        tamperStatus: sig.tamperStatus,
+        updatedAt: sig.updatedAt,
+        // Scale controls
+        signatureScale: sig.signatureScale ?? 100,
+        metadataScale: sig.metadataScale ?? 'Medium',
+        fontSize: sig.fontSize ?? 12,
+        showDate: sig.showDate ?? true,
+        showTime: sig.showTime ?? true,
+        hideSha256: sig.hideSha256 ?? false,
+        hideCertId: sig.hideCertId ?? false,
+        hideReason: sig.hideReason ?? false,
       }));
       setSignatures(formattedFields);
       setHistory([formattedFields]);

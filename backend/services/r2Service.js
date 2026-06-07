@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } fro
 import { getSignedUrl as s3GetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs';
 import path from 'path';
+import { resolveStoragePath } from '../utils/storagePath.js';
 
 let s3Client = null;
 
@@ -140,14 +141,7 @@ export const deleteFile = async (fileUrlOrKey) => {
 export const downloadFile = async (fileUrlOrKey) => {
   if (!s3Client || !bucketName) {
     console.log('[Storage Service] Local fallback for downloadFile:', fileUrlOrKey);
-    let resolvedPath = fileUrlOrKey;
-    if (!path.isAbsolute(resolvedPath)) {
-      if (resolvedPath.startsWith('uploads/') && fs.existsSync('/data')) {
-        resolvedPath = path.join('/data', resolvedPath);
-      } else {
-        resolvedPath = path.resolve(resolvedPath);
-      }
-    }
+    const resolvedPath = resolveStoragePath(fileUrlOrKey);
     return fs.readFileSync(resolvedPath);
   }
 

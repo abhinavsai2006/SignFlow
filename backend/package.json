@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +41,12 @@
     "useragent": "^2.3.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "fast-check": "^4.8.0",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14"
+  },
+  "jest": {
+    "transform": {}
   }
 }

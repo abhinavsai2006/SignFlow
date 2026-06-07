@@ -13,7 +13,7 @@ import {
   Eye, XCircle, AlertTriangle, Plus,
   CheckCircle2, Activity,
   Upload, TrendingUp, Zap, ArrowUpRight, ChevronRight,
-  BarChart3, Layers, Star
+  Layers
 } from 'lucide-react';
 import { SkeletonTable } from '../ui/Skeleton';
 
@@ -149,90 +149,7 @@ export default function Dashboard() {
     { label: 'Expiring', sub: 'Within 3 days',   value: expiringSoonDocs, Icon: AlertTriangle, color: '#f97316', TrendIcon: Clock       },
   ];
 
-  /* ── Empty state ── */
-  if (!isLoading && totalDocs === 0) {
-    return (
-      <motion.div className="space-y-xxl" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-xxxl border border-hairline-soft"
-          style={{ background: 'linear-gradient(135deg, var(--color-canvas) 0%, rgba(59,130,246,0.04) 100%)' }}>
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-lg p-xxl">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-blue-500/8 border border-blue-500/15 rounded-full px-3 py-1 mb-sm">
-                <Star className="w-3 h-3 text-blue-400" />
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">New workspace</span>
-              </div>
-              <h1 className="font-bold tracking-tight text-ink-deep mb-xxs" style={{ fontSize: '1.875rem' }}>
-                {getGreeting()}, {user?.name || 'User'} 👋
-              </h1>
-              <p className="text-body-md text-slate" style={{ maxWidth: 480 }}>
-                Start your secure signing workflow in the{' '}
-                <span className="font-bold text-ink-deep">{activeWorkspace?.name || 'Personal'}</span> workspace.
-              </p>
-            </div>
-            <MetaButton variant="buy-cta" onClick={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' })} className="flex items-center self-start sm:self-center">
-              <Plus className="w-4 h-4 mr-2" /> Upload Document
-            </MetaButton>
-          </div>
-          <div className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)', transform: 'translate(30%,-30%)' }} />
-        </div>
-
-        {/* Empty KPI strip */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-sm">
-          {kpiCards.map((kpi, idx) => (
-            <motion.div key={kpi.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.06, duration: 0.3 }}
-              className="bg-canvas border border-hairline-soft rounded-xxl p-md flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-stone uppercase tracking-wider">{kpi.label}</span>
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: kpi.color + '18' }}>
-                  <kpi.Icon className="w-3 h-3" style={{ color: kpi.color }} />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-ink-deep leading-none">0</p>
-              <span className="text-[10px] text-stone">{kpi.sub}</span>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Upload + Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl">
-          <div className="lg:col-span-2 space-y-md">
-            <div className="text-body-sm-bold font-bold text-stone uppercase tracking-wider flex items-center gap-2">
-              <Upload className="w-3.5 h-3.5" /> Upload Document
-            </div>
-            <div className="flex flex-col items-center p-xxl border-2 border-dashed border-hairline-soft rounded-xxxl py-[80px] space-y-lg text-center hover:border-blue-400/40 transition-all">
-              <div className="relative w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 bg-blue-500/10 rounded-full animate-pulse" />
-                <div className="absolute inset-4 bg-blue-500/20 rounded-full" />
-                <Upload className="w-8 h-8 text-blue-400 relative z-10" />
-              </div>
-              <div className="space-y-xs max-w-sm">
-                <h2 className="text-heading-md font-bold text-ink-deep">Your vault is empty</h2>
-                <p className="text-body-sm text-slate">Drop a PDF to place signature fields and invite recipients.</p>
-              </div>
-              <div ref={uploadSectionRef} className="w-full max-w-xl text-left">
-                <UploadDropzone onUploadSuccess={handleUploadSuccess} workspaceId={activeWorkspace?._id} />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-md">
-            <div className="text-body-sm-bold font-bold text-stone uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5" /> Recent Activity
-            </div>
-            <MetaCard variant="product-feature" className="flex flex-col items-center justify-center h-[260px] text-center border-dashed">
-              <BarChart3 className="w-10 h-10 text-hairline mb-3" />
-              <p className="text-body-sm font-bold text-slate">No activity yet</p>
-              <p className="text-caption text-stone mt-1">Events appear once documents are sent.</p>
-            </MetaCard>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+  // Unified layout logic: Dashboard is never completely blanked. We render the KPI strip, and inside the main body we conditional-render the document list or the upload zone.
 
   /* ── Main dashboard ── */
   return (
