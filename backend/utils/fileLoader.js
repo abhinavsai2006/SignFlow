@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { downloadFile, isR2Active } from '../services/r2Service.js';
 
+import { resolveStoragePath } from './storagePath.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -37,22 +39,8 @@ export const readPdfBytes = async (pathOrUrl) => {
     return Buffer.from(arrayBuffer);
   }
 
-  // Resolve local path
-  let resolvedPath = pathOrUrl;
-  
-  if (!path.isAbsolute(resolvedPath)) {
-    // If it's an uploads path and we are in production with Railway Volume
-    if (resolvedPath.startsWith('uploads/') && fs.existsSync('/data')) {
-      resolvedPath = path.join('/data', resolvedPath);
-    } else {
-      // If running from backend directory vs root directory
-      resolvedPath = path.resolve(resolvedPath);
-      if (!fs.existsSync(resolvedPath)) {
-        // Try resolving relative to backend directory if not found in cwd
-        resolvedPath = path.join(__dirname, '..', pathOrUrl);
-      }
-    }
-  }
+  // Resolve local path through unified storage path helper
+  const resolvedPath = resolveStoragePath(pathOrUrl);
 
   console.log(`[File Loader] Reading local resource: ${resolvedPath}`);
   if (!fs.existsSync(resolvedPath)) {

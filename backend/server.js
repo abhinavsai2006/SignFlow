@@ -16,6 +16,7 @@ import { verifyResendConnection } from './middleware/emailService.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { resolveStoragePath } from './utils/storagePath.js';
 
 
 
@@ -129,7 +130,7 @@ const generalLimiter = rateLimit({
 });
 
 // Serve static files from uploads directory (supports custom persistent volume path)
-const uploadsPath = fs.existsSync('/data') ? '/data/uploads' : path.join(__dirname, 'uploads');
+const uploadsPath = resolveStoragePath();
 app.use('/uploads', express.static(uploadsPath));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

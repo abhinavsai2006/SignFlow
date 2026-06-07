@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Document from '../models/Document.js';
 import AuditLog from '../models/AuditLog.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { resolveStoragePath } from '../utils/storagePath.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,7 +31,7 @@ router.get('/stats', protect, adminProtect, async (req, res) => {
     const signedDocs = await Document.countDocuments({ status: 'Signed', isDeleted: false });
     
     // Sum of size of documents (each file in uploads folder)
-    const uploadsDir = path.join(__dirname, '../uploads');
+    const uploadsDir = resolveStoragePath();
     let totalStorageBytes = 0;
     
     if (fs.existsSync(uploadsDir)) {

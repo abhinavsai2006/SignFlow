@@ -83,6 +83,15 @@ interface AuditLog {
   userId?: { name: string; email: string };
 }
 
+// Helper to generate a valid MongoDB-style ObjectId on the client
+const generateObjectId = () => {
+  const timestamp = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0');
+  const machine = Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  const pid = Math.floor(Math.random() * 65535).toString(16).padStart(4, '0');
+  const increment = Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  return timestamp + machine + pid + increment;
+};
+
 // ----------------------------------------------------
 // Decoupled Canvas Page Component (Stage 3 Placement)
 // ----------------------------------------------------
@@ -1420,6 +1429,7 @@ export default function DocumentEditor() {
   // ----------------------------------------------------
   const handleAddSignatureField = () => {
     const newField: SignatureField = {
+      _id: generateObjectId(),
       type: placedFieldType,
       recipientEmail: recipientEmail.trim() || user?.email || '',
       xPercent: 35,
@@ -1461,7 +1471,7 @@ export default function DocumentEditor() {
     const sig = signatures[index];
     const newField: SignatureField = {
       ...sig,
-      _id: undefined,
+      _id: generateObjectId(),
       status: 'Pending',
       xPercent: Math.min(100 - sig.widthPercent, sig.xPercent + 5),
       yPercent: Math.min(100 - sig.heightPercent, sig.yPercent + 5),
@@ -2022,23 +2032,23 @@ export default function DocumentEditor() {
         <Navbar user={user} onMenuClick={() => {}} onLogout={handleLogout} />
       </div>
 
-      {/* Editor Controls Sub-Header */}
-      <div className="bg-canvas border-b border-hairline-soft h-[56px] shrink-0 flex items-center justify-between px-4 md:px-xl select-none">
+      {/* Desktop Header */}
+      <div className="hidden md:flex bg-canvas border-b border-hairline-soft h-[56px] shrink-0 items-center justify-between px-xl select-none">
         {/* Left Section */}
         <div className="flex items-center space-x-md">
           <MetaButton variant="ghost" className="!py-[6px] !px-[12px] flex items-center !h-[36px]" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </MetaButton>
           <span className="h-6 w-[1px] bg-hairline-soft" />
-          <h2 className="text-subtitle-md font-bold truncate max-w-[150px] sm:max-w-none text-ink-deep">{document?.filename}</h2>
+          <h2 className="text-subtitle-md font-bold truncate max-w-[200px] sm:max-w-none text-ink-deep">{document?.filename}</h2>
           <MetaBadge variant={document?.status === 'Signed' ? 'success' : 'attention'}>
             {document?.status}
           </MetaBadge>
         </div>
 
-        {/* Center Section (Zoom & Controls) */}
+        {/* Center Section */}
         {pdfDoc && (
-          <div className="hidden md:flex items-center space-x-1.5 bg-surface-soft px-3 py-1 rounded-full border border-hairline-soft shadow-sm">
+          <div className="flex items-center space-x-1.5 bg-surface-soft px-3 py-1 rounded-full border border-hairline-soft shadow-sm">
             {/* Page navigation */}
             <div className="flex items-center space-x-1 pr-2 border-r border-hairline-soft">
               <button 
@@ -2131,7 +2141,6 @@ export default function DocumentEditor() {
 
         {/* Right Section */}
         <div className="flex items-center space-x-sm">
-          {/* Figma-style Autosave Indicator */}
           <span className="text-[12px] font-bold text-slate flex items-center select-none mr-2">
             {savingStatus === 'saving' && (
               <>
@@ -2175,6 +2184,67 @@ export default function DocumentEditor() {
               onClick={handleFinalizePDF}
               isLoading={isFinalizing}
               className="!py-1.5 !px-4 !h-[36px]"
+            >
+              Finalize & Sign
+            </MetaButton>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Header (3-row layout to prevent overlapping) */}
+      <div className="md:hidden flex flex-col p-3 border-b border-hairline-soft bg-canvas space-y-2 select-none shrink-0">
+        {/* Row 1: Back + Filename */}
+        <div className="flex justify-between items-center w-full">
+          <MetaButton variant="ghost" className="!py-[4px] !px-[8px] flex items-center !h-[32px] text-xs" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
+          </MetaButton>
+          <h2 className="text-body-md font-bold truncate max-w-[180px] text-ink-deep">{document?.filename}</h2>
+        </div>
+
+        {/* Row 2: Status + Saved */}
+        <div className="flex justify-between items-center w-full px-1">
+          <MetaBadge variant={document?.status === 'Signed' ? 'success' : 'attention'}>
+            {document?.status}
+          </MetaBadge>
+          <span className="text-[11px] font-bold text-slate flex items-center">
+            {savingStatus === 'saving' && (
+              <>
+                <span className="w-2 h-2 rounded-circle bg-attention animate-pulse mr-1" />
+                Saving...
+              </>
+            )}
+            {(savingStatus === 'saved' || savingStatus === 'idle') && (
+              <>
+                <span className="w-2 h-2 rounded-circle bg-success mr-1" />
+                Saved
+              </>
+            )}
+            {savingStatus === 'error' && (
+              <>
+                <span className="w-2 h-2 rounded-circle bg-critical mr-1" />
+                Error Saving
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* Row 3: Actions */}
+        <div className="flex gap-2 w-full pt-1">
+          {document && (
+            <MetaButton variant="ghost" onClick={() => setIsShareModalOpen(true)} className="flex items-center !py-1 !px-2 !h-[32px] flex-1 justify-center text-xs">
+              <Upload className="w-3.5 h-3.5 mr-1" /> Share Link
+            </MetaButton>
+          )}
+          {document?.status === 'Signed' ? (
+            <MetaButton variant="buy-cta" onClick={handleDownloadPDF} className="flex items-center !py-1 !px-2 !h-[32px] flex-1 justify-center text-xs">
+              Download PDF
+            </MetaButton>
+          ) : (
+            <MetaButton 
+              variant="buy-cta" 
+              onClick={handleFinalizePDF}
+              isLoading={isFinalizing}
+              className="!py-1 !px-2 !h-[32px] flex-1 justify-center text-xs"
             >
               Finalize & Sign
             </MetaButton>

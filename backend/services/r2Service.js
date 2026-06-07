@@ -52,6 +52,7 @@ export const uploadFile = async (fileOrPath, originalName, mimeType = 'applicati
     return pathStr.replace(/\\/g, '/');
   }
 
+  let fileKey = '';
   try {
     let localFilePath;
     let name;
@@ -68,8 +69,9 @@ export const uploadFile = async (fileOrPath, originalName, mimeType = 'applicati
     }
 
     const fileBuffer = fs.readFileSync(localFilePath);
-    const fileKey = `uploads/${Date.now()}-${path.basename(name)}`;
+    fileKey = `uploads/${Date.now()}-${path.basename(name)}`;
     
+    console.log(`STORAGE_UPLOAD_START: Key: ${fileKey}`);
     console.log(`[Storage Service] Uploading ${name} to S3 bucket ${bucketName}...`);
     
     await s3Client.send(new PutObjectCommand({
@@ -79,6 +81,7 @@ export const uploadFile = async (fileOrPath, originalName, mimeType = 'applicati
       ContentType: type,
     }));
     
+    console.log(`STORAGE_UPLOAD_SUCCESS: Key: ${fileKey}`);
     console.log(`[Storage Service] Upload successful. Key: ${fileKey}`);
 
     if (endpoint) {
@@ -93,6 +96,7 @@ export const uploadFile = async (fileOrPath, originalName, mimeType = 'applicati
     }
     return `${fileKey}`;
   } catch (err) {
+    console.error(`STORAGE_UPLOAD_FAILED: Key: ${fileKey || 'unknown'}, Error: ${err.message}`);
     console.error('[Storage Service] S3 upload failed:', err.message);
     const pathStr = typeof fileOrPath === 'object' && fileOrPath !== null ? fileOrPath.path : fileOrPath;
     return pathStr.replace(/\\/g, '/');
@@ -107,7 +111,9 @@ export const deleteFile = async (fileUrlOrKey) => {
 
   try {
     let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+    if (fileUrlOrKey.includes('uploads/')) {
+      fileKey = fileUrlOrKey.substring(fileUrlOrKey.indexOf('uploads/'));
+    } else if (fileUrlOrKey.includes(`${bucketName}/`)) {
       fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
     } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
@@ -145,9 +151,11 @@ export const downloadFile = async (fileUrlOrKey) => {
     return fs.readFileSync(resolvedPath);
   }
 
+  let fileKey = fileUrlOrKey;
   try {
-    let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+    if (fileUrlOrKey.includes('uploads/')) {
+      fileKey = fileUrlOrKey.substring(fileUrlOrKey.indexOf('uploads/'));
+    } else if (fileUrlOrKey.includes(`${bucketName}/`)) {
       fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
     } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];
@@ -155,6 +163,7 @@ export const downloadFile = async (fileUrlOrKey) => {
       fileKey = fileUrlOrKey.split(customDomain)[1].replace(/^\//, '');
     }
 
+    console.log(`STORAGE_DOWNLOAD_START: Key: ${fileKey}`);
     console.log(`[Storage Service] Downloading key: ${fileKey} from bucket ${bucketName}...`);
 
     const response = await s3Client.send(new GetObjectCommand({
@@ -170,8 +179,11 @@ export const downloadFile = async (fileUrlOrKey) => {
         stream.on('end', () => resolve(Buffer.concat(chunks)));
       });
 
-    return await streamToBuffer(response.Body);
+    const buffer = await streamToBuffer(response.Body);
+    console.log(`STORAGE_DOWNLOAD_SUCCESS: Key: ${fileKey}`);
+    return buffer;
   } catch (err) {
+    console.error(`STORAGE_DOWNLOAD_FAILED: Key: ${fileKey}, Error: ${err.message}`);
     console.error('[Storage Service] Download failed:', err.message);
     throw err;
   }
@@ -187,7 +199,9 @@ export const getSignedUrl = async (fileUrlOrKey, expiresIn = 3600) => {
 
   try {
     let fileKey = fileUrlOrKey;
-    if (fileUrlOrKey.includes(`${bucketName}/`)) {
+    if (fileUrlOrKey.includes('uploads/')) {
+      fileKey = fileUrlOrKey.substring(fileUrlOrKey.indexOf('uploads/'));
+    } else if (fileUrlOrKey.includes(`${bucketName}/`)) {
       fileKey = fileUrlOrKey.split(`${bucketName}/`)[1];
     } else if (fileUrlOrKey.includes('r2.cloudflarestorage.com/')) {
       fileKey = fileUrlOrKey.split('r2.cloudflarestorage.com/')[1];

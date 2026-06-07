@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SignFlow - Workspace Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-highest": "#e0e3e5",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "surface-container-low": "#f2f4f6",
+                      "surface-bright": "#f7f9fb",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#38485d",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-container": "#75859d",
+                      "secondary-container": "#2170e4",
+                      "surface-container-high": "#e6e8ea",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "on-secondary-fixed-variant": "#004395",
+                      "inverse-primary": "#bec6e0",
+                      "on-error": "#ffffff",
+                      "outline-variant": "#c6c6cd",
+                      "on-primary-fixed": "#131b2e",
+                      "secondary-fixed": "#d8e2ff",
+                      "outline": "#76777d",
+                      "background": "#f7f9fb",
+                      "surface": "#f7f9fb",
+                      "error-container": "#ffdad6",
+                      "surface-tint": "#565e74",
+                      "tertiary-fixed": "#d3e4fe",
+                      "on-surface": "#191c1e",
+                      "on-surface-variant": "#45464d",
+                      "secondary": "#0058be",
+                      "primary-fixed-dim": "#bec6e0",
+                      "tertiary-fixed-dim": "#b7c8e1",
+                      "primary-container": "#131b2e",
+                      "primary": "#000000",
+                      "inverse-surface": "#2d3133",
+                      "error": "#ba1a1a",
+                      "tertiary": "#000000",
+                      "tertiary-container": "#0b1c30",
+                      "surface-dim": "#d8dadc",
+                      "on-secondary": "#ffffff",
+                      "primary-fixed": "#dae2fd",
+                      "surface-variant": "#e0e3e5",
+                      "on-background": "#191c1e",
+                      "on-secondary-container": "#fefcff",
+                      "on-tertiary-fixed": "#0b1c30",
+                      "surface-container": "#eceef0",
+                      "on-primary-container": "#7c839b",
+                      "on-secondary-fixed": "#001a42",
+                      "on-primary": "#ffffff",
+                      "inverse-on-surface": "#eff1f3"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "2xl": "48px",
+                      "3xl": "64px"
+              },
+              "fontFamily": {
+                      "h3": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "body-md": ["Inter"],
+                      "mono-sm": ["JetBrains Mono"],
+                      "label-md": ["Inter"],
+                      "h1": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "h2": ["Inter"],
+                      "display-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "mono-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "display-sm": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: theme('colors.background'); color: theme('colors.on-background'); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        
+        /* Custom scrollbar for data density */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: theme('colors.outline-variant'); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: theme('colors.outline'); }
+    </style>
+</head>
+<body class="flex min-h-screen bg-surface antialiased">
+<!-- SideNavBar -->
+<nav class="hidden md:flex fixed left-0 top-0 bottom-0 flex-col w-64 p-md gap-sm bg-surface-container-low dark:bg-surface-container-lowest border-r border-outline-variant dark:border-outline z-40">
+<div class="flex items-center gap-sm px-sm py-md mb-lg">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-on-primary font-bold text-lg">S</div>
+<div>
+<h1 class="font-h3 text-h3 font-black text-primary dark:text-primary-fixed leading-tight">SignFlow</h1>
+<p class="font-label-md text-label-md text-on-surface-variant">Enterprise E-Signature</p>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary hover:bg-primary-container-high transition-colors font-label-md text-label-md rounded flex items-center justify-center gap-sm py-sm mb-lg shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+<span class="material-symbols-outlined" style="font-size: 18px;">add</span>
+            New Signature
+        </button>
+<div class="flex flex-col gap-xs font-label-md text-label-md font-body-md text-body-md">
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+            </a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded" href="#">
+<span class="material-symbols-outlined">description</span> Documents
+            </a>
+<a class="flex items-center gap-md bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg px-md py-sm scale-95 transition-transform duration-100 font-bold" href="#">
+<span class="material-symbols-outlined fill">group_work</span> Workspace
+            </a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen">
+<!-- TopAppBar (Mobile & Web) -->
+<header class="flex justify-between items-center w-full px-md h-16 z-50 bg-surface-bright dark:bg-surface-dim border-b border-outline-variant dark:border-outline sticky top-0">
+<div class="flex items-center gap-sm md:hidden">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-on-primary font-bold">S</div>
+<h1 class="text-h2 font-h2 font-black text-primary dark:text-primary-fixed">SignFlow</h1>
+</div>
+<div class="hidden md:flex items-center">
+<!-- Search bar placeholder if needed, specified as "on_left" in JSON -->
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-size: 18px;">search</span>
+<input class="w-full bg-surface-container-low border-none rounded py-sm pl-xl pr-sm text-body-sm font-body-sm focus:ring-2 focus:ring-secondary focus:bg-surface-lowest transition-all" placeholder="Search workspace..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-sm text-primary dark:text-primary-fixed font-h2 text-h2 font-label-md text-label-md">
+<button class="p-xs rounded hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-xs rounded hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined">apps</span></button>
+<div class="w-8 h-8 rounded-full bg-surface-variant border border-outline-variant ml-sm overflow-hidden flex items-center justify-center cursor-pointer">
+<img alt="User profile and workspace switcher" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate user looking confident, used as a profile picture avatar in a minimalist light-mode dashboard environment. The lighting is crisp and even, highlighting sharp details." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAz0ide4P2CQ5SrTlWl3L90F211FzUgGwaT2WBBNW4POu2okhzZ7fpaggSChlWncjqmqPNh1P2yolTz80_fpZkamDH9QB73tc6QHuDwfRv9MyOwnkoMd691R5PqTiuogkKrKL8RjGr6a3E0GlLDbGpVUSHp0_esw8kwybmY4fWL6uqyLJtQDyeSBd5Z5XWHVa0CFHDTDEcefNrrzGaYduMbQCNJWy2opqWnsdnHWqzTIGVlYfB5yPDV6dyBfgz21IjpHt-TkdTzv1k"/>
+</div>
+</div>
+</header>
+<div class="p-lg md:p-xl max-w-[1280px] mx-auto w-full flex flex-col gap-lg md:gap-xl">
+<!-- Workspace Header -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-md border-b border-outline-variant pb-md">
+<div class="flex items-center gap-md">
+<div class="w-16 h-16 rounded bg-primary-container flex items-center justify-center text-on-primary-container shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] border border-outline-variant">
+<span class="material-symbols-outlined" style="font-size: 32px;">corporate_fare</span>
+</div>
+<div>
+<div class="flex items-center gap-sm">
+<h2 class="font-h1 text-h1 text-on-surface m-0">Acme Corporation</h2>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-md text-[10px] uppercase tracking-wider border border-tertiary-fixed-dim">Enterprise</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Workspace ID: WRK-8924-XYZ • US-East Region</p>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="bg-surface border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md rounded px-md py-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)]">Workspace Settings</button>
+<button class="bg-primary text-on-primary hover:opacity-90 transition-opacity font-label-md text-label-md rounded px-md py-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)]">Invite Members</button>
+</div>
+</section>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-md md:gap-lg">
+<!-- Members Management (Spans 2 columns) -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)]">
+<div class="p-md border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-h3 text-h3 text-on-surface m-0">Members</h3>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-size: 16px;">search</span>
+<input class="w-48 bg-surface border border-outline-variant rounded py-1 pl-xl pr-sm text-body-sm font-body-sm focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" placeholder="Filter members..." type="text"/>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low font-label-md text-label-md text-on-surface-variant border-b border-outline-variant">
+<th class="p-sm md:p-md font-semibold">User</th>
+<th class="p-sm md:p-md font-semibold">Role</th>
+<th class="p-sm md:p-md font-semibold">Status</th>
+<th class="p-sm md:p-md font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm text-on-surface">
+<tr class="border-b border-outline-variant hover:bg-[#F1F5F9] transition-colors group">
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden border border-outline-variant">
+<img alt="Sarah Jenkins" class="w-full h-full object-cover" data-alt="A professional headshot of a female executive in a light, modern corporate setting, looking directly at the camera with a subtle smile. High-resolution, well-lit." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFvSkEwHMhWU7iYzXATRi4mSWALtft0-fgPTtt1mgucIkLDwnEB2cNk9qJ8PErIpDHiP5mZEB6fgsFWdx71W4WRvqJor7StJmpTZsQnC3LZkRp1p6-ibBrN5JSAz0P4-UYw0JFPLggv_e-i2mAzjR_RIzIZK71SXOKZL5t5EqM2zXBhzFPkXUZSGHXvBmW1HwsBoPYFWGy7PvV8bmBotlIrJhbhn3B7MmERjpcoKnIkeEKQuEK7lB--C8uca1ji23ASCzfORnwb6o"/>
+</div>
+<div>
+<div class="font-semibold text-on-surface">Sarah Jenkins</div>
+<div class="text-on-surface-variant text-[11px]">sarah@acme.com</div>
+</div>
+</div>
+</td>
+<td class="p-sm md:p-md">
+<select class="bg-transparent border-none text-body-sm p-0 focus:ring-0 cursor-pointer">
+<option selected="">Admin</option>
+<option>Editor</option>
+<option>Signer</option>
+</select>
+</td>
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-xs text-secondary"><div class="w-2 h-2 rounded-full bg-secondary"></div> Active</div>
+</td>
+<td class="p-sm md:p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-[#F1F5F9] transition-colors group">
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden border border-outline-variant">
+<img alt="Michael Chen" class="w-full h-full object-cover" data-alt="A professional headshot of an Asian male professional in a modern office, wearing a smart-casual shirt, soft lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGAXQB4RQtfHOXfJBoQq0AUn2-UW5defFgdU6rGExF-WmKZcSYr9qhKpsNvNSskgs-qvwhL5b54-lo4-l3atm0YdvNXe1XM0wYWZ55J4NVEa-6J6RJKixPuEfEDExa4BS-UnDW9jcsnRM7Ds3NjH6g3MtG0u6SopA5vYHJbF2VCuG8Xja7sA0OAmpXQVfFLWzz8vV_6aP6i2xOeWbEdYlc8lzQA6uGT4w52dhrvQEDD2OIvzi6pk-XQHlbKcnnNSJ5wYSKhgO3dU0"/>
+</div>
+<div>
+<div class="font-semibold text-on-surface">Michael Chen</div>
+<div class="text-on-surface-variant text-[11px]">mchen@acme.com</div>
+</div>
+</div>
+</td>
+<td class="p-sm md:p-md">
+<select class="bg-transparent border-none text-body-sm p-0 focus:ring-0 cursor-pointer">
+<option>Admin</option>
+<option selected="">Editor</option>
+<option>Signer</option>
+</select>
+</td>
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-xs text-secondary"><div class="w-2 h-2 rounded-full bg-secondary"></div> Active</div>
+</td>
+<td class="p-sm md:p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-[#F1F5F9] transition-colors group">
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center font-bold text-on-surface-variant border border-outline-variant border-dashed">
+                                                AT
+                                            </div>
+<div>
+<div class="font-semibold text-on-surface">Alex Thompson</div>
+<div class="text-on-surface-variant text-[11px]">alex.t@external.com</div>
+</div>
+</div>
+</td>
+<td class="p-sm md:p-md">
+<span class="text-on-surface-variant">Signer</span>
+</td>
+<td class="p-sm md:p-md">
+<div class="flex items-center gap-xs text-on-surface-variant"><div class="w-2 h-2 rounded-full bg-outline"></div> Invited</div>
+</td>
+<td class="p-sm md:p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100"><span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-sm border-t border-outline-variant text-center">
+<button class="text-secondary font-label-md text-label-md hover:underline">View All 42 Members</button>
+</div>
+</div>
+<!-- Usage Metrics & Storage -->
+<div class="flex flex-col gap-md">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] flex-1">
+<h3 class="font-h3 text-h3 text-on-surface mb-md">Usage Metrics</h3>
+<div class="mb-lg">
+<div class="flex justify-between font-label-md text-label-md mb-xs">
+<span class="text-on-surface-variant">Envelope Quota</span>
+<span class="text-on-surface font-semibold">8,402 / 10,000</span>
+</div>
+<div class="w-full bg-surface-container-high rounded-full h-2 overflow-hidden border border-outline-variant/50">
+<div class="bg-primary h-full rounded-full" style="width: 84%;"></div>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mt-1 text-right">Resets in 12 days</p>
+</div>
+<div>
+<div class="flex justify-between font-label-md text-label-md mb-xs">
+<span class="text-on-surface-variant">Secure Storage</span>
+<span class="text-on-surface font-semibold">42.5 GB / 50 GB</span>
+</div>
+<div class="w-full bg-surface-container-high rounded-full h-2 overflow-hidden border border-outline-variant/50 flex">
+<div class="bg-secondary h-full" style="width: 60%;" title="Completed Documents"></div>
+<div class="bg-tertiary-fixed-dim h-full" style="width: 25%;" title="Pending Envelopes"></div>
+</div>
+<div class="flex gap-sm mt-2 font-body-sm text-[11px] text-on-surface-variant">
+<div class="flex items-center gap-1"><div class="w-2 h-2 bg-secondary rounded-sm"></div> Completed</div>
+<div class="flex items-center gap-1"><div class="w-2 h-2 bg-tertiary-fixed-dim rounded-sm"></div> Pending</div>
+</div>
+</div>
+</div>
+<!-- Permissions Snippet -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)]">
+<h3 class="font-h3 text-h3 text-on-surface mb-sm">Security Policy</h3>
+<div class="flex items-center justify-between py-sm border-b border-outline-variant/50">
+<div>
+<div class="font-label-md text-label-md text-on-surface">Require 2FA</div>
+<div class="font-body-sm text-[11px] text-on-surface-variant">For all workspace members</div>
+</div>
+<!-- Toggle switch -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="flex items-center justify-between py-sm">
+<div>
+<div class="font-label-md text-label-md text-on-surface">External Sharing</div>
+<div class="font-body-sm text-[11px] text-on-surface-variant">Allow links outside domain</div>
+</div>
+<!-- Toggle switch -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+<!-- Audit Log (Full Width Bottom) -->
+<div class="lg:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] overflow-hidden">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-bright">
+<h3 class="font-h3 text-h3 text-on-surface m-0 flex items-center gap-xs"><span class="material-symbols-outlined" style="font-size: 20px;">history</span> Audit Log</h3>
+<button class="bg-transparent border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md rounded px-sm py-1 flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
+                        </button>
+</div>
+<div class="p-md">
+<div class="relative border-l-2 border-outline-variant ml-3 space-y-md">
+<div class="relative pl-lg">
+<div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-secondary"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-md text-body-md text-on-surface m-0"><span class="font-semibold">Sarah Jenkins</span> changed role for <span class="font-semibold">Michael Chen</span></p>
+<p class="font-mono-sm text-mono-sm text-on-surface-variant mt-xs bg-surface-container-low inline-block px-1 rounded">Signer → Editor</p>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">10:42 AM, Today</span>
+</div>
+</div>
+<div class="relative pl-lg">
+<div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-outline"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-md text-body-md text-on-surface m-0">System automatically revoked access for <span class="font-semibold">David Lee</span></p>
+<p class="font-body-sm text-[12px] text-on-surface-variant mt-xs">Reason: Contract Expiration</p>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Yesterday</span>
+</div>
+</div>
+<div class="relative pl-lg">
+<div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-outline"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="font-body-md text-body-md text-on-surface m-0"><span class="font-semibold">Sarah Jenkins</span> updated Workspace Settings</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant mt-xs">Enabled Require 2FA policy</p>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Oct 24, 2023</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

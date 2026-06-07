@@ -22,6 +22,7 @@ import { PDFDocument } from 'pdf-lib';
 import { generateFinalizedPdf } from '../services/pdfService.js';
 import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
 import { readPdfBytes } from '../utils/fileLoader.js';
+import { resolveStoragePath } from '../utils/storagePath.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -243,13 +244,16 @@ router.get('/:id', protect, async (req, res) => {
 
     const isAuthorized = await checkDocumentAccess(document, req.user._id, 'read');
     if (!isAuthorized) {
+      console.log(`DOC_FETCH_AUTH_FAIL: Forbidden for user ${req.user._id} on document ${document._id}`);
       return res.status(403).json({ message: 'Not authorized to view this document' });
     }
 
     await logAuditEvent(document._id, req.user._id, 'View', req);
 
+    console.log(`DOC_FETCH_SUCCESS: ${document._id}`);
     res.json(document);
   } catch (error) {
+    console.error(`DOC_FETCH_AUTH_FAIL: Error during fetch: ${error.message}`);
     res.status(500).json({ message: 'Fetch document error', error: error.message });
   }
 });
@@ -348,7 +352,7 @@ router.get('/:id/download-audit', protect, async (req, res) => {
     // Upload to S3 storage and record URL in DB
     if (isR2Active()) {
       try {
-        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        const uploadsDir = resolveStoragePath();
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
@@ -965,6 +969,8 @@ router.get('/:id/public', async (req, res) => {
     await logAuditEvent(document._id, null, 'View', req);
 
     const fields = await SignatureField.find({ documentId: document._id });
+    const recipients = await DocumentRecipient.find({ documentId: document._id });
+    const auditLogs = await AuditLog.find({ documentId: document._id }).populate('userId').sort({ createdAt: -1 });
 
     res.json({
       _id: document._id,
@@ -973,7 +979,9 @@ router.get('/:id/public', async (req, res) => {
       status: document.status,
       createdAt: document.createdAt,
       sha256Checksum: document.sha256Checksum,
-      signatureFields: fields
+      signatureFields: fields,
+      recipients,
+      auditLogs
     });
   } catch (error) {
     res.status(500).json({ message: 'Public access error', error: error.message });
@@ -1003,18 +1011,36 @@ router.patch('/:id/layout', protect, async (req, res) => {
     const savedFields = [];
     for (const f of fields) {
       if (f._id) {
-        const updated = await SignatureField.findByIdAndUpdate(f._id, {
-          xPercent: f.xPercent,
-          yPercent: f.yPercent,
-          widthPercent: f.widthPercent,
-          heightPercent: f.heightPercent,
-          recipientEmail: f.recipientEmail,
-          type: f.type,
-          page: f.page,
-          status: f.status || 'Pending',
-          value: f.value
-        }, { new: true });
-        if (updated) savedFields.push(updated);
+        const existing = await SignatureField.findById(f._id);
+        if (existing) {
+          const updated = await SignatureField.findByIdAndUpdate(f._id, {
+            xPercent: f.xPercent,
+            yPercent: f.yPercent,
+            widthPercent: f.widthPercent,
+            heightPercent: f.heightPercent,
+            recipientEmail: f.recipientEmail,
+            type: f.type,
+            page: f.page,
+            status: f.status || 'Pending',
+            value: f.value
+          }, { returnDocument: 'after' });
+          if (updated) savedFields.push(updated);
+        } else {
+          const created = await SignatureField.create({
+            _id: f._id,
+            documentId,
+            xPercent: f.xPercent,
+            yPercent: f.yPercent,
+            widthPercent: f.widthPercent,
+            heightPercent: f.heightPercent,
+            recipientEmail: f.recipientEmail,
+            type: f.type,
+            page: f.page,
+            status: f.status || 'Pending',
+            value: f.value
+          });
+          savedFields.push(created);
+        }
       } else {
         const created = await SignatureField.create({
           documentId,

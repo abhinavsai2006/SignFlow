@@ -39,7 +39,7 @@ export default function MobileDrawer({
       {/* Drawer */}
       <div className={`absolute top-0 left-0 bottom-0 w-[280px] bg-canvas shadow-xl transform transition-transform animate-base ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-[64px] flex items-center justify-between px-xl border-b border-hairline-soft">
-          <span className="text-heading-sm font-bold tracking-tight text-ink-deep">SignFlow <span className="text-primary">AI</span></span>
+          <span className="text-heading-sm font-bold tracking-tight text-ink-deep">SignFlow</span>
           <button onClick={onClose} className="p-xs hover:bg-surface-soft rounded-circle text-ink transition-colors">
             <X className="w-6 h-6" />
           </button>

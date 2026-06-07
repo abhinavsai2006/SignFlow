@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { protect } from '../middleware/authMiddleware.js';
 import { sendWelcomeEmail } from '../middleware/emailService.js';
+import { resolveStoragePath } from '../utils/storagePath.js';
 import EmailLog from '../models/EmailLog.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -111,7 +112,7 @@ router.get('/status', protect, async (req, res) => {
 
     let storage = 'Healthy';
     try {
-      const uploadsDir = path.join(__dirname, '../uploads');
+      const uploadsDir = resolveStoragePath();
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }

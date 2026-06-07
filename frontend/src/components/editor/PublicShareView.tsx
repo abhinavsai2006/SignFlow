@@ -116,6 +116,11 @@ export default function PublicShareView() {
   // Completion state
   const [allSigned, setAllSigned] = useState(false);
   const [mobileDrawerTab, setMobileDrawerTab] = useState<'fields' | 'controls' | null>(null);
+  
+  // Design redesign states
+  const [recipients, setRecipients] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [mobileActiveTab, setMobileActiveTab] = useState<'document' | 'fields' | 'details'>('document');
 
   // Page canvas render tasks cleanup
   const renderTaskRefs = useRef<Record<number, any>>({});
@@ -128,6 +133,8 @@ export default function PublicShareView() {
       const { data } = await axios.get(url);
       setDocData(data);
       setFields(data.signatureFields || []);
+      setRecipients(data.recipients || []);
+      setAuditLogs(data.auditLogs || []);
       setIsPasswordRequired(false);
 
       const pdfUrl = `${BASE_URL}/api/docs/${id}/public-download${pw ? `?password=${encodeURIComponent(pw)}` : ''}`;
@@ -700,6 +707,115 @@ export default function PublicShareView() {
     );
   };
 
+  const renderSidebarContent = () => {
+    return (
+      <div className="space-y-6">
+        {/* Document Details */}
+        <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+          <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Document Details</p>
+          <div className="text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-slate">Filename:</span>
+              <span className="font-medium text-ink-deep text-right break-all ml-2">{docData?.filename}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate">Status:</span>
+              <span className="font-medium text-ink-deep">{docData?.status}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate">Uploaded:</span>
+              <span className="font-medium text-ink-deep">
+                {docData?.createdAt ? new Date(docData.createdAt).toLocaleDateString() : 'N/A'}
+              </span>
+            </div>
+            {docData?.sha256Checksum && (
+              <div className="pt-2 border-t border-hairline-soft">
+                <span className="block text-slate mb-1 text-[9px] font-bold uppercase">SHA-256 Checksum</span>
+                <span className="block font-mono text-[9px] text-emerald-400 break-all select-all p-1 bg-black/20 rounded">
+                  {docData.sha256Checksum}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recipients List */}
+        <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+          <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Recipients</p>
+          <div className="space-y-2">
+            {recipients.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No recipients registered.</p>
+            ) : (
+              recipients.map((r, i) => (
+                <div key={r._id || i} className="flex items-center justify-between text-xs p-2 bg-white/5 rounded-lg border border-hairline-soft">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p className="font-bold text-ink-deep truncate">{r.name}</p>
+                    <p className="text-slate text-[10px] truncate">{r.email}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                    r.status === 'Signed' ? 'bg-success/15 text-success border border-success/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                  }`}>
+                    {r.status || 'Pending'}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Audit Trail */}
+        <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-1.5 justify-between">
+            <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Security & Audit</p>
+            <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold">SSL Secure</span>
+          </div>
+          <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+            {auditLogs.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No audit trail generated.</p>
+            ) : (
+              auditLogs.map((log, i) => (
+                <div key={log._id || i} className="text-[10px] leading-tight pb-2 border-b border-hairline-soft last:border-b-0 space-y-0.5">
+                  <div className="flex justify-between font-medium">
+                    <span className="text-ink-deep">{log.action}</span>
+                    <span className="text-slate-500 font-mono">
+                      {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-slate truncate">IP: {log.ipAddress}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Your Signing Fields */}
+        <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+          <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Your Pending Fields</p>
+          {myPendingFields.length === 0 ? (
+            <div className="text-center py-4 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
+              <p className="text-emerald-400 text-xs font-bold">All Signed!</p>
+            </div>
+          ) : (
+            myPendingFields.map(f => (
+              <button
+                key={f._id}
+                onClick={() => { setCurrentPage(f.page); openSigningModal(f); }}
+                className="w-full text-left p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-primary-hover/20 transition text-xs flex items-center justify-between cursor-pointer"
+              >
+                <div>
+                  <span className="font-bold text-blue-300">{f.type}</span>
+                  <span className="text-slate-500 text-[10px] block">Page {f.page}</span>
+                </div>
+                <span className="text-[9px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold uppercase">Sign</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-canvas text-ink-deep flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -741,45 +857,153 @@ export default function PublicShareView() {
         </div>
       </header>
 
-      {/* Body — fills remaining height, two-column grid on desktop, single column on mobile */}
-      <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-[320px_1fr] overflow-hidden bg-canvas min-h-0">
-        {/* Left instructions panel */}
-        <aside className="bg-surface-soft border-r border-hairline-soft p-4 flex flex-col gap-4 hidden md:flex overflow-y-auto">
-          <div>
-            <p className="text-xs font-bold text-slate uppercase tracking-wider mb-3">Your Fields</p>
-            {myPendingFields.length === 0 ? (
-              <div className="text-center py-6">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                <p className="text-emerald-400 text-sm font-bold">All Signed!</p>
-              </div>
-            ) : (
-              myPendingFields.map(f => (
-                <button
-                  key={f._id}
-                  onClick={() => { setCurrentPage(f.page); openSigningModal(f); }}
-                  className="w-full text-left p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl mb-2 hover:bg-primary-hover/20 transition text-sm"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Edit3 className="w-3 h-3 text-blue-400" />
-                    <span className="font-bold text-blue-300">{f.type}</span>
-                  </div>
-                  <p className="text-slate-500 text-xs">Page {f.page}</p>
-                </button>
-              ))
-            )}
-          </div>
-          <div className="mt-auto">
-            <div className="bg-white/5 border border-hairline-soft rounded-xl p-3 text-xs text-slate space-y-1">
-              <p className="font-bold text-slate-300">How to sign</p>
-              <p>1. Click a blue field on the document</p>
-              <p>2. Draw, type, or upload your signature</p>
-              <p>3. Click "Apply Signature"</p>
-            </div>
-          </div>
+      {/* Mobile Tab Selector */}
+      <div className="md:hidden flex bg-surface-soft border-b border-hairline-soft shrink-0">
+        <button
+          onClick={() => setMobileActiveTab('document')}
+          className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-colors ${
+            mobileActiveTab === 'document' ? 'border-primary text-primary font-bold' : 'border-transparent text-slate'
+          }`}
+        >
+          Document
+        </button>
+        <button
+          onClick={() => setMobileActiveTab('fields')}
+          className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-colors ${
+            mobileActiveTab === 'fields' ? 'border-primary text-primary font-bold' : 'border-transparent text-slate'
+          }`}
+        >
+          Fields ({myPendingFields.length})
+        </button>
+        <button
+          onClick={() => setMobileActiveTab('details')}
+          className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-colors ${
+            mobileActiveTab === 'details' ? 'border-primary text-primary font-bold' : 'border-transparent text-slate'
+          }`}
+        >
+          Details
+        </button>
+      </div>
+
+      {/* Body — fills remaining height, two-column grid on desktop, tabbed view on mobile */}
+      <div className="flex-1 w-full flex md:grid md:grid-cols-[320px_1fr] overflow-hidden bg-canvas min-h-0">
+        
+        {/* Left sidebar: hidden on mobile, visible on desktop */}
+        <aside className="bg-surface-soft border-r border-hairline-soft p-4 w-[320px] shrink-0 hidden md:flex flex-col gap-4 overflow-y-auto">
+          {renderSidebarContent()}
         </aside>
 
-        {/* PDF Viewer */}
-        <main ref={viewerContainerRef} className="overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14] w-full min-w-0">
+        {/* Mobile Tab View Content */}
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden w-full bg-canvas">
+          {mobileActiveTab === 'fields' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <p className="text-xs font-bold text-slate uppercase tracking-wider mb-2">Your Pending Fields</p>
+              {myPendingFields.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+                  <p className="text-emerald-400 text-base font-bold">All Fields Signed!</p>
+                  <p className="text-slate text-xs mt-1">You can now proceed to review or download the document.</p>
+                </div>
+              ) : (
+                myPendingFields.map(f => (
+                  <button
+                    key={f._id}
+                    onClick={() => { setCurrentPage(f.page); openSigningModal(f); }}
+                    className="w-full text-left p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl hover:bg-primary-hover/20 transition text-sm flex items-center justify-between cursor-pointer"
+                  >
+                    <div>
+                      <p className="font-bold text-blue-300">{f.type}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">Page {f.page}</p>
+                    </div>
+                    <span className="text-xs bg-blue-500/25 text-blue-300 px-3 py-1 rounded-full font-bold">Sign</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {mobileActiveTab === 'details' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* Document Details Card */}
+              <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+                <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Document Details</p>
+                <div className="text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate">Filename:</span>
+                    <span className="font-medium text-ink-deep text-right break-all ml-2">{docData?.filename}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate">Status:</span>
+                    <span className="font-medium text-ink-deep">{docData?.status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate">Uploaded:</span>
+                    <span className="font-medium text-ink-deep">
+                      {docData?.createdAt ? new Date(docData.createdAt).toLocaleDateString() : 'N/A'}
+                    </span>
+                  </div>
+                  {docData?.sha256Checksum && (
+                    <div className="pt-2 border-t border-hairline-soft">
+                      <span className="block text-slate mb-1 text-[9px] font-bold uppercase">SHA-256 Checksum</span>
+                      <span className="block font-mono text-[9px] text-emerald-400 break-all select-all p-1 bg-black/20 rounded">
+                        {docData.sha256Checksum}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recipients Card */}
+              <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+                <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Recipients</p>
+                <div className="space-y-2">
+                  {recipients.map((r, i) => (
+                    <div key={r._id || i} className="flex items-center justify-between text-xs p-2 bg-white/5 rounded-lg border border-hairline-soft">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="font-bold text-ink-deep truncate">{r.name}</p>
+                        <p className="text-slate text-[10px] truncate">{r.email}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        r.status === 'Signed' ? 'bg-success/15 text-success' : 'bg-amber-500/15 text-amber-400'
+                      }`}>
+                        {r.status || 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Security & Audit Card */}
+              <div className="bg-white/5 border border-hairline-soft rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-1.5 justify-between">
+                  <p className="text-[10px] font-bold text-slate uppercase tracking-wider">Security & Audit</p>
+                  <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold">SSL Secure</span>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {auditLogs.map((log, i) => (
+                    <div key={log._id || i} className="text-[10px] leading-tight pb-2 border-b border-hairline-soft last:border-b-0 space-y-0.5">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-ink-deep">{log.action}</span>
+                        <span className="text-slate-500 font-mono">
+                          {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-slate truncate">IP: {log.ipAddress}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* PDF Viewer Pane */}
+        <main 
+          ref={viewerContainerRef} 
+          className={`overflow-auto p-6 pb-20 md:pb-6 flex-col items-center gap-6 bg-[#0d0d14] w-full min-w-0 flex-1 ${
+            mobileActiveTab === 'document' ? 'flex' : 'hidden md:flex'
+          }`}
+        >
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
             <div
               key={pageNum}
@@ -1229,23 +1453,37 @@ export default function PublicShareView() {
         </div>
       )}
 
-      {/* Mobile Bottom Toolbar */}
+      {/* Mobile Bottom Toolbar (Redesigned with explicit tabs) */}
       {docData?.status !== 'Signed' && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-surface-soft border-t border-hairline-soft flex items-center justify-around px-4 shrink-0 z-40 select-none">
           <button 
-            onClick={() => setMobileDrawerTab('fields')} 
-            className="flex flex-col items-center justify-center text-slate hover:text-blue-400 transition-colors cursor-pointer"
+            onClick={() => setMobileActiveTab('document')} 
+            className={`flex flex-col items-center justify-center transition-colors cursor-pointer ${
+              mobileActiveTab === 'document' ? 'text-primary' : 'text-slate hover:text-blue-400'
+            }`}
           >
-            <ClipboardList className="w-5 h-5" />
-            <span className="text-[10px] font-bold mt-0.5">Fields</span>
+            <FileText className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-0.5">Document</span>
           </button>
 
           <button 
-            onClick={() => setMobileDrawerTab('controls')} 
-            className="flex flex-col items-center justify-center text-slate hover:text-blue-400 transition-colors cursor-pointer"
+            onClick={() => setMobileActiveTab('fields')} 
+            className={`flex flex-col items-center justify-center transition-colors cursor-pointer ${
+              mobileActiveTab === 'fields' ? 'text-primary' : 'text-slate hover:text-blue-400'
+            }`}
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-0.5">Fields ({myPendingFields.length})</span>
+          </button>
+
+          <button 
+            onClick={() => setMobileActiveTab('details')} 
+            className={`flex flex-col items-center justify-center transition-colors cursor-pointer ${
+              mobileActiveTab === 'details' ? 'text-primary' : 'text-slate hover:text-blue-400'
+            }`}
           >
             <Settings className="w-5 h-5" />
-            <span className="text-[10px] font-bold mt-0.5">Controls</span>
+            <span className="text-[10px] font-bold mt-0.5">Details</span>
           </button>
 
           {myPendingFields.length > 0 ? (
@@ -1253,11 +1491,11 @@ export default function PublicShareView() {
               onClick={() => openSigningModal(myPendingFields[0])}
               className="px-4 py-2 bg-primary hover:bg-primary-hover text-ink-deep rounded-full text-xs font-bold shadow-md cursor-pointer"
             >
-              Sign Now
+              Sign
             </button>
           ) : (
-            <div className="text-xs text-emerald-400 font-bold px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-              ✓ All Signed
+            <div className="text-[10px] text-emerald-400 font-bold px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+              ✓ Done
             </div>
           )}
         </div>

@@ -20,6 +20,7 @@ import crypto from 'crypto';
 import { generateFinalizedPdf } from '../services/pdfService.js';
 import { readPdfBytes } from '../utils/fileLoader.js';
 import { uploadFile, deleteFile, getSignedUrl, isR2Active } from '../services/r2Service.js';
+import { resolveStoragePath } from '../utils/storagePath.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -526,15 +527,18 @@ router.put('/:id', protect, async (req, res) => {
 // @route   PUT /api/signatures/:id/sign
 // @desc    Sign a signature field and log audit event
 router.put('/:id/sign', protect, async (req, res) => {
+  console.log(`SIGN_FIELD_START: ${req.params.id}`);
   try {
     const { status, signatureValue } = req.body;
     const field = await SignatureField.findById(req.params.id);
     if (!field) {
+      console.error(`SIGN_FIELD_FAIL: Field not found - ${req.params.id}`);
       return res.status(404).json({ message: 'Signature field not found' });
     }
 
     // Verify ownership/recipient assignment
     if (field.recipientEmail.toLowerCase() !== req.user.email.toLowerCase()) {
+      console.error(`SIGN_FIELD_FAIL: Email mismatch - field assigned to ${field.recipientEmail}, signed by ${req.user.email}`);
       return res.status(403).json({ message: `This signature field is assigned to ${field.recipientEmail}, not you.` });
     }
 
@@ -553,6 +557,7 @@ router.put('/:id/sign', protect, async (req, res) => {
             status: { $ne: 'Signed' }
           });
           if (pendingCount > 0) {
+            console.error(`SIGN_FIELD_FAIL: Out of order signing - ${prec.email} must sign first`);
             return res.status(403).json({ 
               message: `It is not your turn to sign. ${prec.name} (${prec.email}) must sign first.` 
             });
@@ -655,8 +660,10 @@ router.put('/:id/sign', protect, async (req, res) => {
       await document.save();
     }
 
+    console.log(`SIGN_FIELD_SUCCESS: ${field._id}`);
     res.json(field);
   } catch (error) {
+    console.error(`SIGN_FIELD_FAIL: Error during signing - ${error.message}`);
     res.status(500).json({ message: 'Failed to sign signature field', error: error.message });
   }
 });
@@ -701,8 +708,8 @@ router.post('/finalize', protect, async (req, res) => {
       return res.status(400).json({ message: 'Please sign all placed placeholders before finalization.' });
     }
 
-    // Use /data/uploads in production
-    const uploadsDir = fs.existsSync('/data') ? '/data/uploads' : path.join(__dirname, '../uploads');
+    // Use unified storage path helper
+    const uploadsDir = resolveStoragePath();
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -877,26 +884,31 @@ router.post('/verify/:documentId', async (req, res) => {
 // @route   POST /api/signatures/:id/sign-public
 // @desc    Allow a public (unauthenticated) signer to submit their signature value
 router.post('/:id/sign-public', async (req, res) => {
+  console.log(`SIGN_FIELD_START: ${req.params.id}`);
   try {
     const { signatureValue, signerEmail, signerName } = req.body;
     if (!signatureValue || !signerEmail) {
+      console.error(`SIGN_FIELD_FAIL: Missing value or email - ${req.params.id}`);
       return res.status(400).json({ message: 'signatureValue and signerEmail are required' });
     }
 
     const field = await SignatureField.findById(req.params.id);
     if (!field) {
+      console.error(`SIGN_FIELD_FAIL: Field not found - ${req.params.id}`);
       return res.status(404).json({ message: 'Signature field not found' });
     }
 
     console.log("SIGNING_STARTED:", field.documentId, signerEmail);
 
     if (field.recipientEmail.toLowerCase() !== signerEmail.toLowerCase()) {
+      console.error(`SIGN_FIELD_FAIL: Email mismatch - field assigned to ${field.recipientEmail}, signed by ${signerEmail}`);
       return res.status(403).json({
         message: `This field is assigned to ${field.recipientEmail}, not ${signerEmail}.`
       });
     }
 
     if (field.status === 'Signed') {
+      console.error(`SIGN_FIELD_FAIL: Already signed - ${req.params.id}`);
       return res.status(409).json({ message: 'This field has already been signed.' });
     }
 
@@ -959,8 +971,10 @@ router.post('/:id/sign-public', async (req, res) => {
       }
     }
 
+    console.log(`SIGN_FIELD_SUCCESS: ${field._id}`);
     res.json({ message: 'Signature submitted successfully', field });
   } catch (error) {
+    console.error(`SIGN_FIELD_FAIL: Error during public signing - ${error.message}`);
     res.status(500).json({ message: 'Failed to submit public signature', error: error.message });
   }
 });

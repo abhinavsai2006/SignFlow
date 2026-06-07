@@ -61,6 +61,19 @@
   --spacing-section: 64px;
   --spacing-section-lg: 80px;
   --spacing-hero: 120px;
+
+  /* Standard container widths to prevent Tailwind v4 from falling back to small custom spacing values */
+  --width-xs: 20rem;
+  --width-sm: 24rem;
+  --width-md: 28rem;
+  --width-lg: 32rem;
+  --width-xl: 36rem;
+  --width-2xl: 42rem;
+  --width-3xl: 48rem;
+  --width-4xl: 56rem;
+  --width-5xl: 64rem;
+  --width-6xl: 72rem;
+  --width-7xl: 80rem;
 }
 
 /* Dark Mode Variables */

@@ -3,6 +3,11 @@ import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
   let token;
+  const isDocFetch = req.originalUrl && (req.originalUrl.includes('/api/docs/') || req.originalUrl.includes('/api/documents/'));
+
+  if (isDocFetch) {
+    console.log(`DOC_FETCH_START: ${req.originalUrl}`);
+  }
 
   if (
     req.headers.authorization &&
@@ -20,9 +25,15 @@ export const protect = async (req, res, next) => {
       next();
     } catch (error) {
       console.error('Token verification error:', error.message);
+      if (isDocFetch) {
+        console.log(`DOC_FETCH_AUTH_FAIL: Token failed - ${error.message}`);
+      }
       res.status(401).json({ message: 'Not authorized, token failed' });
     }
   } else {
+    if (isDocFetch) {
+      console.log('DOC_FETCH_AUTH_FAIL: No token provided');
+    }
     res.status(401).json({ message: 'Not authorized, no token' });
   }
 };

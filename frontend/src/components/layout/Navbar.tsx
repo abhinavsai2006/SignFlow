@@ -21,7 +21,7 @@ export default function Navbar({ user, onMenuClick, onLogout }: NavbarProps) {
           <Menu className="w-6 h-6" />
         </button>
         <div className="flex items-center">
-          <span className="text-heading-sm font-bold tracking-tight text-ink-deep">SignFlow <span className="text-primary">AI</span></span>
+          <span className="text-heading-sm font-bold tracking-tight text-ink-deep">SignFlow</span>
         </div>
       </div>
 
