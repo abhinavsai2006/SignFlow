@@ -7,6 +7,7 @@ export function usePdfViewer(pdfUrl: string | null) {
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.2);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [initialFitDone, setInitialFitDone] = useState(false);
 
   const viewerContainerRef = useRef<HTMLDivElement | null>(null);
   const pageContainerRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -16,6 +17,7 @@ export function usePdfViewer(pdfUrl: string | null) {
     if (!pdfUrl) return;
     try {
       setIsPdfLoading(true);
+      setInitialFitDone(false);
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
@@ -36,9 +38,9 @@ export function usePdfViewer(pdfUrl: string | null) {
 
   const handleFitWidth = useCallback(() => {
     if (!pdfDoc || !viewerContainerRef.current) return;
-    const containerWidth = viewerContainerRef.current.clientWidth - 48; // padding
+    const containerWidth = viewerContainerRef.current.clientWidth - 48;
     if (containerWidth <= 0) return;
-    
+
     pdfDoc.getPage(1).then((page) => {
       const originalViewport = page.getViewport({ scale: 1 });
       const fitScale = containerWidth / originalViewport.width;
@@ -46,21 +48,38 @@ export function usePdfViewer(pdfUrl: string | null) {
     });
   }, [pdfDoc]);
 
-  // Use ResizeObserver for immediate fit width on layout changes (P0-1)
+  // Trigger initial fit-width once after PDF doc is available and container is mounted
+  useEffect(() => {
+    if (!pdfDoc || initialFitDone) return;
+    // Use two requestAnimationFrames to ensure DOM refs are fully laid out
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        handleFitWidth();
+        setInitialFitDone(true);
+      });
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [pdfDoc, initialFitDone, handleFitWidth]);
+
+  // ResizeObserver: re-fit when container resizes (sidebar open/close, window resize)
   useEffect(() => {
     const container = viewerContainerRef.current;
     if (!container || !pdfDoc) return;
-    
-    let resizeTimer: any;
+
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver(() => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         handleFitWidth();
-      }, 50); // slight debounce for smooth resizing
+      }, 60);
     });
 
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(resizeTimer);
+      observer.disconnect();
+    };
   }, [pdfDoc, handleFitWidth]);
 
   const renderPage = useCallback(async (pageNum: number) => {
@@ -68,8 +87,16 @@ export function usePdfViewer(pdfUrl: string | null) {
     const container = pageContainerRefs.current[pageNum];
     if (!container) return;
 
-    let canvas = container.querySelector<HTMLCanvasElement>('canvas');
-    if (!canvas) {
+    // Remove any existing canvas to avoid duplicates
+    const existingCanvases = container.querySelectorAll<HTMLCanvasElement>('canvas');
+    let canvas: HTMLCanvasElement;
+    if (existingCanvases.length > 1) {
+      // Duplicate canvases — remove extras, keep one
+      existingCanvases.forEach((c, idx) => { if (idx > 0) c.remove(); });
+      canvas = existingCanvases[0];
+    } else if (existingCanvases.length === 1) {
+      canvas = existingCanvases[0];
+    } else {
       canvas = document.createElement('canvas');
       canvas.className = 'block';
       container.insertBefore(canvas, container.firstChild);
@@ -79,19 +106,20 @@ export function usePdfViewer(pdfUrl: string | null) {
     if (!context) return;
 
     if (renderTaskRefs.current[pageNum]) {
-      renderTaskRefs.current[pageNum].cancel();
+      try { renderTaskRefs.current[pageNum].cancel(); } catch (_) { /* ignore */ }
     }
 
     try {
       const page = await pdfDoc.getPage(pageNum);
-      const dpr = (window.devicePixelRatio || 1) * 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2x for performance
       const viewport = page.getViewport({ scale: scale * dpr });
       const cssViewport = page.getViewport({ scale });
-      
+
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.style.width = `${cssViewport.width}px`;
       canvas.style.height = `${cssViewport.height}px`;
+      canvas.style.display = 'block';
 
       context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -105,13 +133,14 @@ export function usePdfViewer(pdfUrl: string | null) {
     }
   }, [pdfDoc, scale]);
 
+  // Re-render all pages when doc or scale changes
   useEffect(() => {
-    if (!pdfDoc) return;
+    if (!pdfDoc || numPages === 0) return;
     const timer = setTimeout(() => {
       for (let p = 1; p <= numPages; p++) {
         renderPage(p);
       }
-    }, 100);
+    }, 150);
     return () => clearTimeout(timer);
   }, [pdfDoc, numPages, scale, renderPage]);
 
@@ -125,6 +154,6 @@ export function usePdfViewer(pdfUrl: string | null) {
     isPdfLoading,
     viewerContainerRef,
     pageContainerRefs,
-    handleFitWidth
+    handleFitWidth,
   };
 }

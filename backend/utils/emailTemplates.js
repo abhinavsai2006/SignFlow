@@ -397,7 +397,7 @@ export const getVerificationSuccessTemplate = (name) => {
 export const getLoginOtpTemplate = (name, otp) => {
   return generateEmailTemplate({
     title: 'One-Time Verification Code',
-    message: `Hello ${name},<br><br>Here is your one-time verification code (OTP) to complete your login. This code is valid for 10 minutes:<br><br><span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #076424;">${otp}</span>`,
+    message: `Hello ${name},<br><br>Here is your one-time verification code (OTP) to complete your login. This code is valid for 10 minutes:<br><br><span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #0f172a; font-family: 'Courier New', Courier, monospace; background:#f1f5f9; padding:8px 16px; border-radius:6px; border:1px solid #e2e8f0; display:inline-block;">${otp}</span>`,
     badgeText: 'SECURITY VERIFICATION'
   });
 };

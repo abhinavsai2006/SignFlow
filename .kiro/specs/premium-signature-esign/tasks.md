@@ -53,10 +53,10 @@ Incremental implementation across four areas: metadata fix first (unblocks certi
     - Use `fast-check` with `arbitraryR2Document()` generating documents with raw R2 key `originalFileUrl`
     - Assert returned `originalFileUrl` matches `^https://` and contains a signature query parameter
 
-- [~] 4. Checkpoint — Ensure all tests pass
+- [ ] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 5. Create SigningModal component
+- [ ] 5. Create SigningModal component
   - Create `frontend/src/components/editor/SigningModal.tsx`
   - Implement props interface: `{ isOpen, field, onConfirm, onClose }`
   - Extract the draw/type/upload tab logic from `DocumentEditor.tsx` into this component
@@ -70,24 +70,24 @@ Incremental implementation across four areas: metadata fix first (unblocks certi
   - Mobile: full-width canvas, min-height 160px on viewport < 768px; mode-switcher tabs wrap to single row
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8_
 
-  - [~] 5.1 Write property test for empty canvas blocking submission
+  - [ ] 5.1 Write property test for empty canvas blocking submission
     - **Property 1: empty canvas blocks submission**
     - **Validates: Requirements 1.4**
     - Use `fast-check` with `fc.constant(true)` for `isEmpty`, render `SigningModal` with mocked canvas
     - Assert no `api.put` called, modal remains open, error message present in DOM
 
-  - [~] 5.2 Write property test for undo history bounded at 10
+  - [ ] 5.2 Write property test for undo history bounded at 10
     - **Property 2: undo history is bounded**
     - **Validates: Requirements 1.5**
     - Use `fast-check` with `fc.integer({ min: 1, max: 50 })` for stroke count
     - Simulate pushing to history array with eviction logic and assert length never exceeds 10
 
-  - [~] 5.3 Write unit tests for SigningModal
+  - [ ] 5.3 Write unit tests for SigningModal
     - Type mode renders preview with correct font class for each font option
     - Upload tab accepts PNG and JPEG, rejects non-image MIME types
     - Empty type name prevents confirmation
 
-- [~] 6. Create CertificatePanel component
+- [ ] 6. Create CertificatePanel component
   - Create `frontend/src/components/editor/CertificatePanel.tsx`
   - Implement props interface: `{ isOpen, field, sha256Checksum?, onClose }`
   - Render sections in order: green verification banner → dev warning (conditional) → Identity → Event → Device → Cryptographic → Compliance
@@ -100,35 +100,35 @@ Incremental implementation across four areas: metadata fix first (unblocks certi
   - Apply same Meta design tokens as SigningModal
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
 
-  - [~] 6.1 Write property test for certificate panel rendering all metadata
+  - [ ] 6.1 Write property test for certificate panel rendering all metadata
     - **Property 3: certificate panel renders all metadata fields**
     - **Validates: Requirements 2.1, 2.3**
     - Use `fast-check` with `arbitrarySignedField()` generating fields with all metadata populated
     - Assert DOM contains elements for each: signerName, email, ipAddress, location, browser, device, OS, certificateId, auditId, SHA-256
 
-  - [~] 6.2 Write property test for timestamp formatting
+  - [ ] 6.2 Write property test for timestamp formatting
     - **Property 4: timestamp formatting is correct for all dates**
     - **Validates: Requirements 2.4**
     - Use `fc.date()` and assert `formatTimestamp(date.toISOString())` matches `/^\d{2} [A-Z][a-z]{2} \d{4} • \d{2}:\d{2} UTC$/`
 
-  - [~] 6.3 Write property test for local IP dev warning
+  - [ ] 6.3 Write property test for local IP dev warning
     - **Property 5: local IP triggers dev warning**
     - **Validates: Requirements 2.7**
     - Use `fc.oneof` over the four local IP values, assert `[data-testid="dev-warning"]` present and `[data-testid="verified-banner"]` absent
 
-  - [~] 6.4 Write unit tests for CertificatePanel
+  - [ ] 6.4 Write unit tests for CertificatePanel
     - Specific example with all fields populated renders correct values
     - Example with all metadata null shows `—` placeholders, never "Unavailable"
     - Example without SHA-256 hides the fingerprint section entirely
 
-- [~] 7. Wire SigningModal and CertificatePanel into DocumentEditor.tsx
+- [ ] 7. Wire SigningModal and CertificatePanel into DocumentEditor.tsx
   - In `DocumentEditor.tsx`, replace the inline signing overlay JSX with `<SigningModal>` and the inline certificate JSX with `<CertificatePanel>`
   - Pass `sha256Checksum` from `document.sha256Checksum` to `CertificatePanel`
   - Ensure `onConfirm` in `SigningModal` calls `confirmSigningValue` which already spreads `...response.data` into state
   - Remove any now-redundant local state and JSX that has moved into the new components
   - _Requirements: 1.1–1.8, 2.1–2.7, 5.3_
 
-- [~] 8. Add separate Signature Scale and Signer Info Scale controls to DocumentEditor.tsx
+- [ ] 8. Add separate Signature Scale and Signer Info Scale controls to DocumentEditor.tsx
   - In the field properties panel of `DocumentEditor.tsx`, add two independent controls for Signature and Initials field types:
     - "Signature Scale" range slider: `min=25`, `max=200`, `step=25`, bound to `field.signatureScale`
     - "Signer Info Scale" dropdown: options `Small`, `Medium`, `Large`, bound to `field.metadataScale`
@@ -137,20 +137,20 @@ Incremental implementation across four areas: metadata fix first (unblocks certi
   - Visual canvas preview should reflect `signatureScale` change immediately
   - _Requirements: 3.1, 3.2, 3.3_
 
-  - [~] 8.1 Write property test for scale properties round-trip through state
+  - [ ] 8.1 Write property test for scale properties round-trip through state
     - **Property 6: scale properties round-trip through state**
     - **Validates: Requirements 3.2, 3.3**
     - Use `fc.oneof` over `[25,50,75,100,125,150,175,200]` for scale, `fc.oneof` over `['Small','Medium','Large']` for metaScale
     - Simulate `applyScaleUpdate(baseField, scale, metaScale)` and assert output fields match input values exactly
 
-- [~] 9. Verify responsive toolbar wiring
+- [ ] 9. Verify responsive toolbar wiring
   - Confirm mobile bottom toolbar Sign button calls `handleFinalizePDF` (same handler as desktop "Finalize & Sign")
   - Confirm mobile drawer close handler does not mutate signature state
   - Confirm single-finger drag on mobile canvas routes to scroll (`e.touches.length === 1` check before field placement)
   - Add the `touches.length` guard if missing
   - _Requirements: 4.3, 4.4, 4.5_
 
-- [~] 10. Final checkpoint — Ensure all tests pass
+- [ ] 10. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

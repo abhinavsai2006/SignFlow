@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, type ChangeEvent } from 'react';
-import { X, Undo, Upload, Type, Edit3, CheckCircle2 } from 'lucide-react';
+import { useRef, useState, useEffect, useLayoutEffect, type ChangeEvent } from 'react';
+import { X, Undo, Upload, Type, Edit3, CheckCircle2, RotateCcw } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import type { SignatureField } from '../../hooks/useShareDocument';
 
@@ -12,177 +12,249 @@ interface SignatureModalProps {
   isSubmitting: boolean;
 }
 
+const FONTS = [
+  { id: 'great-vibes',      label: 'Elegant',   class: 'font-great-vibes' },
+  { id: 'dancing-script',   label: 'Dancing',   class: 'font-dancing-script' },
+  { id: 'allura',           label: 'Allura',    class: 'font-allura' },
+  { id: 'cursive',          label: 'Classic',   class: 'font-cursive' },
+] as const;
+
+type FontId = typeof FONTS[number]['id'];
+type TabType = 'draw' | 'type' | 'upload';
+
 export function SignatureModal({
   activeField,
   signerEmail,
   signerName,
   onClose,
   onSignConfirm,
-  isSubmitting
+  isSubmitting,
 }: SignatureModalProps) {
-  const [signatureType, setSignatureType] = useState<'draw' | 'type' | 'upload'>('draw');
+  const [tab, setTab] = useState<TabType>('draw');
   const [typedName, setTypedName] = useState('');
-  const [selectedFont, setSelectedFont] = useState<'great-vibes' | 'dancing-script' | 'allura' | 'cursive'>('great-vibes');
+  const [selectedFont, setSelectedFont] = useState<FontId>('great-vibes');
   const [uploadedBase64, setUploadedBase64] = useState('');
-  const [signatureColor, setSignatureColor] = useState<'black' | 'darkgray' | 'blue'>('black');
-  
-  const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
-  const drawingHistory = useRef<string[]>([]);
+  const [penColor, setPenColor] = useState<'#1a1a1a' | '#1e3a8a' | '#6b21a8'>('#1a1a1a');
+  const [isEmpty, setIsEmpty] = useState(true);
 
+  const signatureCanvasRef = useRef<SignatureCanvas | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset state whenever a new field becomes active
   useEffect(() => {
-    if (activeField) {
-      drawingHistory.current = [];
-      setTimeout(() => signatureCanvasRef.current?.clear(), 50);
-      setSignatureType('draw');
-      setTypedName(signerName || signerEmail.split('@')[0]);
-      setUploadedBase64('');
-    }
+    if (!activeField) return;
+    setTab('draw');
+    setTypedName(signerName || signerEmail.split('@')[0]);
+    setUploadedBase64('');
+    setIsEmpty(true);
+    // Clear canvas after a brief delay to avoid timing issues
+    const t = setTimeout(() => {
+      signatureCanvasRef.current?.clear();
+      setIsEmpty(true);
+    }, 80);
+    return () => clearTimeout(t);
   }, [activeField, signerName, signerEmail]);
+
+  // Fix canvas sizing: set canvas pixel width to match its CSS container
+  useLayoutEffect(() => {
+    if (tab !== 'draw' || !canvasContainerRef.current) return;
+    const container = canvasContainerRef.current;
+    const canvas = container.querySelector('canvas');
+    if (!canvas) return;
+    const width = container.clientWidth;
+    if (canvas.width !== width && width > 0) {
+      // Preserve content by temporarily saving
+      signatureCanvasRef.current?.clear();
+      canvas.width = width;
+      setIsEmpty(true);
+    }
+  }, [tab, activeField]);
 
   if (!activeField) return null;
 
-  const handleConfirm = async () => {
-    let signatureVal = '';
+  const fieldLabel = activeField.type === 'Signature'
+    ? 'Signature'
+    : activeField.type === 'Initials'
+    ? 'Initials'
+    : activeField.type;
 
-    if (signatureType === 'draw') {
+  const handleConfirm = async () => {
+    let val = '';
+    if (tab === 'draw') {
       const canvas = signatureCanvasRef.current;
       if (!canvas || canvas.isEmpty()) {
-        alert('Please draw your signature first.');
+        alert('Please draw your signature in the box below.');
         return;
       }
-      signatureVal = canvas.toDataURL();
-    } else if (signatureType === 'type') {
-      if (!typedName.trim()) { alert('Please type your name.'); return; }
-      signatureVal = `${selectedFont}:${typedName}`;
-    } else if (signatureType === 'upload') {
+      // Export with transparent background
+      val = canvas.getCanvas().toDataURL('image/png');
+    } else if (tab === 'type') {
+      if (!typedName.trim()) { alert('Please enter your name.'); return; }
+      val = `${selectedFont}:${typedName.trim()}`;
+    } else {
       if (!uploadedBase64) { alert('Please upload a signature image.'); return; }
-      signatureVal = uploadedBase64;
+      val = uploadedBase64;
     }
-
-    await onSignConfirm(signatureVal, signerName || signerEmail);
+    await onSignConfirm(val, signerName || signerEmail);
   };
 
-  const handleUploadChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('File too large. Max 2MB.'); return; }
+    if (file.size > 3 * 1024 * 1024) { alert('Image too large. Max 3 MB.'); return; }
     const reader = new FileReader();
     reader.onload = ev => setUploadedBase64(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
-  const penColor = signatureColor === 'black' ? '#000000' : signatureColor === 'darkgray' ? '#4A4A4A' : '#0064e0';
+  const handleClearDraw = () => {
+    signatureCanvasRef.current?.clear();
+    setIsEmpty(true);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-surface-soft border border-hairline-soft rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-full">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-soft shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
+      {/* Sheet / Modal */}
+      <div className="bg-white w-full sm:max-w-xl sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h2 className="font-bold text-ink-deep">Apply {activeField.type}</h2>
-            <p className="text-xs text-slate">Signing as {signerEmail}</p>
+            <h2 className="text-base font-bold text-slate-900">
+              {fieldLabel === 'Signature' ? 'Create Your Signature' : `Add ${fieldLabel}`}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Signing as <span className="font-semibold text-slate-700">{signerEmail}</span></p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
-            <X className="w-4 h-4 text-slate" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-500">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto">
-          <div className="flex bg-white/5 p-1 rounded-xl border border-hairline-soft gap-1">
-            {(['draw', 'type', 'upload'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setSignatureType(t)}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition ${
-                  signatureType === t ? 'bg-primary text-ink-deep' : 'text-slate hover:text-ink-deep'
-                }`}
-              >
-                {t === 'draw' && <><Edit3 className="w-3 h-3 inline mr-1" />Draw</>}
-                {t === 'type' && <><Type className="w-3 h-3 inline mr-1" />Type</>}
-                {t === 'upload' && <><Upload className="w-3 h-3 inline mr-1" />Upload</>}
-              </button>
-            ))}
-          </div>
+        {/* ── Tab Bar ── */}
+        <div className="flex border-b border-slate-100 bg-white">
+          {(['draw', 'type', 'upload'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 py-3 text-xs font-bold capitalize transition border-b-2 ${
+                tab === t
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {t === 'draw' && <><Edit3 className="w-3.5 h-3.5 inline mb-0.5 mr-1" />Draw</>}
+              {t === 'type' && <><Type className="w-3.5 h-3.5 inline mb-0.5 mr-1" />Type</>}
+              {t === 'upload' && <><Upload className="w-3.5 h-3.5 inline mb-0.5 mr-1" />Upload</>}
+            </button>
+          ))}
+        </div>
 
-          {signatureType === 'draw' && (
+        {/* ── Content ── */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
+          {/* DRAW TAB */}
+          {tab === 'draw' && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate">Draw your signature below</span>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">Draw in the box below</p>
                 <div className="flex gap-2">
-                  <button onClick={() => {
-                    if (signatureCanvasRef.current && drawingHistory.current.length > 0) {
-                      drawingHistory.current.pop();
-                      signatureCanvasRef.current.clear();
-                      if (drawingHistory.current.length > 0) {
-                        signatureCanvasRef.current.fromDataURL(drawingHistory.current[drawingHistory.current.length - 1]);
-                      }
-                    }
-                  }} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg border border-hairline-soft transition">
-                    <Undo className="w-3 h-3 text-slate" />
-                  </button>
-                  <button onClick={() => { signatureCanvasRef.current?.clear(); drawingHistory.current = []; }}
-                    className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg border border-hairline-soft transition">
-                    <X className="w-3 h-3 text-slate" />
+                  {/* Pen colors */}
+                  {(['#1a1a1a', '#1e3a8a', '#6b21a8'] as const).map(c => (
+                    <button
+                      key={c}
+                      onClick={() => { setPenColor(c); signatureCanvasRef.current?.clear(); setIsEmpty(true); }}
+                      className={`w-5 h-5 rounded-full border-2 transition ${penColor === c ? 'border-blue-500 scale-110' : 'border-slate-300'}`}
+                      style={{ background: c }}
+                      title={c === '#1a1a1a' ? 'Black' : c === '#1e3a8a' ? 'Blue' : 'Purple'}
+                    />
+                  ))}
+                  <div className="w-px h-5 bg-slate-200 mx-1" />
+                  <button
+                    onClick={handleClearDraw}
+                    className="p-1 hover:bg-slate-100 rounded transition text-slate-500"
+                    title="Clear"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              <div className="bg-white rounded-xl overflow-hidden border border-hairline-soft">
+
+              {/* Canvas container — must be a single canvas child */}
+              <div
+                ref={canvasContainerRef}
+                className="border-2 border-slate-300 rounded-xl bg-white overflow-hidden"
+                style={{ height: 160 }}
+              >
                 <SignatureCanvas
                   ref={signatureCanvasRef}
                   penColor={penColor}
-                  canvasProps={{ width: 460, height: 150, className: 'cursor-crosshair w-full' }}
-                  velocityFilterWeight={0.6}
-                  minWidth={1.5}
-                  maxWidth={4.0}
-                  onEnd={() => {
-                    if (signatureCanvasRef.current) {
-                      drawingHistory.current.push(signatureCanvasRef.current.toDataURL());
-                    }
+                  canvasProps={{
+                    className: 'w-full h-full cursor-crosshair',
+                    style: { width: '100%', height: '100%', display: 'block' },
                   }}
+                  velocityFilterWeight={0.6}
+                  minWidth={1.2}
+                  maxWidth={3.5}
+                  onBegin={() => setIsEmpty(false)}
+                  onEnd={() => setIsEmpty(signatureCanvasRef.current?.isEmpty() ?? true)}
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate font-bold">Ink:</span>
-                {(['black', 'darkgray', 'blue'] as const).map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setSignatureColor(c)}
-                    className={`w-6 h-6 rounded-full border-2 transition ${signatureColor === c ? 'border-blue-400 scale-110' : 'border-white/20'}`}
-                    style={{ background: c === 'black' ? '#000' : c === 'darkgray' ? '#4A4A4A' : '#0064e0' }}
-                    title={`${c} ink`}
-                  />
-                ))}
-              </div>
+
+              {isEmpty && (
+                <p className="text-center text-xs text-slate-400">← Sign inside the box above →</p>
+              )}
+
+              {/* Undo last stroke */}
+              <button
+                onClick={() => {
+                  // react-signature-canvas doesn't expose undo natively, clear instead
+                  signatureCanvasRef.current?.clear();
+                  setIsEmpty(true);
+                }}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition"
+              >
+                <Undo className="w-3 h-3" /> Clear & start over
+              </button>
             </div>
           )}
 
-          {signatureType === 'type' && (
-            <div className="space-y-3">
+          {/* TYPE TAB */}
+          {tab === 'type' && (
+            <div className="space-y-4">
               <input
                 value={typedName}
                 onChange={e => setTypedName(e.target.value)}
-                placeholder="Type your name"
-                className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 text-ink-deep placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                placeholder="Type your full name"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-slate-900 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+                autoFocus
               />
+
+              {/* Font selector */}
               <div className="grid grid-cols-4 gap-2">
-                {(['great-vibes', 'dancing-script', 'allura', 'cursive'] as const).map(font => (
+                {FONTS.map(font => (
                   <button
-                    key={font}
-                    onClick={() => setSelectedFont(font)}
-                    className={`p-2 border rounded-xl text-center transition ${selectedFont === font ? 'border-blue-500 bg-blue-500/10' : 'border-hairline-soft bg-white/5 hover:border-white/20'}`}
+                    key={font.id}
+                    onClick={() => setSelectedFont(font.id)}
+                    className={`py-3 border-2 rounded-xl transition flex flex-col items-center gap-1 ${
+                      selectedFont === font.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
                   >
-                    <span className={`text-[11px] font-bold italic text-ink-deep ${
-                      font === 'great-vibes' ? 'font-great-vibes' : font === 'dancing-script' ? 'font-dancing-script' : font === 'allura' ? 'font-allura' : 'font-cursive'
-                    }`}>
-                      {font === 'great-vibes' ? 'Vibes' : font === 'dancing-script' ? 'Dancing' : font === 'allura' ? 'Allura' : 'Cursive'}
+                    <span className={`text-lg text-slate-800 leading-none ${font.class}`}>
+                      {typedName ? typedName.split(' ')[0] : 'Sign'}
+                    </span>
+                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">
+                      {font.label}
                     </span>
                   </button>
                 ))}
               </div>
+
+              {/* Live preview */}
               {typedName && (
-                <div className="bg-white rounded-xl p-4 min-h-[80px] flex items-center justify-center">
-                  <span className={`text-3xl text-gray-800 leading-none ${
-                    selectedFont === 'great-vibes' ? 'font-great-vibes' : selectedFont === 'dancing-script' ? 'font-dancing-script' : selectedFont === 'allura' ? 'font-allura' : 'font-cursive'
-                  }`}>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex items-center justify-center bg-slate-50 min-h-[100px]">
+                  <span className={`text-4xl text-slate-800 leading-none ${FONTS.find(f => f.id === selectedFont)?.class}`}>
                     {typedName}
                   </span>
                 </div>
@@ -190,38 +262,42 @@ export function SignatureModal({
             </div>
           )}
 
-          {signatureType === 'upload' && (
-            <div className="space-y-3">
-              <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center relative hover:border-blue-500/50 transition cursor-pointer">
-                <input type="file" accept="image/*" onChange={handleUploadChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer" />
-                <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                <p className="text-slate text-sm">Click to upload signature image</p>
-                <p className="text-slate-600 text-xs">PNG, JPG up to 2MB</p>
-              </div>
+          {/* UPLOAD TAB */}
+          {tab === 'upload' && (
+            <div className="space-y-4">
+              <label className="block border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition">
+                <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-700">Click to upload signature image</p>
+                <p className="text-xs text-slate-400 mt-1">PNG or JPG with transparent background recommended • Max 3 MB</p>
+              </label>
+
               {uploadedBase64 && (
-                <div className="bg-white rounded-xl p-4 flex items-center justify-center">
-                  <img src={uploadedBase64} alt="Preview" className="max-h-[80px] object-contain" />
+                <div className="border-2 border-slate-200 rounded-xl p-4 bg-[repeating-conic-gradient(#f1f5f9_0%_25%,white_0%_50%)] bg-[length:20px_20px] flex items-center justify-center min-h-[100px]">
+                  <img src={uploadedBase64} alt="Signature preview" className="max-h-[120px] max-w-full object-contain" />
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-hairline-soft bg-white/2 shrink-0">
-          <button onClick={onClose}
-            className="px-4 py-2 text-sm text-slate hover:text-ink-deep border border-hairline-soft rounded-xl transition">
+        {/* ── Footer ── */}
+        <div className="flex justify-between items-center px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-300 rounded-xl transition"
+          >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="px-6 py-2 text-sm font-bold bg-primary hover:bg-primary-hover text-ink-deep rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
           >
             {isSubmitting ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting…</>
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Applying…</>
             ) : (
-              <><CheckCircle2 className="w-4 h-4" /> Apply Signature</>
+              <><CheckCircle2 className="w-4 h-4" /> Apply {fieldLabel}</>
             )}
           </button>
         </div>
