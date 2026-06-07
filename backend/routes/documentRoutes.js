@@ -271,10 +271,10 @@ router.get('/:id/download', protect, async (req, res) => {
     let finalBytes;
 
     // FAST PATH: Stream the already-finalized PDF directly (avoids regenerating every time)
-    if (document.finalizedPath) {
-      console.log('[Download] Streaming finalizedPath:', document.finalizedPath);
+    if (document.finalizedFileUrl || document.finalizedPath) {
+      console.log('[Download] Streaming finalizedPath:', document.finalizedFileUrl || document.finalizedPath);
       try {
-        finalBytes = await readPdfBytes(document.finalizedPath);
+        finalBytes = await readPdfBytes(document.finalizedFileUrl || document.finalizedPath);
       } catch (e) {
         console.warn('[Download] finalizedPath missing, will try originalPath:', e.message);
         // Fall through to regeneration
@@ -301,7 +301,7 @@ router.get('/:id/download', protect, async (req, res) => {
         }
       } else {
         // No signed fields — serve original
-        const originalPath = document.versions?.[0]?.path || document.originalPath;
+        const originalPath = document.originalFileUrl || (document.versions?.[0]?.path) || document.originalPath;
         try {
           finalBytes = await readPdfBytes(originalPath);
         } catch (e) {
@@ -399,9 +399,9 @@ router.get('/:id/public-download', async (req, res) => {
     let finalBytes;
 
     // FAST PATH: stream already-finalized PDF
-    if (document.finalizedPath) {
+    if (document.finalizedFileUrl || document.finalizedPath) {
       try {
-        finalBytes = await readPdfBytes(document.finalizedPath);
+        finalBytes = await readPdfBytes(document.finalizedFileUrl || document.finalizedPath);
       } catch (e) {
         console.warn('[Public Download] finalizedPath missing, falling back:', e.message);
         finalBytes = null;
@@ -423,7 +423,7 @@ router.get('/:id/public-download', async (req, res) => {
           });
         }
       } else {
-        const originalPath = document.versions?.[0]?.path || document.originalPath;
+        const originalPath = document.originalFileUrl || (document.versions?.[0]?.path) || document.originalPath;
         try {
           finalBytes = await readPdfBytes(originalPath);
         } catch (e) {

@@ -46,13 +46,17 @@ export const generateEmailTemplate = ({
 }) => {
 
   const badgeHtml = badgeText ? `
-<span style="
-background:#31a24c;
-color:#ffffff;
-padding:8px 16px;
-border-radius:100px;
-font-size:12px;
-font-weight:700;">
+<span class="email-badge" style="
+background:#f1f5f9;
+color:#475569;
+padding:6px 12px;
+border-radius:6px;
+font-size:11px;
+font-weight:600;
+letter-spacing:0.05em;
+text-transform:uppercase;
+display:inline-block;
+border:1px solid #e2e8f0;">
 ${badgeText}
 </span>` : '';
 
@@ -60,16 +64,16 @@ ${badgeText}
   if (detailsCard && detailsCard.fields && detailsCard.fields.length > 0) {
     let fieldsHtml = detailsCard.fields.map((field, index) => {
       const isLast = index === detailsCard.fields.length - 1;
-      const divider = isLast ? '' : '<hr style="border:none;border-top:1px solid #dee3e9;margin:20px 0;">';
+      const divider = isLast ? '' : '<hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">';
       return `
-<p style="margin:0;color:#8595a4;font-size:12px;text-transform:uppercase;">
+<p style="margin:0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;">
 ${field.label}
 </p>
 <p style="
-margin-top:8px;
-font-size:${index === 0 ? '20px' : '16px'};
-font-weight:${index === 0 ? '700' : '600'};
-color:#0A1317;">
+margin:6px 0 0 0;
+font-size:${index === 0 ? '18px' : '14px'};
+font-weight:${index === 0 ? '600' : '500'};
+color:#0f172a;">
 ${field.value}
 </p>
 ${divider}`;
@@ -77,13 +81,13 @@ ${divider}`;
 
     detailsCardHtml = `
 <tr>
-<td style="padding:0 50px 40px 50px;">
-<table width="100%"
+<td class="email-details-container" style="padding:0 24px 24px 24px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
 style="
 background:#f8fafc;
-border:1px solid #dee3e9;
-border-radius:24px;
-padding:24px;">
+border:1px solid #e2e8f0;
+border-radius:12px;
+padding:20px;">
 <tr>
 <td>
 ${fieldsHtml}
@@ -96,30 +100,42 @@ ${fieldsHtml}
 
   const ctaHtml = ctaText && ctaUrl ? `
 <tr>
-<td align="center" style="padding:10px 50px 50px 50px;">
-<a href="${ctaUrl}"
+<td class="email-cta-container" align="center" style="padding:8px 24px 32px 24px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td align="center">
+<a href="${ctaUrl}" class="email-button"
 style="
-background:#0064e0;
+background:#0f172a;
 color:#ffffff;
 text-decoration:none;
-padding:16px 40px;
-border-radius:100px;
-font-size:16px;
-font-weight:700;
-display:inline-block;">
+padding:0 24px;
+height:48px;
+line-height:48px;
+border-radius:8px;
+font-size:14px;
+font-weight:500;
+display:inline-block;
+text-align:center;
+box-sizing:border-box;
+width:100%;
+max-width:320px;">
 ${ctaText}
 </a>
+</td>
+</tr>
+</table>
 </td>
 </tr>` : '';
 
   const unsubscribeHtml = isMarketing ? `
 <p style="
-margin-top:20px;
+margin-top:16px;
 font-size:11px;
-line-height:1.7;
-color:#8595a4;">
-<a href="${getFrontendUrl()}/unsubscribe" style="color:#8595a4;text-decoration:underline;">Unsubscribe</a> • 
-<a href="${getFrontendUrl()}/preferences" style="color:#8595a4;text-decoration:underline;">Manage Preferences</a>
+line-height:1.6;
+color:#64748b;">
+<a href="${getFrontendUrl()}/unsubscribe" style="color:#64748b;text-decoration:underline;">Unsubscribe</a> • 
+<a href="${getFrontendUrl()}/preferences" style="color:#64748b;text-decoration:underline;">Manage Preferences</a>
 </p>
   ` : '';
 
@@ -129,187 +145,194 @@ color:#8595a4;">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title} - SignFlow</title>
+<style type="text/css">
+  @media only screen and (max-width: 600px) {
+    .email-wrapper {
+      width: 100% !important;
+      padding: 12px !important;
+    }
+    .email-container {
+      width: 100% !important;
+      border-radius: 8px !important;
+    }
+    .email-header {
+      padding: 24px 16px 16px 16px !important;
+    }
+    .email-body {
+      padding: 20px 16px !important;
+    }
+    .email-details-container {
+      padding: 0 16px 16px 16px !important;
+    }
+    .email-cta-container {
+      padding: 8px 16px 24px 16px !important;
+    }
+    .email-button {
+      max-width: 100% !important;
+      width: 100% !important;
+      display: block !important;
+    }
+    .email-card-section {
+      padding: 0 16px 20px 16px !important;
+    }
+    .email-footer {
+      padding: 24px 16px !important;
+    }
+  }
+</style>
 </head>
 
-<body style="margin:0;padding:0;background:#f1f4f7;font-family:Inter,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f4f7">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafafa">
 <tr>
-<td align="center" style="padding:40px 20px;">
+<td class="email-wrapper" align="center" style="padding:40px 20px;">
 
-<table width="680" cellpadding="0" cellspacing="0" border="0"
-style="background:#ffffff;border-radius:32px;overflow:hidden;max-width:680px;width:100%;">
+<table class="email-container" width="600" cellpadding="0" cellspacing="0" border="0"
+style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;max-width:600px;width:100%;box-shadow:0 1px 3px rgba(0,0,0,0.02);">
 
+<!-- Header -->
 <tr>
-<td style="padding:40px 50px;border-bottom:1px solid #dee3e9;">
-
-<table width="100%">
+<td class="email-header" style="padding:32px 24px 20px 24px;border-bottom:1px solid #f1f5f9;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td align="left">
-<h1 style="margin:0;color:#0A1317;font-size:30px;font-weight:700;">
+<td align="left" valign="middle">
+<h1 style="margin:0;color:#0f172a;font-size:20px;font-weight:700;letter-spacing:-0.02em;">
 SignFlow
 </h1>
-
-<p style="margin-top:8px;color:#5d6c7b;font-size:14px;">
+<p style="margin:4px 0 0 0;color:#64748b;font-size:12px;">
 Digitally Secure. Legally Trusted.
 </p>
 </td>
-
-<td align="right">
+<td align="right" valign="middle">
 ${badgeHtml}
 </td>
 </tr>
 </table>
-
 </td>
 </tr>
 
+<!-- Title & Message -->
 <tr>
-<td style="padding:60px 50px 40px 50px;">
-
+<td class="email-body" style="padding:32px 24px 24px 24px;">
 <h2 style="
-margin:0;
-font-size:36px;
-line-height:1.2;
+margin:0 0 16px 0;
+font-size:22px;
+line-height:1.3;
 font-weight:700;
-color:#0A1317;">
+letter-spacing:-0.01em;
+color:#0f172a;">
 ${title}
 </h2>
-
 <p style="
-font-size:18px;
-line-height:1.7;
-color:#4b4c4f;
-margin-top:20px;">
+font-size:15px;
+line-height:1.6;
+color:#334155;
+margin:0;">
 ${message}
 </p>
-
 </td>
 </tr>
 
+<!-- Details Card -->
 ${detailsCardHtml}
 
+<!-- CTA Button -->
 ${ctaHtml}
 
+<!-- Security & Compliance -->
 <tr>
-<td style="padding:0 50px 50px 50px;">
-
-<table width="100%"
+<td class="email-card-section" style="padding:0 24px 24px 24px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
 style="
 background:#ffffff;
-border:1px solid #dee3e9;
-border-radius:24px;">
-
+border:1px solid #e2e8f0;
+border-radius:12px;">
 <tr>
-<td style="padding:30px;">
-
+<td style="padding:20px;">
 <h3 style="
-margin:0 0 20px 0;
-font-size:18px;
-color:#0A1317;">
+margin:0 0 12px 0;
+font-size:14px;
+font-weight:600;
+color:#0f172a;">
 Security & Compliance
 </h3>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ Tamper-Proof Audit Trail
-</p>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ End-to-End Encryption
-</p>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ Signer Identity Verification
-</p>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ Legally Binding Electronic Signatures
-</p>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ Timestamp Verification
-</p>
-
-<p style="margin:10px 0;color:#4b4c4f;">
-✓ Unique Document Hash Protection
-</p>
-
-</td>
-</tr>
-
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ Tamper-Proof Audit Trail</td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ End-to-End Encryption</td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ Signer Identity Verification</td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ Legally Binding Electronic Signatures</td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ Timestamp Verification</td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#475569;">✓ Unique Document Hash Protection</td></tr>
 </table>
-
+</td>
+</tr>
+</table>
 </td>
 </tr>
 
+<!-- Help Section -->
 <tr>
-<td style="padding:0 50px 50px 50px;">
-
-<table width="100%"
+<td class="email-card-section" style="padding:0 24px 24px 24px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
 style="
-background:#0A1317;
-border-radius:24px;
-padding:30px;">
-
+background:#f8fafc;
+border:1px solid #e2e8f0;
+border-radius:12px;
+padding:20px;">
 <tr>
 <td>
-
 <h3 style="
-margin:0;
-color:#ffffff;
-font-size:18px;">
+margin:0 0 8px 0;
+color:#0f172a;
+font-size:14px;
+font-weight:600;">
 Need Help?
 </h3>
-
 <p style="
-margin-top:12px;
-color:#ced0d4;
-line-height:1.6;">
+margin:0;
+color:#475569;
+font-size:13px;
+line-height:1.5;">
 If you have questions regarding this email or the SignFlow platform,
 please contact support or your account administrator.
 </p>
-
 </td>
 </tr>
-
 </table>
-
 </td>
 </tr>
 
+<!-- Footer -->
 <tr>
-<td style="
-padding:40px;
-border-top:1px solid #dee3e9;
+<td class="email-footer" style="
+padding:32px 24px;
+border-top:1px solid #f1f5f9;
+background:#fafafa;
 text-align:center;">
-
 <p style="
 margin:0;
-font-size:12px;
-color:#8595a4;">
+font-size:11px;
+color:#64748b;">
 © ${new Date().getFullYear()} SignFlow. All Rights Reserved.
 </p>
-
 <p style="
-margin-top:10px;
-font-size:12px;
-color:#8595a4;">
+margin:8px 0 0 0;
+font-size:11px;
+color:#64748b;">
 Privacy Policy • Terms of Service • Security Center
 </p>
-
 <p style="
-margin-top:20px;
+margin:16px 0 0 0;
 font-size:11px;
-line-height:1.7;
-color:#8595a4;">
+line-height:1.6;
+color:#94a3b8;">
 This email contains secure information generated through
 SignFlow. Electronic signatures completed through SignFlow
 include audit trails, signer verification, timestamps, and document
 integrity protection mechanisms.
 </p>
-
 ${unsubscribeHtml}
-
 </td>
 </tr>
 

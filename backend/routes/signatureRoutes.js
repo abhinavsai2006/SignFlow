@@ -843,7 +843,7 @@ router.post('/verify/:documentId', async (req, res) => {
     }
 
     // Resolve file path - handle both absolute and relative paths
-    let filePath = document.originalPath;
+    let filePath = document.finalizedFileUrl || document.finalizedPath || document.originalFileUrl || document.originalPath;
     const fileBytes = await readPdfBytes(filePath);
     const computedHash = crypto.createHash('sha256').update(fileBytes).digest('hex');
     const valid = computedHash === document.sha256Checksum;

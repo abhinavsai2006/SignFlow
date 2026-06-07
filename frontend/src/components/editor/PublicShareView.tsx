@@ -39,6 +39,14 @@ interface SignatureField {
   tamperStatus?: string;
   updatedAt?: string;
   documentId?: string;
+  signatureScale?: number;
+  metadataScale?: string;
+  fontSize?: number;
+  showDate?: boolean;
+  showTime?: boolean;
+  hideSha256?: boolean;
+  hideCertId?: boolean;
+  hideReason?: boolean;
 }
 
 interface DocumentData {
@@ -122,8 +130,7 @@ export default function PublicShareView() {
       setFields(data.signatureFields || []);
       setIsPasswordRequired(false);
 
-      const encodedPath = data.originalPath.split('/').map((part: string) => encodeURIComponent(part)).join('/');
-      const pdfUrl = `${BASE_URL}/${encodedPath}`;
+      const pdfUrl = `${BASE_URL}/api/docs/${id}/public-download${pw ? `?password=${encodeURIComponent(pw)}` : ''}`;
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
@@ -610,36 +617,58 @@ export default function PublicShareView() {
       }
 
       const certId = f.certificateId || `SIGNFLOW-${(f._id?.toString() || '').slice(-4).toUpperCase()}`;
+      const sigScale = (f.signatureScale || 100) / 100;
+      const metaScale = f.metadataScale || 'Medium';
+      const fSize = f.fontSize || 12;
+      
+      let baseTextSize = 'text-[7px]';
+      if (fSize === 14) baseTextSize = 'text-[8px]';
+      else if (fSize === 16) baseTextSize = 'text-[9px]';
+      else if (fSize === 18) baseTextSize = 'text-[10px]';
+      else if (fSize === 20) baseTextSize = 'text-[11px]';
+      
+      if (metaScale === 'Small') baseTextSize = 'text-[6px]';
+      else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.15]">
-          {/* Top Section: Metadata */}
-          <div className="flex-1 p-1.5 flex flex-col justify-between text-[8px] text-black">
-            <div className="font-bold text-[7px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
-            <div className="font-bold text-[9px] truncate">{cleanSignerName}</div>
-            <div className="text-gray-700">Date: {formatSignatureDate(f.updatedAt)}</div>
-            <div className="text-gray-700">Reason: Approved</div>
-            <div className="truncate text-gray-500">Cert ID: {certId}</div>
-            <div className="font-bold text-emerald-600 flex items-center gap-0.5 mt-0.5">
-              ✓ SHA256 Verified
+        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+          {/* Top Section: Signature Scribble */}
+          <div className="h-[75%] bg-white flex items-center justify-center p-1.5 overflow-hidden">
+            <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+              {f.value.startsWith('data:image') ? (
+                <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
+              ) : (
+                <span className={`truncate font-bold text-slate-800 ${
+                  f.type === 'Signature' || f.type === 'Initials'
+                    ? (f.value.includes(':') ? `font-${f.value.split(':')[0]} italic text-[16px]` : 'font-cursive italic text-[16px]')
+                    : 'font-sans text-[11px]'
+                }`}>
+                  {f.value.includes(':') ? f.value.split(':')[1] : f.value}
+                </span>
+              )}
             </div>
           </div>
           
           {/* Divider */}
           <div className="border-t border-black w-full" />
 
-          {/* Bottom Section: Signature Scribble */}
-          <div className="h-[38%] bg-gray-50 flex items-center justify-center p-0.5">
-            {f.value.startsWith('data:image') ? (
-              <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
-            ) : (
-              <span className={`truncate font-bold text-slate-800 ${
-                f.type === 'Signature' || f.type === 'Initials'
-                  ? (f.value.includes(':') ? `font-${f.value.split(':')[0]} italic text-[11px]` : 'font-cursive italic text-[11px]')
-                  : 'font-sans text-[9px]'
-              }`}>
-                {f.value.includes(':') ? f.value.split(':')[1] : f.value}
-              </span>
+          {/* Bottom Section: Metadata */}
+          <div className={`flex-1 p-1 flex flex-col justify-between ${baseTextSize} font-medium`}>
+            <div className="font-bold text-[6px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
+            <div className="font-bold text-[8px] truncate">{cleanSignerName}</div>
+            {f.showDate !== false && (
+              <div>Date: {formatSignatureDate(f.updatedAt)}</div>
+            )}
+            {f.hideReason !== true && (
+              <div>Reason: Approved</div>
+            )}
+            {f.hideCertId !== true && (
+              <div className="truncate text-gray-500">Cert ID: {certId}</div>
+            )}
+            {f.hideSha256 !== true && (
+              <div className="font-bold text-emerald-700 flex items-center gap-0.5 mt-0.5">
+                ✓ SHA256 Verified
+              </div>
             )}
           </div>
         </div>
@@ -790,11 +819,6 @@ export default function PublicShareView() {
                       title={isSigned ? 'Signed - Double click to view details' : (isMine ? 'Double click to sign' : `Assigned to ${f.recipientEmail}`)}
                     >
                       {renderFieldContents(f)}
-                      {isSigned && (
-                        <div className="absolute bottom-1 right-1 bg-[#31A24C] text-ink-deep text-[7px] font-bold px-1.5 py-0.5 rounded-full shadow-sm flex items-center gap-0.5 z-30 select-none">
-                          ✓ VERIFIED
-                        </div>
-                      )}
                     </div>
                   );
                 })

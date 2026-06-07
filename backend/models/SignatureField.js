@@ -90,6 +90,39 @@ const signatureFieldSchema = new mongoose.Schema({
   tamperStatus: {
     type: String,
     default: 'Verified'
+  },
+  signatureScale: {
+    type: Number,
+    default: 100
+  },
+  metadataScale: {
+    type: String,
+    enum: ['Small', 'Medium', 'Large'],
+    default: 'Medium'
+  },
+  fontSize: {
+    type: Number,
+    default: 12
+  },
+  hideSha256: {
+    type: Boolean,
+    default: false
+  },
+  hideCertId: {
+    type: Boolean,
+    default: false
+  },
+  hideReason: {
+    type: Boolean,
+    default: false
+  },
+  showDate: {
+    type: Boolean,
+    default: true
+  },
+  showTime: {
+    type: Boolean,
+    default: true
   }
 }, { timestamps: true });
 

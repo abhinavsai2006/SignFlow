@@ -57,6 +57,14 @@ interface SignatureField {
   documentHash?: string;
   tamperStatus?: string;
   documentId?: string;
+  signatureScale?: number;
+  metadataScale?: string;
+  fontSize?: number;
+  showDate?: boolean;
+  showTime?: boolean;
+  hideSha256?: boolean;
+  hideCertId?: boolean;
+  hideReason?: boolean;
 }
 
 interface SignatureProfile {
@@ -660,36 +668,58 @@ const DraggableField = memo(function DraggableField({
       }
 
       const certId = sig.certificateId || `SIGNFLOW-${(sig._id?.toString() || '').slice(-4).toUpperCase()}`;
+      const sigScale = (sig.signatureScale || 100) / 100;
+      const metaScale = sig.metadataScale || 'Medium';
+      const fSize = sig.fontSize || 12;
+      
+      let baseTextSize = 'text-[7px]';
+      if (fSize === 14) baseTextSize = 'text-[8px]';
+      else if (fSize === 16) baseTextSize = 'text-[9px]';
+      else if (fSize === 18) baseTextSize = 'text-[10px]';
+      else if (fSize === 20) baseTextSize = 'text-[11px]';
+      
+      if (metaScale === 'Small') baseTextSize = 'text-[6px]';
+      else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.15]">
-          {/* Top Section: Metadata */}
-          <div className="flex-1 p-1.5 flex flex-col justify-between text-[8px] text-black">
-            <div className="font-bold text-[7px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
-            <div className="font-bold text-[9px] truncate">{cleanSignerName}</div>
-            <div className="text-gray-700">Date: {formatSignatureDate(sig.updatedAt)}</div>
-            <div className="text-gray-700">Reason: Approved</div>
-            <div className="truncate text-gray-500">Cert ID: {certId}</div>
-            <div className="font-bold text-emerald-600 flex items-center gap-0.5 mt-0.5">
-              ✓ SHA256 Verified
+        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+          {/* Top Section: Signature Scribble */}
+          <div className="h-[75%] bg-white flex items-center justify-center p-1.5 overflow-hidden">
+            <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+              {sig.value.startsWith('data:image') ? (
+                <img src={sig.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
+              ) : (
+                <span className={`truncate font-bold text-slate-800 ${
+                  sig.type === 'Signature' || sig.type === 'Initials'
+                    ? (sig.value.includes(':') ? `font-${sig.value.split(':')[0]} italic text-[16px]` : 'font-cursive italic text-[16px]')
+                    : 'font-sans text-[11px]'
+                }`}>
+                  {sig.value.includes(':') ? sig.value.split(':')[1] : sig.value}
+                </span>
+              )}
             </div>
           </div>
           
           {/* Divider */}
           <div className="border-t border-black w-full" />
 
-          {/* Bottom Section: Signature Scribble */}
-          <div className="h-[38%] bg-gray-50 flex items-center justify-center p-0.5">
-            {sig.value.startsWith('data:image') ? (
-              <img src={sig.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
-            ) : (
-              <span className={`truncate font-bold text-slate-800 ${
-                sig.type === 'Signature' || sig.type === 'Initials'
-                  ? (sig.value.includes(':') ? `font-${sig.value.split(':')[0]} italic text-[11px]` : 'font-cursive italic text-[11px]')
-                  : 'font-sans text-[9px]'
-              }`}>
-                {sig.value.includes(':') ? sig.value.split(':')[1] : sig.value}
-              </span>
+          {/* Bottom Section: Metadata */}
+          <div className={`flex-1 p-1 flex flex-col justify-between ${baseTextSize} font-medium`}>
+            <div className="font-bold text-[6px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
+            <div className="font-bold text-[8px] truncate">{cleanSignerName}</div>
+            {sig.showDate !== false && (
+              <div>Date: {formatSignatureDate(sig.updatedAt)}</div>
+            )}
+            {sig.hideReason !== true && (
+              <div>Reason: Approved</div>
+            )}
+            {sig.hideCertId !== true && (
+              <div className="truncate text-gray-500">Cert ID: {certId}</div>
+            )}
+            {sig.hideSha256 !== true && (
+              <div className="font-bold text-emerald-700 flex items-center gap-0.5 mt-0.5">
+                ✓ SHA256 Verified
+              </div>
             )}
           </div>
         </div>
@@ -893,12 +923,6 @@ const DraggableField = memo(function DraggableField({
         </div>
       )}
 
-      {/* Verified Badge */}
-      {isSigned && (
-        <div className="absolute bottom-1.5 right-1.5 bg-[#31A24C] text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full shadow-sm flex items-center gap-0.5 z-20 select-none">
-          ✓ VERIFIED
-        </div>
-      )}
     </div>
   );
 });
@@ -1178,10 +1202,14 @@ export default function DocumentEditor() {
       setHistory([formattedFields]);
       setHistoryIndex(0);
 
-      const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
-      const encodedPath = docResponse.data.originalPath.split('/').map((part: string) => encodeURIComponent(part)).join('/');
-      const pdfUrl = `${backendBase}/${encodedPath}`;
-      console.log('[DocumentEditor] Loading PDF from:', pdfUrl);
+      const backendBase = import.meta.env.VITE_API_URL || '';
+      const pdfUrl = {
+        url: `${backendBase}/docs/${docResponse.data._id}/download`,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      };
+      console.log('[DocumentEditor] Loading PDF from secure stream endpoint:', pdfUrl.url);
       
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdf = await loadingTask.promise;
@@ -2286,9 +2314,148 @@ export default function DocumentEditor() {
                           {recipients.map((rec) => (
                             <option key={rec.email} value={rec.email}>{rec.name} ({rec.email})</option>
                           ))}
-                          <option value="">Anyone (Unassigned)</option>
                         </select>
                       </div>
+
+                      {/* Visual Design Options (Aadhaar / Govt DSC customizer) */}
+                      {(signatures[selectedFieldIdx].type === 'Signature' || signatures[selectedFieldIdx].type === 'Initials') && (
+                        <div className="space-y-sm pt-xs border-t border-hairline-soft">
+                          <h4 className="text-[10px] font-bold text-slate uppercase tracking-wider">Stamp Customization</h4>
+                          
+                          {/* Signature Scale */}
+                          <div>
+                            <label className="flex justify-between text-[9px] font-bold text-slate mb-xxs">
+                              <span>Signature Scale</span>
+                              <span className="text-ink-deep">{signatures[selectedFieldIdx].signatureScale || 100}%</span>
+                            </label>
+                            <input
+                              type="range"
+                              min="25"
+                              max="200"
+                              step="25"
+                              value={signatures[selectedFieldIdx].signatureScale || 100}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, signatureScale: val } : sig);
+                                setSignatures(updated);
+                                pushHistory(updated);
+                              }}
+                              className="w-full h-1 bg-surface-soft rounded-lg appearance-none cursor-pointer accent-fb-blue"
+                            />
+                          </div>
+
+                          {/* Metadata Scale */}
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate mb-xxs">Metadata Scale</label>
+                            <select
+                              value={signatures[selectedFieldIdx].metadataScale || 'Medium'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, metadataScale: val } : sig);
+                                setSignatures(updated);
+                                pushHistory(updated);
+                              }}
+                              className="w-full px-md py-xxs bg-canvas border border-hairline-soft rounded-lg text-body-xs font-bold text-ink-deep outline-none focus:border-fb-blue"
+                            >
+                              <option value="Small">Small</option>
+                              <option value="Medium">Medium</option>
+                              <option value="Large">Large</option>
+                            </select>
+                          </div>
+
+                          {/* Font Size */}
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate mb-xxs">Font Size</label>
+                            <select
+                              value={signatures[selectedFieldIdx].fontSize || 12}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, fontSize: val } : sig);
+                                setSignatures(updated);
+                                pushHistory(updated);
+                              }}
+                              className="w-full px-md py-xxs bg-canvas border border-hairline-soft rounded-lg text-body-xs font-bold text-ink-deep outline-none focus:border-fb-blue"
+                            >
+                              {[12, 14, 16, 18, 20].map(sz => (
+                                <option key={sz} value={sz}>{sz}px</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Toggles */}
+                          <div className="space-y-xxs pt-xxs">
+                            <label className="flex items-center space-x-xs text-[9px] font-semibold text-ink-deep cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={signatures[selectedFieldIdx].hideSha256 === true}
+                                onChange={(e) => {
+                                  const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, hideSha256: e.target.checked } : sig);
+                                  setSignatures(updated);
+                                  pushHistory(updated);
+                                }}
+                                className="accent-fb-blue"
+                              />
+                              <span>Hide SHA256 Line</span>
+                            </label>
+
+                            <label className="flex items-center space-x-xs text-[9px] font-semibold text-ink-deep cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={signatures[selectedFieldIdx].hideCertId === true}
+                                onChange={(e) => {
+                                  const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, hideCertId: e.target.checked } : sig);
+                                  setSignatures(updated);
+                                  pushHistory(updated);
+                                }}
+                                className="accent-fb-blue"
+                              />
+                              <span>Hide Certificate ID</span>
+                            </label>
+
+                            <label className="flex items-center space-x-xs text-[9px] font-semibold text-ink-deep cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={signatures[selectedFieldIdx].hideReason === true}
+                                onChange={(e) => {
+                                  const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, hideReason: e.target.checked } : sig);
+                                  setSignatures(updated);
+                                  pushHistory(updated);
+                                }}
+                                className="accent-fb-blue"
+                              />
+                              <span>Hide Reason</span>
+                            </label>
+
+                            <label className="flex items-center space-x-xs text-[9px] font-semibold text-ink-deep cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={signatures[selectedFieldIdx].showDate !== false}
+                                onChange={(e) => {
+                                  const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, showDate: e.target.checked } : sig);
+                                  setSignatures(updated);
+                                  pushHistory(updated);
+                                }}
+                                className="accent-fb-blue"
+                              />
+                              <span>Show Date</span>
+                            </label>
+
+                            <label className="flex items-center space-x-xs text-[9px] font-semibold text-ink-deep cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={signatures[selectedFieldIdx].showTime !== false}
+                                onChange={(e) => {
+                                  const updated = signatures.map((sig, i) => i === selectedFieldIdx ? { ...sig, showTime: e.target.checked } : sig);
+                                  setSignatures(updated);
+                                  pushHistory(updated);
+                                }}
+                                className="accent-fb-blue"
+                              />
+                              <span>Show Time</span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Position Info */}
                       <div className="grid grid-cols-2 gap-sm text-[10px] font-mono text-slate bg-surface-soft/40 p-xs rounded-lg border border-hairline-soft/40">
