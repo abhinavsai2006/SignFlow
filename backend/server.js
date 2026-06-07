@@ -110,21 +110,21 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15, // Stricter limit of 15 requests per 15 mins for security hardening
+  max: 100, // Relax auth limit to 100 requests per 15 mins
   message: { message: 'Too many authentication attempts. Please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 const publicSignLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15, // Stricter limit of 15 requests per 15 mins for security hardening
+  max: 100, // Relax signing limit to 100 requests per 15 mins
   message: { message: 'Too many signing attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100, // Globally restrict to 100 requests per 15 mins for rate limiting hardening
+  max: 2000, // Increase global limit to 2000 requests per 15 mins to support frequent autosaves/polls
   standardHeaders: true,
   legacyHeaders: false,
 });

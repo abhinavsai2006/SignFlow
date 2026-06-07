@@ -46,28 +46,18 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         size: Math.min(10, targetH * 0.5), font: helveticaBold, color: rgb(0, 0, 0)
       });
     } else {
-      // 1. Plain White Background with a Solid Black Border (Government DSC Style)
+      // 1. Plain White Background (Masking) without any solid border boxes (eSign / Aadhaar Style)
       page.drawRectangle({
         x: targetX, y: targetY, width: targetW, height: targetH,
-        color: rgb(1, 1, 1),
-        borderColor: rgb(0, 0, 0),
-        borderWidth: 1
+        color: rgb(1, 1, 1)
       });
 
-      // Split into Top (Signature Scribble) and Bottom (Metadata) - Govt DSC style
-      const signatureHeight = targetH * 0.75;
-      const metadataHeight = targetH * 0.25;
+      // Split into Top (Signature Scribble) and Bottom (Metadata)
+      const signatureHeight = targetH * 0.70;
+      const metadataHeight = targetH * 0.30;
       
       const sigArea = { x: targetX, y: targetY + metadataHeight, w: targetW, h: signatureHeight };
       const metaArea = { x: targetX, y: targetY, w: targetW, h: metadataHeight };
-
-      // Draw horizontal divider line between signature (top) and metadata (bottom)
-      page.drawLine({
-        start: { x: targetX, y: targetY + metadataHeight },
-        end: { x: targetX + targetW, y: targetY + metadataHeight },
-        thickness: 0.5,
-        color: rgb(0, 0, 0)
-      });
 
       // Draw signature image or text scribble (Top Section)
       const sigScaleFactor = (field.signatureScale || 100) / 100;
@@ -110,27 +100,19 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
         });
       }
 
-      // Draw Metadata in Government DSC Style (Bottom Section)
+      // Draw Metadata in Aadhaar/eSign Style (Bottom Section)
       const signerName = field.signerName || field.recipientEmail.split('@')[0];
       const d = field.updatedAt ? new Date(field.updatedAt) : new Date();
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       
       const showDate = field.showDate !== false;
       const showTime = field.showTime !== false;
-      let dateString = '';
-      if (showDate && showTime) {
-        dateString = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-      } else if (showDate) {
-        dateString = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
-      } else if (showTime) {
-        dateString = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-      }
       
       const certId = field.certificateId || `SIGNFLOW-${field._id.toString().slice(-4).toUpperCase()}`;
 
-      let baseSize = Math.max(3.5, Math.min(7.0, targetH * 0.045));
+      let baseSize = Math.max(3.5, Math.min(6.5, targetH * 0.045));
       if (field.fontSize) {
-        baseSize = field.fontSize * 0.4; // Map font selection to PDF pt size
+        baseSize = field.fontSize * 0.35; // Map font selection to PDF pt size
       }
       if (field.metadataScale === 'Small') baseSize *= 0.8;
       if (field.metadataScale === 'Large') baseSize *= 1.25;
@@ -140,25 +122,41 @@ export const embedSignaturesToPdf = async (pdfDoc, fields) => {
       const year = d.getFullYear();
       const hour = String(d.getHours()).padStart(2, '0');
       const minute = String(d.getMinutes()).padStart(2, '0');
-      const dateStr = `Date: ${day} ${month} ${year}`;
-      const timeStr = `Time: ${hour}:${minute} UTC`;
-
-      let cursorY = metaArea.y + metaArea.h - (baseSize + 2.5);
-      const textX = metaArea.x + 4;
-
-      page.drawText(`Signed By: ${signerName}`, { x: textX, y: cursorY, size: baseSize, font: helveticaBold, color: rgb(0, 0, 0) });
       
-      if (showDate) {
-        cursorY -= (baseSize + 1.5);
-        page.drawText(dateStr, { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
-      }
-      if (showTime) {
-        cursorY -= (baseSize + 1.5);
-        page.drawText(timeStr, { x: textX, y: cursorY, size: baseSize * 0.85, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+      // Compact date & time string
+      const dateStr = `Date: ${day} ${month} ${year} • ${hour}:${minute} UTC`;
+
+      // Draw Aadhaar-style Green Vector Checkmark (Verified) on the left
+      const checkmarkW = Math.max(12, Math.min(20, metaArea.w * 0.12));
+      const tickX = metaArea.x + 3;
+      const tickY = metaArea.y + metaArea.h * 0.5 - 2;
+      const tickSize = Math.max(6, Math.min(12, metaArea.h * 0.5));
+      
+      page.drawLine({
+        start: { x: tickX, y: tickY - tickSize * 0.1 },
+        end: { x: tickX + tickSize * 0.35, y: tickY - tickSize * 0.45 },
+        color: rgb(0.1, 0.7, 0.2),
+        thickness: 1.5
+      });
+      page.drawLine({
+        start: { x: tickX + tickSize * 0.35, y: tickY - tickSize * 0.45 },
+        end: { x: tickX + tickSize * 0.9, y: tickY + tickSize * 0.3 },
+        color: rgb(0.1, 0.7, 0.2),
+        thickness: 1.5
+      });
+
+      let cursorY = metaArea.y + metaArea.h - (baseSize + 1.5);
+      const textX = metaArea.x + checkmarkW + 4;
+
+      page.drawText(`Digitally Signed by ${signerName}`, { x: textX, y: cursorY, size: baseSize, font: helveticaBold, color: rgb(0.1, 0.7, 0.2) });
+      
+      if (showDate || showTime) {
+        cursorY -= (baseSize + 2.0);
+        page.drawText(dateStr, { x: textX, y: cursorY, size: baseSize * 0.9, font: helveticaFont, color: rgb(0.2, 0.2, 0.2) });
       }
       if (field.hideCertId !== true) {
-        cursorY -= (baseSize + 1.5);
-        page.drawText(`Cert ID: ${certId}`, { x: textX, y: cursorY, size: baseSize * 0.75, font: helveticaFont, color: rgb(0.3, 0.3, 0.3) });
+        cursorY -= (baseSize * 0.9 + 2.0);
+        page.drawText(`Cert ID: ${certId}`, { x: textX, y: cursorY, size: baseSize * 0.8, font: helveticaFont, color: rgb(0.4, 0.4, 0.4) });
       }
     }
   }

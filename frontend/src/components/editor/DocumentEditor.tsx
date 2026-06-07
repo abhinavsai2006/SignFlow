@@ -690,9 +690,9 @@ const DraggableField = memo(function DraggableField({
       else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+        <div className="flex flex-col w-full h-full bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
           {/* Top Section: Signature Scribble */}
-          <div className="h-[75%] bg-white flex items-center justify-center p-1.5 overflow-hidden">
+          <div className="h-[70%] bg-white flex items-center justify-center p-1 overflow-hidden">
             <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
               {sig.value.startsWith('data:image') ? (
                 <img src={sig.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
@@ -707,28 +707,20 @@ const DraggableField = memo(function DraggableField({
               )}
             </div>
           </div>
-          
-          {/* Divider */}
-          <div className="border-t border-black w-full" />
 
-          {/* Bottom Section: Metadata */}
-          <div className={`flex-1 p-1 flex flex-col justify-between ${baseTextSize} font-medium`}>
-            <div className="font-bold text-[6px] text-gray-500 uppercase tracking-wide">Digitally Signed By</div>
-            <div className="font-bold text-[8px] truncate">{cleanSignerName}</div>
-            {sig.showDate !== false && (
-              <div>Date: {formatSignatureDate(sig.updatedAt)}</div>
-            )}
-            {sig.hideReason !== true && (
-              <div>Reason: Approved</div>
-            )}
-            {sig.hideCertId !== true && (
-              <div className="truncate text-gray-500">Cert ID: {certId}</div>
-            )}
-            {sig.hideSha256 !== true && (
-              <div className="font-bold text-emerald-700 flex items-center gap-0.5 mt-0.5">
-                ✓ SHA256 Verified
-              </div>
-            )}
+          {/* Bottom Section: Metadata in Aadhaar style */}
+          <div className={`flex-1 p-1 flex items-start space-x-1 ${baseTextSize} font-medium border-t border-slate-100/50`}>
+            {/* Green checkmark tick */}
+            <div className="text-[#1ab334] font-bold text-[10px] leading-none shrink-0 pt-[2px]">✔</div>
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+              <div className="font-bold text-[#1ab334] truncate">Digitally Signed by {cleanSignerName}</div>
+              {sig.showDate !== false && (
+                <div className="truncate text-slate-700">Date: {formatSignatureDate(sig.updatedAt)}</div>
+              )}
+              {sig.hideCertId !== true && (
+                <div className="truncate text-slate-500">Cert ID: {certId}</div>
+              )}
+            </div>
           </div>
         </div>
       );

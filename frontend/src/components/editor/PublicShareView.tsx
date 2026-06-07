@@ -753,9 +753,9 @@ export default function PublicShareView() {
       else if (metaScale === 'Large') baseTextSize = 'text-[9px]';
 
       return (
-        <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
+        <div className="flex flex-col w-full h-full bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.1] text-black">
           {/* Top Section: Signature Scribble */}
-          <div className="h-[75%] bg-white flex items-center justify-center p-1.5 overflow-hidden">
+          <div className="h-[70%] bg-white flex items-center justify-center p-1 overflow-hidden">
             <div style={{ transform: `scale(${sigScale})`, transformOrigin: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
               {f.value.startsWith('data:image') ? (
                 <img src={f.value} alt="Signature" className="max-w-full max-h-full object-contain pointer-events-none" />
@@ -770,29 +770,31 @@ export default function PublicShareView() {
               )}
             </div>
           </div>
-          
-          {/* Divider */}
-          <div className="border-t border-black w-full" />
 
-          {/* Bottom Section: Metadata */}
-          <div className={`flex-1 p-1 flex flex-col justify-between ${baseTextSize} font-medium`}>
-            <div className="font-bold text-[8px] truncate">Signed By: {cleanSignerName}</div>
-            {f.showDate !== false && (
-              <>
-                <div>Date: {(() => {
-                  const d = f.updatedAt ? new Date(f.updatedAt) : new Date();
-                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                  return `${String(d.getUTCDate()).padStart(2, '0')} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-                })()}</div>
-                <div>Time: {(() => {
-                  const d = f.updatedAt ? new Date(f.updatedAt) : new Date();
-                  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC`;
-                })()}</div>
-              </>
-            )}
-            {f.hideCertId !== true && (
-              <div className="truncate text-gray-500">Cert ID: {certId}</div>
-            )}
+          {/* Bottom Section: Metadata in Aadhaar style */}
+          <div className={`flex-1 p-1 flex items-start space-x-1 ${baseTextSize} font-medium border-t border-slate-100/50`}>
+            {/* Green checkmark tick */}
+            <div className="text-[#1ab334] font-bold text-[10px] leading-none shrink-0 pt-[2px]">✔</div>
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+              <div className="font-bold text-[#1ab334] truncate">Digitally Signed by {cleanSignerName}</div>
+              {f.showDate !== false && (
+                <div className="truncate text-slate-700">
+                  Date: {(() => {
+                    const d = f.updatedAt ? new Date(f.updatedAt) : new Date();
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const day = String(d.getUTCDate()).padStart(2, '0');
+                    const month = months[d.getUTCMonth()];
+                    const year = d.getUTCFullYear();
+                    const hours = String(d.getUTCHours()).padStart(2, '0');
+                    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+                    return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
+                  })()}
+                </div>
+              )}
+              {f.hideCertId !== true && (
+                <div className="truncate text-slate-500">Cert ID: {certId}</div>
+              )}
+            </div>
           </div>
         </div>
       );
