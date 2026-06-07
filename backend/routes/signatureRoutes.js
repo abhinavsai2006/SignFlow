@@ -702,8 +702,7 @@ router.post('/finalize', protect, async (req, res) => {
     }
 
     // Use /data/uploads in production
-    const isProd = process.env.NODE_ENV === 'production';
-    const uploadsDir = isProd ? '/data/uploads' : path.join(__dirname, '../uploads');
+    const uploadsDir = fs.existsSync('/data') ? '/data/uploads' : path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -747,8 +746,8 @@ router.post('/finalize', protect, async (req, res) => {
     // Use local volume instead of R2
     const targetPath = `uploads/${relativeFilename}`;
 
-    // Update main model database keys
-    document.originalPath = targetPath;
+    // Store finalized path separately — do NOT overwrite originalPath
+    document.finalizedPath = targetPath;
     document.status = 'Signed';
     document.sha256Checksum = sha256Checksum;
     
@@ -805,7 +804,7 @@ router.post('/finalize', protect, async (req, res) => {
       message: 'PDF finalized with Certificate of Completion and cryptographic stamp.', 
       document,
       sha256Checksum: sha256Checksum,
-      downloadUrl: `/${relativePath}`
+      downloadUrl: `/uploads/${relativeFilename}`
     });
   } catch (error) {
     console.error('[Finalize] Unexpected error:', error);

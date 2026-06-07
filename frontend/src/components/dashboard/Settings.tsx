@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
@@ -8,7 +8,7 @@ import MetaButton from '../ui/MetaButton';
 import MetaBadge from '../ui/MetaBadge';
 import { 
   User, Shield, Bell, Briefcase, CreditCard, Code, List, 
-  Save, LogOut, Smartphone, CheckCircle, AlertTriangle 
+  Save, LogOut, Smartphone, AlertTriangle 
 } from 'lucide-react';
 
 export default function Settings() {

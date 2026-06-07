@@ -256,16 +256,49 @@ router.get('/:id/download', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to download this document' });
     }
 
-    const fields = await SignatureField.find({ documentId: document._id });
-    const signedFields = fields.filter(f => f.status === 'Signed');
-
     let finalBytes;
-    if (document.status === 'Signed' || signedFields.length > 0) {
-      const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
-      finalBytes = compiledBytes;
-    } else {
-      let originalPath = document.versions[0]?.path || document.originalPath;
-      finalBytes = await readPdfBytes(originalPath);
+
+    // FAST PATH: Stream the already-finalized PDF directly (avoids regenerating every time)
+    if (document.finalizedPath) {
+      console.log('[Download] Streaming finalizedPath:', document.finalizedPath);
+      try {
+        finalBytes = await readPdfBytes(document.finalizedPath);
+      } catch (e) {
+        console.warn('[Download] finalizedPath missing, will try originalPath:', e.message);
+        // Fall through to regeneration
+        finalBytes = null;
+      }
+    }
+
+    // FALLBACK: Regenerate from original (or original path)
+    if (!finalBytes) {
+      const fields = await SignatureField.find({ documentId: document._id });
+      const signedFields = fields.filter(f => f.status === 'Signed');
+
+      if (signedFields.length > 0) {
+        console.log('[Download] Regenerating finalized PDF with', signedFields.length, 'signed fields');
+        try {
+          const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
+          finalBytes = compiledBytes;
+        } catch (genErr) {
+          console.error('[Download] PDF regeneration failed:', genErr.message);
+          return res.status(404).json({
+            message: 'Finalized PDF not found on server. The file may have been lost after a deployment. Please re-finalize the document.',
+            error: genErr.message
+          });
+        }
+      } else {
+        // No signed fields — serve original
+        const originalPath = document.versions?.[0]?.path || document.originalPath;
+        try {
+          finalBytes = await readPdfBytes(originalPath);
+        } catch (e) {
+          return res.status(404).json({
+            message: 'Original PDF not found on server. The file may have been lost after a deployment.',
+            error: e.message
+          });
+        }
+      }
     }
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -274,6 +307,7 @@ router.get('/:id/download', protect, async (req, res) => {
 
     await logAuditEvent(document._id, req.user._id, 'Download', req);
   } catch (error) {
+    console.error('[Download] Unexpected error:', error.message);
     res.status(500).json({ message: 'Download failed', error: error.message });
   }
 });
@@ -297,16 +331,43 @@ router.get('/:id/public-download', async (req, res) => {
     }
 
 
-    const fields = await SignatureField.find({ documentId: document._id });
-    const signedFields = fields.filter(f => f.status === 'Signed');
-
     let finalBytes;
-    if (document.status === 'Signed' || signedFields.length > 0) {
-      const { finalBytes: compiledBytes } = await generateFinalizedPdf(document, signedFields);
-      finalBytes = compiledBytes;
-    } else {
-      let originalPath = document.versions[0]?.path || document.originalPath;
-      finalBytes = await readPdfBytes(originalPath);
+
+    // FAST PATH: stream already-finalized PDF
+    if (document.finalizedPath) {
+      try {
+        finalBytes = await readPdfBytes(document.finalizedPath);
+      } catch (e) {
+        console.warn('[Public Download] finalizedPath missing, falling back:', e.message);
+        finalBytes = null;
+      }
+    }
+
+    // FALLBACK: regenerate from signed fields or serve original
+    if (!finalBytes) {
+      const fields = await SignatureField.find({ documentId: document._id });
+      const signedFields = fields.filter(f => f.status === 'Signed');
+      if (signedFields.length > 0) {
+        try {
+          const { finalBytes: compiled } = await generateFinalizedPdf(document, signedFields);
+          finalBytes = compiled;
+        } catch (genErr) {
+          return res.status(404).json({
+            message: 'Finalized PDF not found. Please re-finalize the document.',
+            error: genErr.message
+          });
+        }
+      } else {
+        const originalPath = document.versions?.[0]?.path || document.originalPath;
+        try {
+          finalBytes = await readPdfBytes(originalPath);
+        } catch (e) {
+          return res.status(404).json({
+            message: 'Original PDF not found on server.',
+            error: e.message
+          });
+        }
+      }
     }
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -315,6 +376,7 @@ router.get('/:id/public-download', async (req, res) => {
 
     await logAuditEvent(document._id, null, 'Public Download', req);
   } catch (error) {
+    console.error('[Public Download] Unexpected error:', error.message);
     res.status(500).json({ message: 'Public download failed', error: error.message });
   }
 });

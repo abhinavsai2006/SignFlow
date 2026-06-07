@@ -1,6 +1,6 @@
 # SignFlow — Data Integrity Report
 
-Date: 2026-06-06T18:59:10.086Z
+Date: 2026-06-07T06:05:38.133Z
 
 ## 1. Duplicate Users Check
 ✅ No duplicate email addresses found in Users collection.
@@ -9,8 +9,10 @@ Date: 2026-06-06T18:59:10.086Z
 ✅ No orphaned documents found (All documents have valid owners).
 
 ## 3. Missing File Paths Check
-❌ Found **1** document records pointing to non-existent files:
+❌ Found **3** document records pointing to non-existent files:
 - ID: `6a246898dac4406df78ee399` | Name: `test-certificate.pdf` | Path: `uploads/finalized-1780771045905-test-certificate.pdf`
+- ID: `6a2488550749b53e2db51181` | Name: `Labmentix Offer Letter.pdf` | Path: `uploads/file-1780779092473.pdf`
+- ID: `6a250a23c0ed23809580d4ef` | Name: `temp_audit.pdf` | Path: `uploads/file-1780812323866.pdf`
 
 ## 4. Invalid Signature Field References
 ✅ No orphaned signature fields found.

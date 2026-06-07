@@ -126,7 +126,6 @@ export default function Workspace() {
   }
 
   const memberCount = activeWorkspace?.members.length || 0;
-  const adminCount = activeWorkspace?.members.filter(m => m.role === 'Admin' || m.role === 'Owner').length || 0;
   
   const storageUsed = 2.4;
   const storageTotal = 15;

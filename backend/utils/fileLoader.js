@@ -31,7 +31,7 @@ export const readPdfBytes = async (pathOrUrl) => {
   
   if (!path.isAbsolute(resolvedPath)) {
     // If it's an uploads path and we are in production with Railway Volume
-    if (resolvedPath.startsWith('uploads/') && process.env.NODE_ENV === 'production') {
+    if (resolvedPath.startsWith('uploads/') && fs.existsSync('/data')) {
       resolvedPath = path.join('/data', resolvedPath);
     } else {
       // If running from backend directory vs root directory

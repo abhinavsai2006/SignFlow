@@ -707,10 +707,10 @@ export default function PublicShareView() {
         </div>
       </header>
 
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden w-full">
+      {/* Body — fills remaining height, two-column grid on desktop, single column on mobile */}
+      <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-[320px_1fr] overflow-hidden bg-canvas min-h-0">
         {/* Left instructions panel */}
-        <aside className="w-64 bg-surface-soft border-r border-hairline-soft p-4 flex flex-col gap-4 shrink-0 hidden md:flex overflow-y-auto">
+        <aside className="bg-surface-soft border-r border-hairline-soft p-4 flex flex-col gap-4 hidden md:flex overflow-y-auto">
           <div>
             <p className="text-xs font-bold text-slate uppercase tracking-wider mb-3">Your Fields</p>
             {myPendingFields.length === 0 ? (
@@ -745,13 +745,13 @@ export default function PublicShareView() {
         </aside>
 
         {/* PDF Viewer */}
-        <main ref={viewerContainerRef} className="flex-1 overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14] w-full min-w-0">
+        <main ref={viewerContainerRef} className="overflow-auto p-6 pb-20 md:pb-6 flex flex-col items-center gap-6 bg-[#0d0d14] w-full min-w-0">
           {pdfDoc && Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
             <div
               key={pageNum}
               ref={el => { pageContainerRefs.current[pageNum] = el; }}
               className="relative shadow-2xl bg-white rounded-lg overflow-visible"
-              style={{ display: 'inline-block' }}
+              style={{ display: 'block', width: 'fit-content', margin: '0 auto' }}
             >
               {/* Signature field overlays */}
               {fields

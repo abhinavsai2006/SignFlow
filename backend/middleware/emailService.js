@@ -1,5 +1,4 @@
 import https from 'https';
-import dotenv from 'dotenv';
 import EmailLog from '../models/EmailLog.js';
 import {
   getWelcomeTemplate,
@@ -49,7 +48,10 @@ import { fileURLToPath } from 'url';
 const __filenameService = fileURLToPath(import.meta.url);
 const __dirnameService = path.dirname(__filenameService);
 
-dotenv.config({ path: path.join(__dirnameService, '..', '.env') });
+// NOTE: Do NOT call dotenv.config() here.
+// Railway injects env vars at the process level before Node starts.
+// env.js at the top of server.js handles .env loading for local dev.
+// Calling dotenv.config() again here can cause subtle override issues.
 
 /**
  * Unified Resend dispatch helper with database logging, plain-text fallback, and tracking

@@ -14,6 +14,10 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  finalizedPath: {
+    type: String,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['Draft', 'Pending', 'Viewed', 'PartiallySigned', 'Signed', 'Rejected', 'Expired', 'Archived'],

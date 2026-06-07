@@ -509,7 +509,7 @@ router.get('/google', (req, res) => {
     return res.status(500).json({ message: 'Google OAuth is not configured on the server.' });
   }
 
-  const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
+  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${BACKEND_URL}/api/auth/google/callback`;
   const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('profile email')}&prompt=select_account`;
   
   res.redirect(oauthUrl);
@@ -532,7 +532,7 @@ router.get('/google/callback', async (req, res) => {
       throw new Error('Server misconfiguration: Google OAuth credentials missing.');
     }
 
-    const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${BACKEND_URL}/api/auth/google/callback`;
     
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
