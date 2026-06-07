@@ -89,8 +89,11 @@ export default function Billing() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
-      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(true);
+      }, 0);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPlanDetails();
   }, [fetchPlanDetails]);
 
@@ -100,6 +103,7 @@ export default function Billing() {
     try {
       const response = await api.post('/billing/checkout', { planName: planKey });
       if (response.data.url) {
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = response.data.url;
       }
       if (response.data.simulated) {

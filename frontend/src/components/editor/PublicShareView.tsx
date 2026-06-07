@@ -609,7 +609,7 @@ export default function PublicShareView() {
         );
       }
 
-      const certId = f.certificateId || `SIGNFLOW-${f._id.toString().slice(-4).toUpperCase()}`;
+      const certId = f.certificateId || `SIGNFLOW-${(f._id?.toString() || '').slice(-4).toUpperCase()}`;
 
       return (
         <div className="flex flex-col w-full h-full border-[1.5px] border-black bg-white rounded overflow-hidden text-left font-sans select-none leading-[1.15]">

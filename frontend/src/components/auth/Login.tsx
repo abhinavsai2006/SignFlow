@@ -39,7 +39,9 @@ export default function Login() {
       localStorage.setItem('user', decodeURIComponent(user));
       navigate('/dashboard');
     } else if (errorParam) {
-      setError(decodeURIComponent(errorParam));
+      setTimeout(() => {
+        setError(decodeURIComponent(errorParam));
+      }, 0);
     }
   }, [navigate]);
 
