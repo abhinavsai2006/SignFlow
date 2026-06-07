@@ -1203,10 +1203,11 @@ export default function DocumentEditor() {
       setHistoryIndex(0);
 
       const backendBase = import.meta.env.VITE_API_URL || '';
+      const authToken = localStorage.getItem('token') || '';
       const pdfUrl = {
-        url: `${backendBase}/docs/${docResponse.data._id}/download`,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        url: `${backendBase}/docs/${docResponse.data._id}/download?token=${encodeURIComponent(authToken)}`,
+        httpHeaders: {
+          'Authorization': `Bearer ${authToken}`
         }
       };
       console.log('[DocumentEditor] Loading PDF from secure stream endpoint:', pdfUrl.url);
@@ -2017,10 +2018,12 @@ export default function DocumentEditor() {
         setContextMenu(null);
       }}
     >
-      <Navbar user={user} onMenuClick={() => {}} onLogout={handleLogout} />
+      <div className="hidden md:block">
+        <Navbar user={user} onMenuClick={() => {}} onLogout={handleLogout} />
+      </div>
 
       {/* Editor Controls Sub-Header */}
-      <div className="bg-canvas border-b border-hairline-soft h-[56px] shrink-0 flex items-center justify-between px-xl select-none">
+      <div className="bg-canvas border-b border-hairline-soft h-[56px] shrink-0 flex items-center justify-between px-4 md:px-xl select-none">
         {/* Left Section */}
         <div className="flex items-center space-x-md">
           <MetaButton variant="ghost" className="!py-[6px] !px-[12px] flex items-center !h-[36px]" onClick={() => navigate('/dashboard')}>
