@@ -109,6 +109,11 @@ export default function PublicShareView() {
     }
   };
 
+  // Update a field's position/size locally (drag/resize on share page)
+  const handleFieldUpdate = (fieldId: string, updates: Partial<import('../../hooks/useShareDocument').SignatureField>) => {
+    setFields(prev => prev.map(f => f._id === fieldId ? { ...f, ...updates } : f));
+  };
+
   // Download PDF
   const handleDownload = async () => {
     try {
@@ -310,7 +315,9 @@ export default function PublicShareView() {
             pageContainerRefs={pageContainerRefs}
             signerEmail={signerEmail}
             signerName={signerName}
+            recipientToken={recipientToken}
             onFieldClick={handleFieldClick}
+            onFieldUpdate={handleFieldUpdate}
             handleFitWidth={handleFitWidth}
           />
         }

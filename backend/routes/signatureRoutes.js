@@ -331,6 +331,49 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
+// @desc    Update a signature field position/size by a verified public signer
+router.put('/:id/public', async (req, res) => {
+  try {
+    const { xPercent, yPercent, widthPercent, heightPercent } = req.body;
+    const field = await SignatureField.findById(req.params.id);
+    if (!field) {
+      return res.status(404).json({ message: 'Signature field not found' });
+    }
+
+    // Recipient Token Verification Check
+    const recipientToken = req.headers['x-recipient-token'] || req.body.recipientToken;
+    if (!recipientToken) {
+      return res.status(401).json({ message: 'Access Denied: Recipient identity verification token required' });
+    }
+
+    const _JWT_SECRET = process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production';
+    let decoded;
+    try {
+      decoded = jwt.verify(recipientToken, _JWT_SECRET);
+    } catch (jwtErr) {
+      return res.status(401).json({ message: 'Access Denied: Invalid or expired recipient verification token' });
+    }
+
+    if (decoded.email.trim().toLowerCase() !== field.recipientEmail.trim().toLowerCase()) {
+      return res.status(403).json({ message: 'Access Denied: Email mismatch' });
+    }
+
+    if (field.status === 'Signed') {
+      return res.status(409).json({ message: 'Cannot move or adjust a signed field.' });
+    }
+
+    if (xPercent !== undefined) field.xPercent = xPercent;
+    if (yPercent !== undefined) field.yPercent = yPercent;
+    if (widthPercent !== undefined) field.widthPercent = widthPercent;
+    if (heightPercent !== undefined) field.heightPercent = heightPercent;
+
+    await field.save();
+    res.json(field);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update signature field', error: error.message });
+  }
+});
+
 const signFieldHandler = async (req, res) => {
   console.log(`SIGN_ROUTE_HIT: ${req.params.id}`);
   console.log(`SIGN_FIELD_START: ${req.params.id}`);

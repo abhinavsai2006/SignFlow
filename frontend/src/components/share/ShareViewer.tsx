@@ -12,7 +12,9 @@ interface ShareViewerProps {
   pageContainerRefs: MutableRefObject<Record<number, HTMLDivElement | null>>;
   signerEmail: string;
   signerName: string;
+  recipientToken: string;
   onFieldClick: (f: SignatureField) => void;
+  onFieldUpdate?: (fieldId: string, updates: Partial<SignatureField>) => void;
   handleFitWidth: () => void;
 }
 
@@ -25,7 +27,9 @@ export function ShareViewer({
   pageContainerRefs,
   signerEmail,
   signerName,
+  recipientToken,
   onFieldClick,
+  onFieldUpdate,
   handleFitWidth,
 }: ShareViewerProps) {
   // Trigger fit-width after the viewer container is in the DOM
@@ -71,7 +75,9 @@ export function ShareViewer({
             pageNum={pageNum}
             signerEmail={signerEmail}
             signerName={signerName}
+            recipientToken={recipientToken}
             onFieldClick={onFieldClick}
+            onFieldUpdate={onFieldUpdate}
           />
         </div>
       ))}
