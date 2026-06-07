@@ -441,9 +441,20 @@ router.get('/:id/public-download', async (req, res) => {
   try {
     const { password } = req.query;
     const document = await Document.findById(documentId);
-    if (!document || !document.sharingEnabled) {
-      console.log('DOWNLOAD_FAIL (public): Not found or disabled', { documentId });
+    if (!document) {
+      console.log('DOWNLOAD_FAIL (public): Not found', { documentId });
+      return res.status(404).json({ message: 'Shared document not found' });
+    }
+
+    // Auto-heal: allow download if recipients exist even if sharingEnabled was never set
+    const hasRecipients = !document.sharingEnabled && await DocumentRecipient.exists({ documentId: document._id });
+    if (!document.sharingEnabled && !hasRecipients) {
+      console.log('DOWNLOAD_FAIL (public): Sharing disabled', { documentId });
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
+    }
+    if (hasRecipients) {
+      document.sharingEnabled = true;
+      await document.save();
     }
 
     if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
@@ -788,6 +799,12 @@ router.post('/:id/recipients', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to add recipients to this document' });
     }
 
+    // Auto-enable sharing when a recipient is added — the invite link must be accessible
+    if (!document.sharingEnabled) {
+      document.sharingEnabled = true;
+      await document.save();
+    }
+
     const recipient = await DocumentRecipient.create({
       documentId: req.params.id,
       name,
@@ -942,6 +959,8 @@ router.put('/:id/share', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to configure sharing parameters' });
     }
 
+    const wasAlreadyEnabled = document.sharingEnabled;
+
     if (sharingEnabled !== undefined) document.sharingEnabled = sharingEnabled;
     if (sharePassword !== undefined) document.sharePassword = sharePassword;
     if (shareExpiresAt !== undefined) document.shareExpiresAt = shareExpiresAt;
@@ -956,7 +975,7 @@ router.put('/:id/share', protect, async (req, res) => {
     console.log("SHARE_LINK_CREATED:", document._id, publicUrl);
 
     // Trigger share link created email when sharing is newly enabled
-    if (sharingEnabled === true && !document.sharingEnabled) {
+    if (sharingEnabled === true && !wasAlreadyEnabled) {
       const owner = await User.findById(document.ownerId);
       if (owner) {
         sendShareLinkCreatedEmail(owner.email, document.filename, publicUrl, owner.name)
@@ -976,7 +995,11 @@ router.post('/:id/public-verify', async (req, res) => {
   try {
     const { password } = req.body;
     const document = await Document.findById(req.params.id);
-    if (!document || !document.sharingEnabled) {
+    if (!document) {
+      return res.status(404).json({ message: 'Shared document not found' });
+    }
+    const hasRecipients = !document.sharingEnabled && await DocumentRecipient.exists({ documentId: document._id });
+    if (!document.sharingEnabled && !hasRecipients) {
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
     }
 
@@ -1004,8 +1027,21 @@ router.get('/:id/public', async (req, res) => {
   try {
     const { password } = req.query;
     const document = await Document.findById(req.params.id);
-    if (!document || !document.sharingEnabled) {
+    if (!document) {
+      return res.status(404).json({ message: 'Shared document not found' });
+    }
+
+    // A document is accessible publicly if sharing is explicitly enabled,
+    // OR if it has been sent to recipients (invite emails were dispatched)
+    const hasRecipients = await DocumentRecipient.exists({ documentId: document._id });
+    if (!document.sharingEnabled && !hasRecipients) {
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
+    }
+
+    // Auto-heal: if recipients exist but sharingEnabled was never set, fix it now
+    if (!document.sharingEnabled && hasRecipients) {
+      document.sharingEnabled = true;
+      await document.save();
     }
 
     console.log("SHARE_LINK_OPENED:", document._id);

@@ -59,9 +59,16 @@ const generateRefreshToken = async (userId) => {
 
 const setCookieToken = (res, token) => {
   const isProd = process.env.NODE_ENV === 'production';
+  // In production, the frontend (signflow.abhinavsai.com) and backend (api.signflow.abhinavsai.com)
+  // are on different subdomains — cross-origin. SameSite=None + Secure is required so the
+  // HttpOnly refresh token cookie is included in cross-origin axios requests (withCredentials: true).
+  // Domain=.abhinavsai.com allows the cookie to be shared across all subdomains.
+  const sameSite = isProd ? 'None' : 'Lax';
+  const secureFlag = isProd ? 'Secure; ' : '';
+  const domainFlag = isProd ? 'Domain=.abhinavsai.com; ' : '';
   res.setHeader(
     'Set-Cookie',
-    `refreshToken=${token}; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`
+    `refreshToken=${token}; HttpOnly; ${secureFlag}${domainFlag}SameSite=${sameSite}; Max-Age=${7 * 24 * 60 * 60}; Path=/`
   );
 };
 
@@ -375,9 +382,12 @@ router.post('/logout', async (req, res) => {
       await RefreshToken.deleteOne({ token });
     }
 
-    // Clear Cookie
+    // Clear Cookie — must mirror the same flags used when setting it
     const isProd = process.env.NODE_ENV === 'production';
-    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=0; Path=/`);
+    const sameSite = isProd ? 'None' : 'Lax';
+    const secureFlag = isProd ? 'Secure; ' : '';
+    const domainFlag = isProd ? 'Domain=.abhinavsai.com; ' : '';
+    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${secureFlag}${domainFlag}SameSite=${sameSite}; Max-Age=0; Path=/`);
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Logout failed', error: error.message });
@@ -390,7 +400,10 @@ router.post('/logout-all', protect, async (req, res) => {
   try {
     await RefreshToken.deleteMany({ userId: req.user._id });
     const isProd = process.env.NODE_ENV === 'production';
-    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${isProd ? 'Secure; ' : ''}SameSite=Lax; Max-Age=0; Path=/`);
+    const sameSite = isProd ? 'None' : 'Lax';
+    const secureFlag = isProd ? 'Secure; ' : '';
+    const domainFlag = isProd ? 'Domain=.abhinavsai.com; ' : '';
+    res.setHeader('Set-Cookie', `refreshToken=; HttpOnly; ${secureFlag}${domainFlag}SameSite=${sameSite}; Max-Age=0; Path=/`);
     res.json({ message: 'Logged out from all devices successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Logout all failed', error: error.message });

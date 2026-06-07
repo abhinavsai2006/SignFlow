@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -63,11 +63,11 @@ export default function PublicShareView() {
   const myPendingFields = myFields.filter(f => f.status !== 'Signed');
 
   // Auto-show success if user opens link and all their fields are already signed
-  const { useEffect } = await import('react').catch(() => ({ useEffect: () => {} }));
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  import('react').then(({ useEffect: ue }) => {
-    // handled below via inline useEffect
-  });
+  useEffect(() => {
+    if (identityConfirmed && myFields.length > 0 && myPendingFields.length === 0) {
+      setAllSigned(true);
+    }
+  }, [identityConfirmed, myFields.length, myPendingFields.length]);
 
   // Handle clicking a signature field on the PDF
   const handleFieldClick = (f: SignatureField) => {
@@ -91,7 +91,7 @@ export default function PublicShareView() {
         {
           signatureValue: signatureVal,
           signerEmail: normalizeEmail(signerEmail),
-          signerName: sigName || normalizeEmail(signerEmail),
+          signerName: sigName || signerName || signerEmail.split('@')[0],
         },
         { headers: { 'x-recipient-token': recipientToken } }
       );

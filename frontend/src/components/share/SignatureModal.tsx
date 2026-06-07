@@ -105,7 +105,7 @@ export function SignatureModal({
       if (!uploadedBase64) { alert('Please upload a signature image.'); return; }
       val = uploadedBase64;
     }
-    await onSignConfirm(val, signerName || signerEmail);
+    await onSignConfirm(val, signerName || signerEmail.split('@')[0]);
   };
 
   const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
