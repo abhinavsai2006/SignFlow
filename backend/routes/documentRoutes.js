@@ -546,7 +546,7 @@ router.put('/:id/archive', protect, async (req, res) => {
 });
 
 // @route   DELETE /api/docs/:id
-// @desc    Soft delete document
+// @desc    Hard delete document and remove files from storage
 router.delete('/:id', protect, async (req, res) => {
   try {
     const document = await Document.findOne({ _id: req.params.id, isDeleted: false });
@@ -559,14 +559,25 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this document' });
     }
 
+    // Remove files from R2/storage before marking deleted
+    if (isR2Active()) {
+      const filesToDelete = [
+        document.originalFileUrl,
+        document.finalizedFileUrl,
+        document.auditFileUrl,
+      ].filter(Boolean);
+      await Promise.allSettled(filesToDelete.map(url => deleteFile(url)));
+    }
+
+    // Soft-delete the document record (keeps audit trail intact)
     document.isDeleted = true;
     await document.save();
 
     await logAuditEvent(document._id, req.user._id, 'Delete', req);
 
-    res.json({ message: 'Document soft deleted successfully' });
+    res.json({ message: 'Document deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Soft delete error', error: error.message });
+    res.status(500).json({ message: 'Delete error', error: error.message });
   }
 });
 
@@ -1306,7 +1317,7 @@ const otpLimiter = rateLimit({
 // @desc    Verify recipient email from sharing token and generate/send OTP
 router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
   try {
-    const { token, email } = req.body;
+    const { token, email, name } = req.body;
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -1339,13 +1350,17 @@ router.post('/:id/verify-recipient', otpLimiter, async (req, res) => {
       const randomToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       recipient = await DocumentRecipient.create({
         documentId: req.params.id,
-        name: email.trim().split('@')[0],
+        name: name ? name.trim() : email.trim().split('@')[0],
         email: email.trim().toLowerCase(),
         role: 'Signer',
         sequence: 1,
         status: 'Waiting',
         token: randomToken
       });
+    } else if (name && name.trim() && (!recipient.name || recipient.name === recipient.email.split('@')[0])) {
+      // Update name if signer provided one and it wasn't set properly before
+      recipient.name = name.trim();
+      await recipient.save();
     }
 
     if (recipient.status === 'Signed') {

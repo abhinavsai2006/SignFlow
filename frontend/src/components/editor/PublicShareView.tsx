@@ -34,7 +34,7 @@ export default function PublicShareView() {
 
   // 2. Handle recipient verification
   const {
-    signerEmail, setSignerEmail, signerName, identityConfirmed, identityError,
+    signerEmail, setSignerEmail, signerName, setSignerName, identityConfirmed, identityError,
     recipientToken, verificationStep, otpCode, setOtpCode, isSendingOtp,
     handleEmailSubmit, handleOtpSubmit, handleResetVerification
   } = useRecipientVerification(id);
@@ -166,7 +166,7 @@ export default function PublicShareView() {
               className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-ink-deep placeholder-slate-500"
               autoFocus
             />
-            <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-on-primary font-bold py-3 rounded-xl transition">
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
               Unlock Document
             </button>
           </form>
@@ -218,6 +218,8 @@ export default function PublicShareView() {
         docData={docData}
         signerEmail={signerEmail}
         setSignerEmail={setSignerEmail}
+        signerName={signerName}
+        setSignerName={setSignerName}
         verificationStep={verificationStep}
         otpCode={otpCode}
         setOtpCode={setOtpCode}

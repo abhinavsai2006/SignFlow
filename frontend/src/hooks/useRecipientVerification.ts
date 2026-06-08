@@ -46,7 +46,8 @@ export function useRecipientVerification(id: string | undefined) {
     try {
       await axios.post(`${BASE_URL}/api/docs/${id}/verify-recipient`, {
         token,
-        email: normalizedEmail
+        email: normalizedEmail,
+        name: signerName.trim() || normalizedEmail.split('@')[0],
       });
       setVerificationStep('otp');
     } catch (err: any) {
@@ -96,6 +97,7 @@ export function useRecipientVerification(id: string | undefined) {
     signerEmail,
     setSignerEmail,
     signerName,
+    setSignerName,
     identityConfirmed,
     identityError,
     recipientToken,
