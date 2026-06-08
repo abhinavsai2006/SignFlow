@@ -37,7 +37,7 @@ export function DocumentDetails({ signatureDetails, signerName, docData, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-surface-soft border border-hairline-soft rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden text-slate-200 flex flex-col max-h-[90vh]">
+      <div className="bg-surface-soft border border-hairline-soft rounded-2xl shadow-2xl overflow-hidden text-slate-200 flex flex-col max-h-[90vh]" style={{ width: '100%', maxWidth: '540px' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-soft shrink-0">
           <h2 className="font-bold text-ink-deep text-lg flex items-center gap-2">
             <Shield className="w-5 h-5 text-emerald-500" />

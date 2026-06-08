@@ -59,10 +59,8 @@ const generateRefreshToken = async (userId) => {
 
 const setCookieToken = (res, token) => {
   const isProd = process.env.NODE_ENV === 'production';
-  // In production, the frontend (signflow.abhinavsai.com) and backend (api.signflow.abhinavsai.com)
-  // are on different subdomains — cross-origin. SameSite=None + Secure is required so the
-  // HttpOnly refresh token cookie is included in cross-origin axios requests (withCredentials: true).
-  // Domain=.abhinavsai.com allows the cookie to be shared across all subdomains.
+  // SameSite=None + Secure required for cross-origin cookie (frontend on signflow.abhinavsai.com,
+  // backend on api.signflow.abhinavsai.com). Domain=.abhinavsai.com covers both subdomains.
   const sameSite = isProd ? 'None' : 'Lax';
   const secureFlag = isProd ? 'Secure; ' : '';
   const domainFlag = isProd ? 'Domain=.abhinavsai.com; ' : '';
@@ -382,7 +380,7 @@ router.post('/logout', async (req, res) => {
       await RefreshToken.deleteOne({ token });
     }
 
-    // Clear Cookie — must mirror the same flags used when setting it
+    // Clear Cookie
     const isProd = process.env.NODE_ENV === 'production';
     const sameSite = isProd ? 'None' : 'Lax';
     const secureFlag = isProd ? 'Secure; ' : '';

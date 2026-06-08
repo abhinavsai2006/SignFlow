@@ -445,14 +445,12 @@ router.get('/:id/public-download', async (req, res) => {
       console.log('DOWNLOAD_FAIL (public): Not found', { documentId });
       return res.status(404).json({ message: 'Shared document not found' });
     }
-
-    // Auto-heal: allow download if recipients exist even if sharingEnabled was never set
-    const hasRecipients = !document.sharingEnabled && await DocumentRecipient.exists({ documentId: document._id });
-    if (!document.sharingEnabled && !hasRecipients) {
-      console.log('DOWNLOAD_FAIL (public): Sharing disabled', { documentId });
-      return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
-    }
-    if (hasRecipients) {
+    if (!document.sharingEnabled) {
+      const hasRecipients = await DocumentRecipient.exists({ documentId: document._id });
+      if (!hasRecipients) {
+        console.log('DOWNLOAD_FAIL (public): Sharing disabled', { documentId });
+        return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
+      }
       document.sharingEnabled = true;
       await document.save();
     }
@@ -959,8 +957,6 @@ router.put('/:id/share', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to configure sharing parameters' });
     }
 
-    const wasAlreadyEnabled = document.sharingEnabled;
-
     if (sharingEnabled !== undefined) document.sharingEnabled = sharingEnabled;
     if (sharePassword !== undefined) document.sharePassword = sharePassword;
     if (shareExpiresAt !== undefined) document.shareExpiresAt = shareExpiresAt;
@@ -975,7 +971,7 @@ router.put('/:id/share', protect, async (req, res) => {
     console.log("SHARE_LINK_CREATED:", document._id, publicUrl);
 
     // Trigger share link created email when sharing is newly enabled
-    if (sharingEnabled === true && !wasAlreadyEnabled) {
+    if (sharingEnabled === true && !document.sharingEnabled) {
       const owner = await User.findById(document.ownerId);
       if (owner) {
         sendShareLinkCreatedEmail(owner.email, document.filename, publicUrl, owner.name)
@@ -995,11 +991,7 @@ router.post('/:id/public-verify', async (req, res) => {
   try {
     const { password } = req.body;
     const document = await Document.findById(req.params.id);
-    if (!document) {
-      return res.status(404).json({ message: 'Shared document not found' });
-    }
-    const hasRecipients = !document.sharingEnabled && await DocumentRecipient.exists({ documentId: document._id });
-    if (!document.sharingEnabled && !hasRecipients) {
+    if (!document || !document.sharingEnabled) {
       return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
     }
 
@@ -1031,15 +1023,12 @@ router.get('/:id/public', async (req, res) => {
       return res.status(404).json({ message: 'Shared document not found' });
     }
 
-    // A document is accessible publicly if sharing is explicitly enabled,
-    // OR if it has been sent to recipients (invite emails were dispatched)
-    const hasRecipients = await DocumentRecipient.exists({ documentId: document._id });
-    if (!document.sharingEnabled && !hasRecipients) {
-      return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
-    }
-
-    // Auto-heal: if recipients exist but sharingEnabled was never set, fix it now
-    if (!document.sharingEnabled && hasRecipients) {
+    // Auto-heal: allow access if recipients exist even if sharingEnabled was never set
+    if (!document.sharingEnabled) {
+      const hasRecipients = await DocumentRecipient.exists({ documentId: document._id });
+      if (!hasRecipients) {
+        return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
+      }
       document.sharingEnabled = true;
       await document.save();
     }

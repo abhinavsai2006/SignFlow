@@ -67,7 +67,15 @@ export function useShareDocument(id: string | undefined) {
       const url = `${BASE_URL}/api/docs/${id}/public${pw ? '?password=' + encodeURIComponent(pw) : ''}`;
       const { data } = await axios.get(url);
       setDocData(data);
-      setFields(data.signatureFields || []);
+      // Deduplicate fields by _id to prevent double-rendering
+      const rawFields: SignatureField[] = data.signatureFields || [];
+      const seen = new Set<string>();
+      const dedupedFields = rawFields.filter(f => {
+        if (seen.has(f._id)) return false;
+        seen.add(f._id);
+        return true;
+      });
+      setFields(dedupedFields);
       setRecipients(data.recipients || []);
       setAuditLogs(data.auditLogs || []);
       setIsPasswordRequired(false);

@@ -30,11 +30,19 @@ export function usePdfViewer(pdfUrl: string | null) {
     }
   }, [pdfUrl]);
 
+  // Reset pdfDoc when URL changes (e.g. password unlocked)
   useEffect(() => {
-    if (pdfUrl && !pdfDoc && !isPdfLoading) {
+    setPdfDoc(null);
+    setNumPages(0);
+    setCurrentPage(1);
+    setInitialFitDone(false);
+  }, [pdfUrl]);
+
+  useEffect(() => {
+    if (pdfUrl) {
       loadPdfFile();
     }
-  }, [pdfUrl, pdfDoc, isPdfLoading, loadPdfFile]);
+  }, [pdfUrl, loadPdfFile]);
 
   const handleFitWidth = useCallback(() => {
     if (!pdfDoc || !viewerContainerRef.current) return;
@@ -51,16 +59,21 @@ export function usePdfViewer(pdfUrl: string | null) {
   // Trigger initial fit-width once after PDF doc is available and container is mounted
   useEffect(() => {
     if (!pdfDoc || initialFitDone) return;
-    // Use two requestAnimationFrames to ensure DOM refs are fully laid out
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
+    const tryFit = () => {
+      if (viewerContainerRef.current && viewerContainerRef.current.clientWidth > 0) {
         handleFitWidth();
         setInitialFitDone(true);
-      });
-      return () => cancelAnimationFrame(raf2);
+      } else {
+        // Container not sized yet — retry after paint
+        const raf = requestAnimationFrame(tryFit);
+        return () => cancelAnimationFrame(raf);
+      }
+    };
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(tryFit);
     });
     return () => cancelAnimationFrame(raf1);
-  }, [pdfDoc, initialFitDone, handleFitWidth]);
+  }, [pdfDoc, initialFitDone, handleFitWidth, viewerContainerRef]);
 
   // ResizeObserver: re-fit when container resizes (sidebar open/close, window resize)
   useEffect(() => {

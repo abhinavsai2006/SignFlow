@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -57,17 +57,12 @@ export default function PublicShareView() {
 
   // Compute pending fields for the floating action bar
   const hasSigner = signerEmail.trim().length > 0;
-  const myFields = hasSigner
-    ? fields.filter(f => normalizeEmail(f.recipientEmail) === normalizeEmail(signerEmail))
+  const myPendingFields = hasSigner
+    ? fields.filter(f =>
+        normalizeEmail(f.recipientEmail) === normalizeEmail(signerEmail) &&
+        f.status !== 'Signed'
+      )
     : [];
-  const myPendingFields = myFields.filter(f => f.status !== 'Signed');
-
-  // Auto-show success if user opens link and all their fields are already signed
-  useEffect(() => {
-    if (identityConfirmed && myFields.length > 0 && myPendingFields.length === 0) {
-      setAllSigned(true);
-    }
-  }, [identityConfirmed, myFields.length, myPendingFields.length]);
 
   // Handle clicking a signature field on the PDF
   const handleFieldClick = (f: SignatureField) => {
@@ -96,8 +91,8 @@ export default function PublicShareView() {
         { headers: { 'x-recipient-token': recipientToken } }
       );
 
-      const updatedField = response.data.field;
-      setFields(prev => prev.map(f => f._id === activeField._id ? { ...f, ...updatedField } : f));
+      const updatedField = response.data.field || response.data;
+      setFields(prev => prev.map(f => f._id === activeField._id ? { ...f, ...updatedField, status: 'Signed' } : f));
       setActiveField(null);
 
       // Check if all my fields are now signed
@@ -151,21 +146,27 @@ export default function PublicShareView() {
 
   if (isPasswordRequired) {
     return (
-      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl text-center space-y-6">
-          <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
-            <Lock className="w-7 h-7" />
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-6">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-ink-deep">Password Protected</h2>
+              <p className="text-slate text-sm mt-1">Enter the document password to continue</p>
+            </div>
           </div>
-          <h2 className="text-xl font-bold text-ink-deep">Password Protected</h2>
           <form onSubmit={e => { e.preventDefault(); loadDocumentMetadata(password); }} className="space-y-4">
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="Document password"
-              className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-ink-deep"
+              className="w-full bg-white/5 border border-hairline-soft rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-ink-deep placeholder-slate-500"
+              autoFocus
             />
-            <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-ink-deep font-bold py-3 rounded-xl transition">
+            <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-on-primary font-bold py-3 rounded-xl transition">
               Unlock Document
             </button>
           </form>
@@ -176,8 +177,8 @@ export default function PublicShareView() {
 
   if (error) {
     return (
-      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl text-center space-y-4">
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl space-y-4 text-center">
           <AlertTriangle className="w-14 h-14 text-red-400 mx-auto" />
           <h2 className="text-xl font-bold text-ink-deep">Link Unavailable</h2>
           <p className="text-slate text-sm">{error}</p>
@@ -188,90 +189,24 @@ export default function PublicShareView() {
 
   if (allSigned) {
     return (
-      <div
-        className="min-h-screen w-full flex flex-col items-center justify-center p-6"
-        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}
-      >
-        {/* Animated glow ring */}
-        <div className="relative mb-8">
-          <div
-            className="w-32 h-32 rounded-full flex items-center justify-center"
-            style={{
-              background: 'radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0) 70%)',
-              boxShadow: '0 0 60px rgba(16,185,129,0.35), 0 0 120px rgba(16,185,129,0.15)',
-            }}
-          >
-            <div
-              className="w-24 h-24 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.4)' }}
-            >
-              <CheckCircle2 className="w-14 h-14" style={{ color: '#10b981' }} />
-            </div>
+      <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-surface-soft border border-hairline-soft rounded-2xl p-10 shadow-2xl text-center space-y-6">
+          <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           </div>
-          {/* Spinning ring */}
-          <div
-            className="absolute inset-0 rounded-full animate-spin"
-            style={{
-              border: '2px solid transparent',
-              borderTopColor: 'rgba(16,185,129,0.6)',
-              borderRightColor: 'rgba(16,185,129,0.2)',
-              animationDuration: '3s',
-            }}
-          />
-        </div>
-
-        {/* Card */}
-        <div
-          className="w-full max-w-md rounded-3xl p-8 text-center"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 32px 64px rgba(0,0,0,0.4)',
-          }}
-        >
-          <div
-            className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-4"
-            style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}
-          >
-            ✓ DOCUMENT SIGNED
+          <div>
+            <h2 className="text-2xl font-bold text-ink-deep">Signing Complete!</h2>
+            <p className="text-slate text-sm mt-2">You have successfully signed</p>
+            <p className="font-bold text-ink-deep text-sm mt-1 break-words">{docData?.filename}</p>
           </div>
-
-          <h1 className="text-3xl font-black mb-2" style={{ color: '#f8fafc' }}>Signing Complete!</h1>
-
-          <p className="text-sm mb-1" style={{ color: '#94a3b8' }}>You have successfully signed</p>
-          <p
-            className="font-bold text-base mb-6 px-2 break-words"
-            style={{ color: '#e2e8f0' }}
-          >
-            {docData?.filename}
-          </p>
-
-          {/* Divider */}
-          <div className="h-px mb-6" style={{ background: 'rgba(255,255,255,0.08)' }} />
-
-          <p className="text-xs mb-6" style={{ color: '#64748b' }}>
-            A copy will be emailed to all signers once all parties have completed signing.
-          </p>
-
           <button
             onClick={handleDownload}
-            className="w-full font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-95"
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#fff',
-              boxShadow: '0 8px 24px rgba(16,185,129,0.35)',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 12px 32px rgba(16,185,129,0.5)')}
-            onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 8px 24px rgba(16,185,129,0.35)')}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
           >
             <Download className="w-4 h-4" />
             Download Signed PDF
           </button>
         </div>
-
-        {/* Branding */}
-        <p className="mt-8 text-xs" style={{ color: '#334155' }}>Powered by <strong style={{ color: '#475569' }}>SignFlow</strong></p>
       </div>
     );
   }
