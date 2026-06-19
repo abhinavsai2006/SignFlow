@@ -1,0 +1,174 @@
+# Implementation Plan
+
+- [ ] 1. Write bug condition exploration tests (BEFORE implementing any fix)
+  - **Property 1: Bug Condition** - Navigation, Stubs, and Overflow Bugs
+  - **CRITICAL**: These tests MUST FAIL on unfixed code — failure confirms the bugs exist
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **GOAL**: Surface counterexamples that demonstrate each bug exists
+  - **Scoped PBT Approach**: Scope each property to the concrete failing cases for reproducibility
+  - Set up Vitest + React Testing Library with a mocked `useNavigate` and a minimal auth context
+  - **Navigation bugs (isBugCondition_Navigation):**
+    - Mount `UserMenu` with a mock user; simulate click on "Profile" button; assert `navigate('/settings')` was called — FAILS because no `onClick` exists
+    - Mount `UserMenu`; simulate click on "Settings" button; assert `navigate('/settings')` was called — FAILS because no `onClick` exists
+    - For any authenticated user shape (name/email variations), assert both Profile and Settings buttons have an `onClick` that calls navigate — property should FAIL on unfixed code
+  - **Stub bugs (isBugCondition_Stub):**
+    - Mount `Settings` with `activeTab = "workspace"`; assert text "Section Coming Soon" is NOT present — FAILS on unfixed code
+    - Mount `Settings` with `activeTab = "billing"`; assert text "Section Coming Soon" is NOT present — FAILS on unfixed code
+    - Mount `Settings` with `activeTab = "audit"`; assert text "Section Coming Soon" is NOT present — FAILS on unfixed code
+    - Generate random tab from `["workspace", "billing", "audit"]`; assert "Section Coming Soon" never appears — FAILS on unfixed code
+  - **Overflow bug (isBugCondition_Overflow):**
+    - Mount `Settings` with `activeTab = "notifications"`; assert the description paragraph does NOT have class `max-w-sm` — FAILS on unfixed code
+  - Run all tests on UNFIXED code
+  - **EXPECTED OUTCOME**: All tests FAIL (this is correct — it proves the bugs exist)
+  - Document counterexamples: `navigate` never called, "Section Coming Soon" found in stub tabs, `max-w-sm` found on paragraph
+  - Mark task complete when tests are written, run, and failures are documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing any fix)
+  - **Property 2: Preservation** - Non-Buggy Tabs and Routes Render Identically
+  - **IMPORTANT**: Follow observation-first methodology — observe UNFIXED code first, then write tests
+  - Observe: Mount `Settings` with `activeTab = "general"` on unfixed code — record that Profile Information form with name/email fields and Save Changes button is rendered
+  - Observe: Mount `Settings` with `activeTab = "security"` on unfixed code — record that Change Password form and Active Sessions card are rendered
+  - Observe: Simulate click on "Log Out" in `UserMenu` on unfixed code — record that `onLogout` prop is called
+  - Write property-based test: for any tab value from `["general", "security"]`, assert "Section Coming Soon" never appears in rendered output (from Preservation Requirements in design)
+  - Write test: after UserMenu fix, clicking Log Out must still call `onLogout` (not navigate)
+  - Write test: `activeTab = "general"` renders Profile Information form with name/email inputs and Save Changes button
+  - Write test: `activeTab = "security"` renders Change Password form and Active Sessions card with Logout All Devices button
+  - Verify all preservation tests PASS on UNFIXED code
+  - **EXPECTED OUTCOME**: All tests PASS (confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.6_
+
+- [ ] 3. Fix UserMenu navigation — Profile and Settings buttons
+  - [ ] 3.1 Implement navigation fix in `UserMenu.tsx`
+    - In `frontend/src/components/layout/UserMenu.tsx`:
+    - Import `useNavigate` from `react-router-dom`
+    - Instantiate `const navigate = useNavigate();` inside the component
+    - Add `onClick={() => { navigate('/settings'); setIsOpen(false); }}` to the Profile button
+    - Add `onClick={() => { navigate('/settings'); setIsOpen(false); }}` to the Settings button
+    - Leave the Log Out button's onClick unchanged
+    - _Bug_Condition: isBugCondition_Navigation(X) where X.element IN ["Profile button", "Settings button"] AND X.hasOnClickHandler = false_
+    - _Expected_Behavior: navigate('/settings') is called AND setIsOpen(false) is called AND route changes to /settings_
+    - _Preservation: Log Out button behavior, all other UserMenu props and rendering, are unchanged_
+    - _Requirements: 2.1, 2.2, 3.6_
+
+  - [ ] 3.2 Verify navigation bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - UserMenu Navigation
+    - **IMPORTANT**: Re-run the SAME navigation tests from task 1 — do NOT write new tests
+    - Run: Profile button click → `navigate('/settings')` called, dropdown closed
+    - Run: Settings button click → `navigate('/settings')` called, dropdown closed
+    - Run: PBT — for any authenticated user, both buttons have onClick that calls navigate
+    - **EXPECTED OUTCOME**: All navigation tests PASS (confirms bugs 1.1 and 1.2 are fixed)
+    - _Requirements: 2.1, 2.2_
+
+  - [ ] 3.3 Verify Log Out preservation test still passes
+    - **Property 2: Preservation** - Log Out Unchanged
+    - **IMPORTANT**: Re-run the SAME Log Out test from task 2 — do NOT write a new test
+    - **EXPECTED OUTCOME**: Log Out test PASSES (confirms no regression in logout behavior)
+    - _Requirements: 3.6_
+
+- [ ] 4. Fix Settings.tsx — Notifications overflow and stub content
+  - [ ] 4.1 Fix Notifications tab text overflow
+    - In `frontend/src/components/dashboard/Settings.tsx`, for the `activeTab === "notifications"` branch:
+    - Remove `max-w-sm` from the description paragraph (or replace with no max-width constraint)
+    - Ensure the paragraph spans the full available content width in the flex column
+    - Apply Meta design tokens: `surface-soft` background card (`rounded-xl`, `p-6`), `Optimistic VF` font, `hairline-soft` border
+    - Keep the Coming Soon card but with the corrected layout
+    - _Bug_Condition: isBugCondition_Overflow(X) where X.tab = "notifications" AND X.hasMaxWidthConstraint = true AND X.parentLayout = "narrow-flex-column"_
+    - _Expected_Behavior: description paragraph spans full available width, no word-by-word wrapping_
+    - _Requirements: 2.3_
+
+  - [ ] 4.2 Replace Workspace stub with embedded Workspace component
+    - In `frontend/src/components/dashboard/Settings.tsx`, for the `activeTab === "workspace"` branch:
+    - Import the existing `Workspace` component (or extract its content as `WorkspaceContent`)
+    - Render the Workspace component inline — it manages its own state and API calls
+    - Suppress the outer Settings page h1 for this tab to avoid duplicate headings (conditional render or CSS)
+    - Apply Meta design tokens to any wrapper: `surface-soft` background, `rounded-xxxl` card, `xxl` padding
+    - _Bug_Condition: isBugCondition_Stub(X) where X.activeTab = "workspace" AND renderedContent = "Section Coming Soon"_
+    - _Expected_Behavior: workspace team members table, invite modal, storage usage, and activity feed are rendered_
+    - _Preservation: direct /workspaces route still renders standalone Workspace page unchanged_
+    - _Requirements: 2.4, 3.3_
+
+  - [ ] 4.3 Replace Billing stub with embedded Billing component
+    - In `frontend/src/components/dashboard/Settings.tsx`, for the `activeTab === "billing"` branch:
+    - Import and render the existing `Billing` component inline
+    - Apply same heading-suppression logic as Workspace tab
+    - _Bug_Condition: isBugCondition_Stub(X) where X.activeTab = "billing" AND renderedContent = "Section Coming Soon"_
+    - _Expected_Behavior: current plan card, usage bar, and plan upgrade cards are rendered_
+    - _Preservation: direct /billing route still renders standalone Billing page unchanged_
+    - _Requirements: 2.5, 3.4_
+
+  - [ ] 4.4 Replace Audit Logs stub with functional AuditLogsTab
+    - In `frontend/src/components/dashboard/Settings.tsx`, build a new `AuditLogsTab` component:
+    - On mount, fetch user's documents via `GET /api/docs`
+    - For each document, fetch `GET /api/audit/:docId`
+    - Render a chronological list of log entries: timestamp, action, actor, document name
+    - Show a loading skeleton while fetching and an empty state if no entries
+    - Apply Meta design tokens: entries in `card-product-feature` style (`rounded-xl`, `p-4`, `hairline-soft` border), timestamps in `caption` typography, action labels as `badge-success`/`badge-attention` pills
+    - _Bug_Condition: isBugCondition_Stub(X) where X.activeTab = "audit" AND renderedContent = "Section Coming Soon"_
+    - _Expected_Behavior: chronological audit log entries or empty state is rendered, not "Section Coming Soon"_
+    - _Requirements: 2.6_
+
+  - [ ] 4.5 Apply Meta design system tokens to Settings.tsx tab navigation and layout
+    - Replace plain tab buttons with `button-pill-tab` / `button-pill-tab-active` pattern: `rounded-full`, `px-4 py-2`, inactive: `bg-canvas border border-hairline text-ink`, active: `bg-ink-deep text-canvas`
+    - Set page background to `surface-soft` (`#f1f4f7`), content cards to `canvas` white with `rounded-xl` or `rounded-xxxl` and `hairline-soft` border
+    - Apply `Optimistic VF` font (add to CSS/Tailwind config if not already present, with fallbacks: `Montserrat, Helvetica, Arial, sans-serif`)
+    - Form inputs: `rounded-lg`, `border-hairline`, `h-11`, focus ring `border-fb-blue`
+    - Primary action buttons: `rounded-full`, `bg-primary` (`#0064E0`) or `bg-ink-deep`, `font-bold text-sm`
+    - Section headings: `heading-sm` (24px/500) in `ink-deep`; body text: `body-md` (16px/400) in `ink`
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 4.6 Verify stub bug condition exploration tests now pass
+    - **Property 1: Expected Behavior** - Stub Tabs Render Functional Content
+    - **IMPORTANT**: Re-run the SAME stub tests from task 1 — do NOT write new tests
+    - Run: `activeTab = "workspace"` → no "Section Coming Soon", workspace UI present
+    - Run: `activeTab = "billing"` → no "Section Coming Soon", billing UI present
+    - Run: `activeTab = "audit"` → no "Section Coming Soon", audit list or empty state present
+    - Run: `activeTab = "notifications"` → no `max-w-sm` on description paragraph
+    - Run: PBT — for any tab from `["workspace", "billing", "audit"]`, "Section Coming Soon" never appears
+    - **EXPECTED OUTCOME**: All stub and overflow tests PASS
+    - _Requirements: 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 4.7 Verify General and Security preservation tests still pass
+    - **Property 2: Preservation** - Non-Buggy Tabs Unchanged
+    - **IMPORTANT**: Re-run the SAME preservation tests from task 2 — do NOT write new tests
+    - **EXPECTED OUTCOME**: General tab and Security tab tests PASS (confirms no regressions)
+    - _Requirements: 3.1, 3.2_
+
+- [ ] 5. Fix Layout.tsx — decouple blocking workspace fetch
+  - [ ] 5.1 Implement non-blocking workspace fetch
+    - In `frontend/src/components/layout/Layout.tsx`, inside `checkAuth` / the auth `useEffect`:
+    - After `/auth/me` resolves and `setUser(data)` + `setIsValidating(false)` are called, do NOT await the workspace fetch in the same effect
+    - Split into two effects: Effect 1 — validates auth (sets `user`, then `setIsValidating(false)`). Effect 2 — depends on `user`, fires the workspace fetch without blocking render
+    - Alternatively: after `setIsValidating(false)`, trigger workspace fetch via `Promise.resolve().then(fetchWorkspaces)`
+    - The "Verifying session…" spinner must disappear as soon as `/auth/me` resolves, not after `/workspaces` resolves
+    - _Bug_Condition: isBugCondition_Performance(X) where X.layoutMount = true AND workspaceFetchIsBlocking = true_
+    - _Expected_Behavior: isValidating becomes false after /auth/me resolves; workspace data loads in background without blocking initial render_
+    - _Preservation: workspaces and activeWorkspace are still available to child pages via Outlet context after the non-blocking fetch completes_
+    - _Requirements: 2.7, 3.3, 3.4, 3.5_
+
+  - [ ] 5.2 Verify performance fix — isValidating clears before workspace fetch completes
+    - Write a test that mocks `/auth/me` to resolve immediately and `/workspaces` to resolve after a delay
+    - Assert that `isValidating` becomes `false` (spinner gone) before the workspace response arrives
+    - **EXPECTED OUTCOME**: Test PASSES (confirms non-blocking behavior)
+    - _Requirements: 2.7_
+
+- [ ] 6. Apply Meta design system tokens to Profile page
+  - [ ] 6.1 Identify the Profile page component and apply design tokens
+    - Locate the Profile or Account page component (likely the General tab inside `Settings.tsx` or a separate `Profile.tsx`)
+    - Apply Meta design tokens consistently with Settings.tsx (task 4.5):
+      - Page/section background: `surface-soft` (`#f1f4f7`)
+      - Avatar circle: `rounded-circle` (9999px), `surface-soft` background, `2px solid canvas` ring
+      - Form inputs: `rounded-lg`, `border-hairline`, height 44px, focus `border-fb-blue`
+      - Save Changes button: `button-buy-cta` style — `bg-primary` (`#0064E0`), `text-white`, `rounded-full`, `px-8 py-3 font-bold text-sm`
+      - Section cards: `rounded-xl`, `bg-canvas`, `border border-hairline-soft`, `p-6`
+      - Headings: `heading-sm` (24px/500) in `ink-deep`; labels: `body-sm` (14px/400) in `steel`
+    - _Requirements: 2.7_
+
+- [ ] 7. Checkpoint — Ensure all tests pass
+  - Run `vitest --run` from the `frontend/` directory
+  - All exploration tests (Property 1) must PASS — confirms bugs 1.1–1.6 are fixed
+  - All preservation tests (Property 2) must PASS — confirms no regressions in 3.1–3.6
+  - Performance fix test must PASS — confirms isValidating decouples from workspace fetch
+  - Fix any regressions found before marking complete
+  - Ensure all tests pass; ask the user if questions arise

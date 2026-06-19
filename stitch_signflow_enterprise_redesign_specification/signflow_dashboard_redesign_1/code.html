@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SignFlow Enterprise Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-highest": "#e0e3e5",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "surface-container-low": "#f2f4f6",
+                      "surface-bright": "#f7f9fb",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#38485d",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-container": "#75859d",
+                      "secondary-container": "#2170e4",
+                      "surface-container-high": "#e6e8ea",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "on-secondary-fixed-variant": "#004395",
+                      "inverse-primary": "#bec6e0",
+                      "on-error": "#ffffff",
+                      "outline-variant": "#c6c6cd",
+                      "on-primary-fixed": "#131b2e",
+                      "secondary-fixed": "#d8e2ff",
+                      "outline": "#76777d",
+                      "background": "#f7f9fb",
+                      "surface": "#f7f9fb",
+                      "error-container": "#ffdad6",
+                      "surface-tint": "#565e74",
+                      "tertiary-fixed": "#d3e4fe",
+                      "on-surface": "#191c1e",
+                      "on-surface-variant": "#45464d",
+                      "secondary": "#0058be",
+                      "primary-fixed-dim": "#bec6e0",
+                      "tertiary-fixed-dim": "#b7c8e1",
+                      "primary-container": "#131b2e",
+                      "primary": "#000000",
+                      "inverse-surface": "#2d3133",
+                      "error": "#ba1a1a",
+                      "tertiary": "#000000",
+                      "tertiary-container": "#0b1c30",
+                      "surface-dim": "#d8dadc",
+                      "on-secondary": "#ffffff",
+                      "primary-fixed": "#dae2fd",
+                      "surface-variant": "#e0e3e5",
+                      "on-background": "#191c1e",
+                      "on-secondary-container": "#fefcff",
+                      "on-tertiary-fixed": "#0b1c30",
+                      "surface-container": "#eceef0",
+                      "on-primary-container": "#7c839b",
+                      "on-secondary-fixed": "#001a42",
+                      "on-primary": "#ffffff",
+                      "inverse-on-surface": "#eff1f3"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "2xl": "1rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "2xl": "48px",
+                      "3xl": "64px"
+              },
+              "fontFamily": {
+                      "h3": ["Inter", "sans-serif"],
+                      "body-sm": ["Inter", "sans-serif"],
+                      "body-md": ["Inter", "sans-serif"],
+                      "mono-sm": ["JetBrains Mono", "monospace"],
+                      "label-md": ["Inter", "sans-serif"],
+                      "h1": ["Inter", "sans-serif"],
+                      "body-lg": ["Inter", "sans-serif"],
+                      "display-lg": ["Inter", "sans-serif"],
+                      "h2": ["Inter", "sans-serif"],
+                      "display-sm": ["Inter", "sans-serif"]
+              },
+              "fontSize": {
+                      "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600", "letterSpacing": "-0.01em"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-md": ["15px", {"lineHeight": "22px", "fontWeight": "400"}],
+                      "mono-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "h1": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                      "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "display-sm": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              },
+              "boxShadow": {
+                  "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
+                  "DEFAULT": "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03)",
+                  "md": "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03)",
+                  "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03)",
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e2e8f0;
+            border-radius: 10px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+        }
+    </style>
+</head>
+<body class="bg-[#FAFAFA] text-on-background font-body-md text-body-md antialiased overflow-hidden h-screen flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-surface-container-lowest text-primary dark:text-primary-fixed border-r border-outline-variant/60 dark:border-outline fixed left-0 top-0 bottom-0 flex flex-col w-[260px] p-lg gap-md hidden md:flex z-40">
+<div class="mb-lg px-2">
+<h1 class="font-h2 text-h2 font-bold text-primary dark:text-primary-fixed tracking-tight">SignFlow</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Enterprise E-Signature</p>
+</div>
+<button class="bg-[#111827] hover:bg-[#1F2937] text-white rounded-lg px-md py-3 flex items-center justify-center gap-sm mb-lg shadow-sm transition-all w-full">
+<i class="ph ph-plus text-lg"></i>
+<span class="font-label-md text-[13px] font-semibold">New Signature</span>
+</button>
+<div class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 bg-[#F3F4F6] text-[#111827] rounded-lg px-3 py-2.5 transition-colors font-medium text-[14px]" href="#">
+<i class="ph ph-squares-four text-lg"></i>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant px-3 py-2.5 hover:bg-[#F9FAFB] transition-colors rounded-lg font-medium text-[14px]" href="#">
+<i class="ph ph-file-text text-lg"></i>
+<span>Documents</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant px-3 py-2.5 hover:bg-[#F9FAFB] transition-colors rounded-lg font-medium text-[14px]" href="#">
+<i class="ph ph-users-three text-lg"></i>
+<span>Workspace</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant px-3 py-2.5 hover:bg-[#F9FAFB] transition-colors rounded-lg font-medium text-[14px]" href="#">
+<i class="ph ph-gear text-lg"></i>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area Wrapper -->
+<div class="flex-1 flex flex-col md:ml-[260px] h-screen overflow-hidden bg-[#FAFAFA]">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant/60 flex justify-between items-center w-full px-lg h-[72px] z-50 sticky top-0 shrink-0">
+<div class="flex items-center md:hidden">
+<h1 class="text-h2 font-h2 font-bold text-primary tracking-tight">SignFlow</h1>
+</div>
+<div class="hidden md:flex flex-1 max-w-2xl mx-lg">
+<div class="relative w-full group">
+<i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg"></i>
+<input class="w-full bg-[#F3F4F6] border-transparent rounded-lg pl-10 pr-sm py-2 font-body-sm text-body-sm focus:bg-white focus:border-[#E5E7EB] focus:ring-4 focus:ring-[#F3F4F6] transition-all outline-none" placeholder="Search documents, people, or settings..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 text-on-surface-variant hover:bg-[#F3F4F6] rounded-lg transition-colors relative">
+<i class="ph ph-bell text-xl"></i>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-[#F3F4F6] rounded-lg transition-colors">
+<i class="ph ph-grid-four text-xl"></i>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest border border-outline-variant/50 overflow-hidden ml-2 cursor-pointer shadow-sm">
+<img alt="User profile and workspace switcher" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwq1Bw57N4EkFsEKgs4DhOGQQDXOacQn3kxkstV_XU8qJyZxVw6Su8vvYZ38KtYztRYSHWxe3XKV9ZLl0anbcEUE0lztSyN2fpfaestweCaNSPGGKm2xRJjdBw8licDVa8BkbgYP9WL9R1npJx4s1guxXSFIHnXRVGwlHfKgOKUgMBfJ-qwj_-XSsUmtR1hZnV1m8TnmmklHjWY-k3jAOnzD_90eCbmJa_nsgm25hCtmsYe1iBopVvoReLg1TLPVeyptZ8-US4RrY"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto custom-scrollbar p-xl">
+<div class="max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-xl">
+<!-- Left/Main Column (9 cols on xl) -->
+<div class="xl:col-span-8 2xl:col-span-9 flex flex-col gap-xl">
+<!-- Stats Row -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg">
+<!-- Stat Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-lg shadow-sm flex flex-col gap-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Awaiting Signature</span>
+<i class="ph ph-clock text-secondary text-xl"></i>
+</div>
+<span class="font-h1 text-h1 text-primary mt-2">12</span>
+<div class="flex items-center gap-1.5 mt-auto pt-4">
+<i class="ph ph-arrow-down-right text-error text-sm"></i>
+<span class="font-body-sm text-[13px] text-on-surface-variant">2 less than last week</span>
+</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-lg shadow-sm flex flex-col gap-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Completed (30d)</span>
+<i class="ph ph-check-circle text-secondary text-xl"></i>
+</div>
+<span class="font-h1 text-h1 text-primary mt-2">148</span>
+<div class="flex items-center gap-1.5 mt-auto pt-4">
+<i class="ph ph-arrow-up-right text-[#16A34A] text-sm"></i>
+<span class="font-body-sm text-[13px] text-[#16A34A] font-medium">15% increase</span>
+</div>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-lg shadow-sm flex flex-col gap-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Storage Used</span>
+<i class="ph ph-cloud text-secondary text-xl"></i>
+</div>
+<span class="font-h1 text-h1 text-primary mt-2">75<span class="font-body-md text-body-md text-on-surface-variant ml-1 font-normal">GB</span></span>
+<div class="w-full bg-[#F3F4F6] h-1.5 rounded-full mt-auto mb-1 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 75%"></div>
+</div>
+</div>
+<!-- Stat Card 4 -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-lg shadow-sm flex flex-col gap-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Active Workspaces</span>
+<i class="ph ph-buildings text-secondary text-xl"></i>
+</div>
+<span class="font-h1 text-h1 text-primary mt-2">4</span>
+<div class="flex -space-x-2 mt-auto pt-4">
+<img alt="Workspace Admin" class="w-7 h-7 rounded-full border-2 border-white dark:border-surface-dim object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP42xkvHqfdspHJnOpIrd7hIyjL9nHMEe1XJhkuIQZt9JNJrLkPKyR4tvS6-IBPvdOAmHHoQDkXBtYlckT6fHpFJ6qhIeJFfxWCqkFl-X9hLfd3mFS_MRXXVpVpFX9kQNCWJ5pDAEOrzw3xoZeAMcClUxntuMM68vHx5Utun7hlt1l2uMED_U_2EcdHCv5yUa24CnK8yT4JF_lx3EQn_6jgVMflE7YoGnlrFsat_fGF08zEZZ2no2vdr29YD3HdoiVost47bz16xk"/>
+<img alt="Workspace Admin" class="w-7 h-7 rounded-full border-2 border-white dark:border-surface-dim object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVeesJwVCLkKzzibSRgDf2QBFC_cwudIPVnIf-7sQsbJAP38MbuLMkB4jGgD_PLLTD5N2HmKDBGD8JNZ4lIMoKvpA2agnIBGq-v80ul4jfdljFqHYzW2BwKcaG-iyohQhZoeYT4yWjCOxhd2zwbQBz8fjmclC1XZfoKNF5Yh-nxwjBnto-dCuLYa0ygiT2qYo4YbCIeoJL_YC8iAAIOVuFjGvkJjVzP0_GBlh0Rer4RsfJymOTEzj3cBtWqa05juKRtIFQPf9W_s0"/>
+<img alt="Workspace Admin" class="w-7 h-7 rounded-full border-2 border-white dark:border-surface-dim object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVcHDEzyqb50RH6fPibhU_neK02ac9UnbrlqPg5SURpNWcGD5EzzdLccBXunzRiF1qtTPBRUCpj-3w2cf45cYCMXKKfxITO8pL6VHv6oYSmsR9PCtPitd8kAgxpxyR7M3hZOG5Veat3QWZ_9LzMHD9UUrmIXDCHBqA2jiNoErm_IoRzI2NvY2Aj2i7zGoqy4ev_nnPE2SvZfgMpq_FCCAqiCYON8TXlwnGbyhpRV0FuKkEs9rUcYHruRLpKG3YK0v0owVzS7wqPE4"/>
+<div class="w-7 h-7 rounded-full border-2 border-white dark:border-surface-dim bg-[#F3F4F6] flex items-center justify-center font-label-md text-[11px] text-on-surface-variant font-medium">+1</div>
+</div>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="flex flex-wrap gap-md mt-2">
+<button class="bg-primary hover:bg-[#111827] text-white rounded-lg px-5 py-2.5 flex items-center gap-2 shadow-sm transition-all font-label-md text-[13px] font-semibold">
+<i class="ph ph-plus-circle text-lg"></i>
+                            New Document
+                        </button>
+<button class="bg-surface-container-lowest border border-outline-variant/50 hover:bg-[#F9FAFB] hover:border-outline-variant text-primary rounded-lg px-5 py-2.5 flex items-center gap-2 shadow-sm transition-all font-label-md text-[13px] font-medium">
+<i class="ph ph-user-plus text-lg text-on-surface-variant"></i>
+                            Invite Member
+                        </button>
+<button class="bg-surface-container-lowest border border-outline-variant/50 hover:bg-[#F9FAFB] hover:border-outline-variant text-primary rounded-lg px-5 py-2.5 flex items-center gap-2 shadow-sm transition-all font-label-md text-[13px] font-medium">
+<i class="ph ph-chart-bar text-lg text-on-surface-variant"></i>
+                            View Reports
+                        </button>
+</section>
+<!-- Recent Documents Table -->
+<section class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm overflow-hidden flex flex-col mt-2">
+<div class="px-6 py-5 border-b border-outline-variant/50 flex justify-between items-center bg-surface-container-lowest">
+<h2 class="font-h3 text-h3 text-primary tracking-tight">Recent Documents</h2>
+<button class="text-on-surface-variant hover:text-primary font-label-md text-[13px] font-medium transition-colors">View All</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/50 bg-[#FAFAFA]">
+<th class="px-6 py-4 font-label-md text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider w-1/2">Document Name</th>
+<th class="px-6 py-4 font-label-md text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 font-label-md text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">Last Activity</th>
+<th class="px-6 py-4 font-label-md text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider text-right">Recipients</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-[14px]">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant/30 hover:bg-[#F9FAFB] transition-colors group cursor-pointer">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<i class="ph ph-file-pdf text-[#EF4444] text-xl"></i>
+<span class="font-medium text-primary">Master Service Agreement.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E0E7FF] text-[#3730A3] font-label-md text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#4F46E5]"></span> Sent
+                                            </span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">2 hours ago</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end -space-x-1.5">
+<img alt="Recipient" class="w-6 h-6 rounded-full border-2 border-white object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaWnPLBmO6bipkG0f629LCkMhIO2OsovXEjPvgza3WPSMYv8cHmHOFlRXlgT0e-XZ72qg57tkDq8Ux2oifVkE1vRrjAEkt7jzUv1Grfp5JdbO9dF7nV3wIYdf5D05kO25l_untuIitTLqDAZ5-vJrJgT_C5sKOpM4pFP4ovEs2Vv1D_UeA__mYEcQ7muPDWpxpkIV0YeXBfuluPkEDYujHrIB0J1rzrYxR2AmHRxcGXbAEdw3wjtOMJ6zzfQpmID4CQVDP6iL0qTc"/>
+<img alt="Recipient" class="w-6 h-6 rounded-full border-2 border-white object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDO4ny7nyjZRE-D8lWXCItQnIVAyUu9cESwgG0Jy0xkXutRUP1g54rH_GO9OzZUOK6j2ZVlSDJPYrvapTNMlc92K_zB4HveSmPjww1QMnCKkjmGwncbnIc6Y8Fx9OuI4kUP7Pxu8PW7QnZapG-r7EmCgeo-KQ7PANPTus6ktnwplRFt1YCXtBTNQR7T4eGWlW_cuckUCM96nhZqc8grvyi86tL6OvJcce_G5c29PG0uA7w6UX_VdK43SQXH-Y-zdr8z1LdZlC2VV28"/>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant/30 hover:bg-[#F9FAFB] transition-colors group cursor-pointer">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<i class="ph ph-file-pdf text-[#EF4444] text-xl"></i>
+<span class="font-medium text-primary">Q3 Vendor Contract - TechCorp.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F4F6] text-[#4B5563] font-label-md text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#9CA3AF]"></span> Draft
+                                            </span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">Yesterday</td>
+<td class="px-6 py-4 text-right">
+<span class="text-on-surface-variant font-mono-sm text-mono-sm">--</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant/30 hover:bg-[#F9FAFB] transition-colors group cursor-pointer">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<i class="ph ph-file-pdf text-[#EF4444] text-xl"></i>
+<span class="font-medium text-primary">Employee NDA - Sarah Connor.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#166534] font-label-md text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span> Signed
+                                            </span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">Oct 24, 2023</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end">
+<img alt="Recipient" class="w-6 h-6 rounded-full border-2 border-white object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjpWVhcfNEn36Jji-AxsiQEY6dlrCtRYcR2rVBz5DZnP3prcyikJDUu_6Efpm4fqYivYMMTCr1nQVkM2_STb87a7_lIk4nmzFdRsItme7GkW87Crpf0GMkJXCVIAJaQBNoogFZI--BB_Md81AUqeqx5Ui_Fr8gdf3cKh2bX63pNtuO3EUJMOiSCcpGqgvie9Rc7VS_qX3q_l_Of8GrHHs5_Dr3LZcUofyNKgOO41QvL-7iUdz1WTNTlcPZ4gBzG66GaZKAodVDKus"/>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Right Column (3 cols on xl) - Activity Feed -->
+<aside class="xl:col-span-4 2xl:col-span-3 flex flex-col gap-lg">
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-6 flex flex-col h-full">
+<h2 class="font-h3 text-h3 text-primary tracking-tight pb-4 mb-6 border-b border-outline-variant/50">Activity Log</h2>
+<div class="flex flex-col gap-8 flex-1 overflow-y-auto custom-scrollbar pr-2">
+<!-- Timeline Item 1 -->
+<div class="relative flex gap-4 pl-1">
+<div class="absolute left-[15px] top-8 bottom-[-32px] w-[2px] bg-[#F3F4F6] z-0"></div>
+<div class="relative z-10 w-8 h-8 rounded-full bg-[#E0E7FF] flex items-center justify-center shrink-0 shadow-sm border border-white">
+<i class="ph ph-pencil-simple text-sm text-[#4F46E5]"></i>
+</div>
+<div class="flex flex-col pt-1">
+<span class="font-body-sm text-[14px] text-primary leading-tight"><strong class="font-semibold">John Doe</strong> signed <strong class="font-medium">Project X SOW</strong></span>
+<span class="font-body-sm text-[12px] text-on-surface-variant mt-1">10 mins ago</span>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative flex gap-4 pl-1">
+<div class="absolute left-[15px] top-8 bottom-[-32px] w-[2px] bg-[#F3F4F6] z-0"></div>
+<div class="relative z-10 w-8 h-8 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0 shadow-sm border border-white">
+<i class="ph ph-user-plus text-sm text-[#16A34A]"></i>
+</div>
+<div class="flex flex-col pt-1">
+<span class="font-body-sm text-[14px] text-primary leading-tight"><strong class="font-semibold">Alice Smith</strong> accepted workspace invitation</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant mt-1">2 hours ago</span>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative flex gap-4 pl-1">
+<div class="absolute left-[15px] top-8 bottom-[-32px] w-[2px] bg-[#F3F4F6] z-0"></div>
+<div class="relative z-10 w-8 h-8 rounded-full bg-[#F3F4F6] flex items-center justify-center shrink-0 shadow-sm border border-white">
+<i class="ph ph-paper-plane-tilt text-sm text-[#4B5563]"></i>
+</div>
+<div class="flex flex-col pt-1">
+<span class="font-body-sm text-[14px] text-primary leading-tight">You sent <strong class="font-medium">Master Service Agreement</strong> to 2 recipients</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant mt-1">4 hours ago</span>
+</div>
+</div>
+<!-- Timeline Item 4 (Last) -->
+<div class="relative flex gap-4 pl-1 pb-2">
+<div class="relative z-10 w-8 h-8 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0 shadow-sm border border-white">
+<i class="ph ph-shield-warning text-sm text-[#EF4444]"></i>
+</div>
+<div class="flex flex-col pt-1">
+<span class="font-body-sm text-[14px] text-primary leading-tight"><strong class="font-semibold">Bob Jones</strong> declined to sign <strong class="font-medium">NDA_v2</strong></span>
+<span class="font-body-sm text-[12px] text-on-surface-variant mt-1">Yesterday</span>
+</div>
+</div>
+</div>
+<button class="mt-8 w-full py-2.5 font-label-md text-[13px] font-medium text-on-surface-variant hover:text-primary hover:bg-[#F9FAFB] rounded-lg transition-colors text-center border border-transparent hover:border-outline-variant/30">
+                            View All Activity
+                        </button>
+</div>
+</aside>
+</div>
+</main>
+</div>
+</body></html>
