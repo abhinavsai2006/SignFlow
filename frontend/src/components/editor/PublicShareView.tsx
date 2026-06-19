@@ -39,10 +39,10 @@ export default function PublicShareView() {
     handleEmailSubmit, handleOtpSubmit, handleResetVerification
   } = useRecipientVerification(id);
 
-  // 3. Build PDF URL only when identity is confirmed
-  const pdfUrl = (identityConfirmed && !isPasswordRequired && id)
-    ? `${BASE_URL}/api/docs/${id}/public-download${password ? '?password=' + encodeURIComponent(password) : ''}`
-    : null;
+  // Build PDF URL only when identity is confirmed (use original unsigned PDF for viewer)
+    const pdfUrl = (identityConfirmed && !isPasswordRequired && id)
+        ? `${BASE_URL}/api/docs/${id}/public-original${password ? '?password=' + encodeURIComponent(password) : ''}`
+        : null;
 
   const {
     pdfDoc, numPages, currentPage, setCurrentPage, scale, setScale,

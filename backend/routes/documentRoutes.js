@@ -433,6 +433,44 @@ router.get('/:id/download-audit', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/docs/:id/public-original
+// @desc    Get the original (unsigned) PDF for public share view
+router.get('/:id/public-original', async (req, res) => {
+  const documentId = req.params.id;
+  console.log('ORIGINAL_PUBLIC_DOWNLOAD_START:', { documentId });
+  try {
+    const { password } = req.query;
+    const document = await Document.findById(documentId);
+    if (!document) {
+      console.log('ORIGINAL_PUBLIC_DOWNLOAD_FAIL: Not found', { documentId });
+      return res.status(404).json({ message: 'Shared document not found' });
+    }
+    if (!document.sharingEnabled) {
+      const hasRecipients = await DocumentRecipient.exists({ documentId: document._id });
+      if (!hasRecipients) {
+        console.log('ORIGINAL_PUBLIC_DOWNLOAD_FAIL: Sharing disabled', { documentId });
+        return res.status(404).json({ message: 'Shared document not found or sharing disabled' });
+      }
+      document.sharingEnabled = true;
+      await document.save();
+    }
+    if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
+      return res.status(410).json({ message: 'This public shared link has expired' });
+    }
+    if (document.sharePassword && document.sharePassword !== password) {
+      return res.status(401).json({ message: 'Password protection required' });
+    }
+    const originalPath = document.originalFileUrl || (document.versions?.[0]?.path) || document.originalPath;
+    const originalBytes = await readPdfBytes(originalPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(Buffer.from(originalBytes));
+    console.log('ORIGINAL_PUBLIC_DOWNLOAD_SUCCESS:', { documentId });
+  } catch (error) {
+    console.error('[Original Public Download] Error:', error.message);
+    res.status(500).json({ message: 'Failed to load original document' });
+  }
+});
+
 // @route   GET /api/docs/:id/public-download
 // @desc    Download the signed finalized PDF document file publicly
 router.get('/:id/public-download', async (req, res) => {
