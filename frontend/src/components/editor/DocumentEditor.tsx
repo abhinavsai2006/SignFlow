@@ -651,19 +651,7 @@ const DraggableField = memo(function DraggableField({
       case 'Checkbox': return <CheckSquare className={`w-4 h-4 ${theme.textClass}`} />;
     }
   };
-
   const renderFieldContents = () => {
-    const formatSignatureDate = (dateString?: string) => {
-      const d = dateString ? new Date(dateString) : new Date();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const month = months[d.getUTCMonth()];
-      const year = d.getUTCFullYear();
-      const hours = String(d.getUTCHours()).padStart(2, '0');
-      const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-      return `${day} ${month} ${year} • ${hours}:${minutes} UTC`;
-    };
-
     const cleanSignerName = sig.signerName || (recipientName.includes('@') ? recipientName.split('@')[0] : recipientName);
 
     if (isSigned) {
