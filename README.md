@@ -1,409 +1,324 @@
 
-# SignFlow: Professional Digital Signature Platform
+# SignFlow
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![React](https://img.shields.io/badge/React-19.0-blue?logo=react&logoColor=white)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-20.0-43853d?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-4db33d?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+A modern, production-ready digital signature platform designed to streamline document signing workflows with enterprise-grade security and an intuitive user experience.
+
+## Key Advantages (Why Choose SignFlow?)
+
+- **Open Source & Extensible**: Fully customizable for your needs with a permissive MIT license
+- **No Vendor Lock-In**: Keep full control of your documents and signatures
+- **Fast & Lightweight**: Built with modern tools for exceptional performance
+- **Secure by Design**: Encrypted storage, tamper-proof signatures, and robust authentication
+- **Multi-Platform Support**: Works perfectly on desktop, tablet, and mobile devices
+- **Developer-Friendly**: Clean codebase, comprehensive documentation, and modular architecture
 
 ## Table of Contents
-1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Tech Stack](#tech-stack)
-4. [Getting Started](#getting-started)
-   - [Prerequisites](#prerequisites)
-   - [Local Development](#local-development)
-   - [Environment Variables](#environment-variables)
-   - [Docker Deployment](#docker-deployment)
-5. [Project Structure](#project-structure)
-6. [API Documentation](#api-documentation)
-7. [Usage Guide](#usage-guide)
-8. [Contributing](#contributing)
-9. [Troubleshooting](#troubleshooting)
-10. [License](#license)
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation & Setup](#installation--setup)
+  - [Environment Variables](#environment-variables)
+- [Project Structure](#project-structure)
+- [Configuration Options](#configuration-options)
+- [Usage Guide](#usage-guide)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## Overview
-SignFlow is a modern, production-ready digital signature platform designed to streamline document signing workflows. Built with a focus on user experience, security, and reliability, SignFlow empowers teams and individuals to sign and manage documents electronically with ease.
+## Features
 
-Whether you're sending contracts, agreements, or forms, SignFlow provides a secure, intuitive interface that simplifies the entire signing process from start to finish.
+### Core Features
 
----
+- **Document Management**
+  - PDF upload with drag-and-drop support
+  - Real-time document preview using PDF.js
+  - Document status tracking (Draft, Pending, Signed, Archived)
+  - Archive/Unarchive functionality
+  - Secure document storage (local file system or Cloudflare R2)
 
-## Key Features
-- **📄 Easy Document Upload & Management**: Support for PDF documents with full preview functionality
-- **✍️ Flexible Signature Creation**: Draw, type, or upload your own signature
-- **🔗 Secure Public Share Links**: Send documents to anyone via secure, password-protected links
-- **👥 Multi-Recipient Signing**: Assign fields to multiple signers with parallel or sequential signing order
-- **📱 Fully Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
-- **📊 Complete Audit Trails**: Track every action with timestamped audit logs
-- **🔒 Enterprise-Grade Security**: Encrypted document storage, secure authentication, and tamper-proof signatures
-- **🎨 Customizable Appearance**: Adjust signature scale, metadata size, fonts, and more
-- **📩 Automated Reminders**: Configure optional reminders to keep the signing process on track
-- **🔍 Certificate Verification**: View detailed signing certificates for every signed document
-- **📥 Instant Download**: Get finalized PDFs with embedded signatures and audit trails immediately
+- **Signature Creation**
+  - Draw signatures directly on the canvas
+  - Type signatures with custom fonts and styles
+  - Upload custom signature images (PNG, JPG, etc.)
+  - Save and reuse signatures for future documents
+
+- **Signature Fields**
+  - Multiple field types: Signature, Initials, Date, Text, Checkbox
+  - Drag-and-drop field placement on documents
+  - Resizable and draggable fields
+  - Assign fields to specific recipients
+  - Field locking to prevent accidental changes
+
+- **Recipient Management**
+  - Add multiple signers and viewers
+  - Configure signing order (Parallel or Sequential)
+  - Secure share links with optional password protection
+  - Optional email notifications and reminders
+
+- **Signing Experience**
+  - Public share link access (no account required for signers)
+  - Guided signing process
+  - Signature preview before finalization
+  - Metadata customization (scale, font, etc.)
+
+- **Audit & Compliance**
+  - Complete audit trails for all document actions
+  - Timestamped activity logs
+  - Signer information (IP address, user agent, etc.)
+  - Finalized PDF with embedded signatures and audit information
+  - Downloadable signing certificates
+
+### Secondary Features
+
+- **User Authentication & Security**
+  - Secure user registration and login
+  - JWT-based stateless authentication
+  - Password hashing with bcrypt
+  - Password reset functionality
+  - Protected routes and API endpoints
+
+- **Responsive Design**
+  - Optimized for desktop, tablet, and mobile screens
+  - Touch-friendly interface for mobile devices
+  - Clean, modern UI with smooth animations
+
+- **Developer Experience**
+  - TypeScript for type safety
+  - Vite for fast builds and hot module replacement
+  - Tailwind CSS for rapid styling
+  - Modular, well-organized codebase
+  - Comprehensive inline documentation
 
 ---
 
 ## Tech Stack
 
 ### Frontend
-- **React 19.0**: Modern, fast, and scalable UI library
-- **TypeScript**: Type-safe development for better reliability and developer experience
+- **React 19**: Modern UI library with concurrent features
+- **TypeScript**: Type-safe development for better reliability
 - **Vite**: Lightning-fast build tool and dev server
-- **Tailwind CSS**: Utility-first CSS framework for rapid, responsive styling
-- **React Router**: Declarative routing for single-page application navigation
-- **PDF.js**: High-quality PDF rendering and preview functionality
-- **Lucide React**: Beautiful, consistent icon library
+- **Tailwind CSS**: Utility-first CSS framework for responsive styling
+- **React Router**: Declarative routing for single-page apps
+- **PDF.js**: High-quality PDF rendering and preview
+- **Lucide React**: Beautiful, consistent icons
 - **Fetch API**: Modern HTTP client for API communication
 
 ### Backend
-- **Node.js 20.x**: JavaScript runtime environment for server-side applications
+- **Node.js 20+**: JavaScript runtime for server-side apps
 - **Express.js**: Minimal, flexible web application framework
-- **MongoDB 7.x**: NoSQL database for storing documents, users, and audit logs
-- **Mongoose**: Elegant MongoDB object modeling for Node.js
-- **pdf-lib**: Library for creating and modifying PDF documents
+- **MongoDB 7+**: NoSQL database for flexible data storage
+- **Mongoose**: Elegant MongoDB object modeling
+- **pdf-lib**: Powerful PDF manipulation library
 - **node-signpdf**: Digital signature generation for PDFs
-- **JWT Authentication**: Stateless, secure authentication mechanism
-- **Nodemailer**: Email notification and reminder delivery system
-- **Multer**: File upload middleware for handling document uploads
-- **Cloudflare R2**: Optional, scalable object storage for documents (or local file system)
+- **JWT**: Stateless authentication mechanism
+- **Nodemailer**: Email notifications and reminders
+- **Multer**: File upload middleware
+- **bcrypt**: Password hashing library
+- **CORS**: Cross-origin resource sharing configuration
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-Ensure you have the following installed on your system:
-- [Node.js](https://nodejs.org/) v20 or later (LTS recommended)
-- [MongoDB](https://www.mongodb.com/try/download/community) v7 or later (local install or MongoDB Atlas)
-- [npm](https://www.npmjs.com/) (comes with Node.js) or [Yarn](https://yarnpkg.com/)
-- [Git](https://git-scm.com/) (for cloning the repository)
 
-### Local Development
+Ensure you have the following installed and configured:
 
-#### Step 1: Clone the Repository
-```bash
-git clone https://github.com/abhinavsai2006/SignFlow.git
-cd SignFlow
-```
+1. **Node.js**: Version 20.x or later (LTS recommended)
+2. **MongoDB**: Either a local installation or MongoDB Atlas account
+3. **npm** or **Yarn**: Package managers (npm comes with Node.js)
+4. **Git**: For cloning the repository
 
-#### Step 2: Set Up the Backend
-```bash
-cd backend
+### Installation & Setup
 
-# Copy example environment variables and configure
-cp .env.example .env
-# Edit .env with your actual configuration (see Environment Variables section below)
+Follow these steps to set up SignFlow on your local machine:
 
-# Install dependencies
-npm install
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/abhinavsai2006/SignFlow.git
+   cd SignFlow
+   ```
 
-# Start the backend server (runs on http://localhost:3001)
-npm run dev
-```
+2. **Set up the Backend**
+   ```bash
+   cd backend
+   
+   # Copy example environment variables
+   cp .env.example .env
+   
+   # Edit .env with your configuration (see Environment Variables section below)
+   
+   # Install dependencies
+   npm install
+   
+   # Start the backend development server
+   npm run dev
+   ```
 
-#### Step 3: Set Up the Frontend
-```bash
-cd ../frontend
+   The backend will start on `http://localhost:3001` by default.
 
-# Copy example environment variables and configure
-cp .env.example .env
-# Edit .env with your backend API URL (usually VITE_API_URL=http://localhost:3001/api)
+3. **Set up the Frontend**
+   ```bash
+   cd ../frontend
+   
+   # Copy example environment variables
+   cp .env.example .env
+   
+   # Edit .env with your backend API URL
+   
+   # Install dependencies
+   npm install
+   
+   # Start the frontend development server
+   npm run dev
+   ```
 
-# Install dependencies
-npm install
+   The frontend will start on `http://localhost:5173` by default.
 
-# Start the frontend dev server (runs on http://localhost:5173)
-npm run dev
-```
-
-#### Step 4: Access the Application
-- Open your browser and navigate to: `http://localhost:5173`
-- Sign up for an account to start using SignFlow!
+4. **Access the application**
+   Open your browser and navigate to `http://localhost:5173`. You can now sign up for an account and start using SignFlow!
 
 ---
 
-### Environment Variables
+## Environment Variables
 
-#### Backend (`backend/.env`)
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `NODE_ENV` | Runtime environment (`development`, `production`) | `development` | No |
+### Backend Configuration (`backend/.env`)
+
+Create a `.env` file in the `backend` directory with the following variables:
+
+| Variable | Description | Default Value | Required |
+|----------|-------------|---------------|----------|
+| `NODE_ENV` | Runtime environment (`development` or `production`) | `development` | No |
 | `PORT` | Backend server port | `3001` | No |
 | `MONGODB_URI` | MongoDB connection string | `mongodb://127.0.0.1:27017/signflow` | Yes |
-| `JWT_SECRET` | Secret key for JWT token signing (must be secure in production) | `your-jwt-secret-key-change-this-in-production` | Yes |
-| `JWT_EXPIRES_IN` | JWT token expiration time | `7d` | No |
-| `CORS_ORIGIN` | Frontend origin for CORS | `http://localhost:5173` | No |
-| `EMAIL_HOST` | SMTP server host for email notifications | `smtp.gmail.com` | No |
-| `EMAIL_PORT` | SMTP server port | `587` | No |
-| `EMAIL_USER` | SMTP server username/email | | No |
-| `EMAIL_PASS` | SMTP server password/app password | | No |
-| `STORAGE_TYPE` | Storage provider (`local`, `r2`) | `local` | No |
-| `R2_ACCOUNT_ID` | Cloudflare R2 account ID | | No (if using local) |
+| `JWT_SECRET` | Secret key for signing JWT tokens (must be long and secure in production) | `your-jwt-secret-key-change-this-in-production` | Yes |
+| `JWT_EXPIRES_IN` | JWT token expiration time (e.g., `7d`, `24h`, `60m`) | `7d` | No |
+| `CORS_ORIGIN` | Frontend origin URL for CORS policy | `http://localhost:5173` | No |
+| `EMAIL_HOST` | SMTP server host for sending emails (e.g., `smtp.gmail.com`) | | No |
+| `EMAIL_PORT` | SMTP server port (e.g., `587`) | | No |
+| `EMAIL_USER` | SMTP server username/email address | | No |
+| `EMAIL_PASS` | SMTP server password or app-specific password | | No |
+| `STORAGE_TYPE` | Storage provider (`local` or `r2`) | `local` | No |
+| `R2_ACCOUNT_ID` | Cloudflare R2 account ID (required if `STORAGE_TYPE=r2`) | | No (if using local) |
 | `R2_ACCESS_KEY_ID` | Cloudflare R2 access key ID | | No (if using local) |
 | `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret access key | | No (if using local) |
 | `R2_BUCKET_NAME` | Cloudflare R2 bucket name | | No (if using local) |
 
-#### Frontend (`frontend/.env`)
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
+### Frontend Configuration (`frontend/.env`)
+
+Create a `.env` file in the `frontend` directory with the following variable:
+
+| Variable | Description | Default Value | Required |
+|----------|-------------|---------------|----------|
 | `VITE_API_URL` | Backend API URL | `http://localhost:3001/api` | Yes |
-
----
-
-### Docker Deployment
-
-SignFlow can also be deployed using Docker for consistent environments:
-
-```bash
-# Build and start all services (frontend, backend, and MongoDB)
-docker-compose up -d --build
-
-# Access the application
-# Frontend: http://localhost:5173
-# Backend: http://localhost:3001
-
-# Stop all services
-docker-compose down
-
-# Stop services and remove volumes (warning: deletes all data!)
-docker-compose down -v
-```
 
 ---
 
 ## Project Structure
 
+Here's an overview of the project's directory structure and key files:
+
 ```
 SignFlow/
-├── backend/                   # Backend Node.js application
-│   ├── controllers/           # Route controller functions
-│   ├── models/                # Mongoose database schemas
-│   ├── routes/                # API route definitions
-│   ├── services/              # Business logic and utility services
-│   ├── middleware/            # Express middleware functions
-│   ├── utils/                 # Helper and utility functions
-│   ├── uploads/               # Local file storage directory (if using local storage)
-│   ├── server.js              # Backend server entry point
-│   └── package.json           # Backend dependencies
-├── frontend/                  # Frontend React application
+├── backend/                          # Backend Node.js application
+│   ├── controllers/                  # Request handlers for API endpoints
+│   │   ├── authController.js         # Authentication-related controllers
+│   │   ├── documentController.js     # Document management controllers
+│   │   └── signatureController.js    # Signature-related controllers
+│   ├── models/                       # Mongoose database schemas
+│   │   ├── Document.js               # Document model schema
+│   │   ├── SignatureField.js         # Signature field model schema
+│   │   ├── User.js                   # User model schema
+│   │   └── AuditLog.js               # Audit log model schema
+│   ├── routes/                       # API route definitions
+│   │   ├── auth.js                   # Authentication routes
+│   │   ├── documents.js              # Document routes
+│   │   └── signatures.js             # Signature routes
+│   ├── services/                     # Business logic and utility services
+│   │   ├── pdfService.js             # PDF manipulation and signing service
+│   │   ├── storageService.js         # Document storage service (local/R2)
+│   │   └── emailService.js           # Email notification service
+│   ├── middleware/                   # Express middleware functions
+│   │   ├── auth.js                   # JWT authentication middleware
+│   │   └── errorHandler.js           # Error handling middleware
+│   ├── utils/                        # Helper and utility functions
+│   ├── uploads/                      # Local file storage directory (if using local storage)
+│   ├── server.js                     # Backend server entry point
+│   ├── package.json                  # Backend dependencies and scripts
+│   └── .env.example                  # Example backend environment variables
+│
+├── frontend/                         # Frontend React application
 │   ├── src/
-│   │   ├── components/        # Reusable React components
-│   │   │   ├── editor/        # Document editor components
-│   │   │   ├── layout/        # Layout and navigation components
-│   │   │   ├── share/         # Public share and signing components
-│   │   │   └── ui/            # Generic UI components (buttons, cards, etc.)
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── utils/             # Utility and helper functions
-│   │   ├── App.tsx            # Main app component
-│   │   └── main.tsx           # Frontend entry point
-│   ├── public/                # Static assets
-│   ├── index.html             # HTML entry point
-│   ├── vite.config.ts         # Vite configuration
-│   ├── tailwind.config.ts     # Tailwind CSS configuration
-│   └── package.json           # Frontend dependencies
-├── docker-compose.yml         # Docker Compose configuration
-├── .gitignore                 # Git ignore file
-└── README.md                  # This file!
+│   │   ├── components/               # Reusable React components
+│   │   │   ├── editor/               # Document editor components
+│   │   │   │   ├── DocumentEditor.tsx  # Main document editor interface
+│   │   │   │   ├── SigningModal.tsx    # Modal for creating signatures
+│   │   │   │   └── CertificatePanel.tsx # Certificate and audit log viewer
+│   │   │   ├── layout/               # Layout and navigation components
+│   │   │   │   └── Navbar.tsx        # Top navigation bar
+│   │   │   ├── share/                # Public share and signing components
+│   │   │   │   ├── ShareViewer.tsx   # Public document viewer
+│   │   │   │   └── ShareFieldLayer.tsx # Field overlay for share pages
+│   │   │   └── ui/                   # Generic UI components (buttons, cards, etc.)
+│   │   ├── hooks/                    # Custom React hooks
+│   │   │   └── useShareDocument.ts   # Hook for managing shared documents
+│   │   ├── utils/                    # Utility and helper functions
+│   │   │   ├── api.ts                # API request utilities
+│   │   │   └── emailUtils.ts         # Email normalization utilities
+│   │   ├── App.tsx                   # Main application component with routes
+│   │   └── main.tsx                  # Frontend entry point
+│   ├── public/                       # Static assets (favicon, etc.)
+│   ├── index.html                    # HTML entry point for Vite
+│   ├── vite.config.ts                # Vite configuration file
+│   ├── tailwind.config.ts            # Tailwind CSS configuration
+│   ├── package.json                  # Frontend dependencies and scripts
+│   └── .env.example                  # Example frontend environment variables
+│
+├── docker-compose.yml                # Docker Compose configuration (optional)
+├── .gitignore                        # Git ignore patterns
+├── README.md                         # This file!
+└── LICENSE                           # MIT License file
 ```
 
 ---
 
-## API Documentation
+## Configuration Options
 
-### Base URL
-All API endpoints are prefixed with: `/api`
+### Backend Configuration
 
----
+#### Storage Options
+SignFlow supports two storage providers for storing documents and signatures:
 
-### Authentication Endpoints
+1. **Local File System (Default)**: Stores files in the `backend/uploads` directory
+   - Set `STORAGE_TYPE=local` in your `.env` file
+   - No additional configuration required
 
-#### 1. Register User
-```http
-POST /auth/register
-Content-Type: application/json
+2. **Cloudflare R2**: Scalable, S3-compatible object storage
+   - Set `STORAGE_TYPE=r2` in your `.env` file
+   - Configure `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`
+   - R2 offers low-cost, high-performance storage with no egress fees
 
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "StrongPassword123!"
-}
-```
+#### Email Notifications
+You can configure SignFlow to send email notifications to recipients:
 
-#### 2. Login User
-```http
-POST /auth/login
-Content-Type: application/json
+1. Set up an SMTP server (Gmail, SendGrid, Mailgun, etc.)
+2. Configure `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, and `EMAIL_PASS` in your `.env` file
+3. SignFlow will automatically send notifications when documents are sent for signing
 
-{
-  "email": "john@example.com",
-  "password": "StrongPassword123!"
-}
-```
+### Frontend Configuration
 
-#### 3. Logout User
-```http
-POST /auth/logout
-Authorization: Bearer <JWT_TOKEN>
-```
+#### API URL
+Set `VITE_API_URL` in `frontend/.env` to point to your backend server:
 
-#### 4. Forgot Password
-```http
-POST /auth/forgot-password
-Content-Type: application/json
+```env
+# Local development
+VITE_API_URL=http://localhost:3001/api
 
-{
-  "email": "john@example.com"
-}
-```
-
-#### 5. Reset Password
-```http
-POST /auth/reset-password
-Content-Type: application/json
-
-{
-  "token": "<RESET_TOKEN>",
-  "newPassword": "NewStrongPassword456!"
-}
-```
-
----
-
-### Document Endpoints
-
-#### 1. Upload Document
-```http
-POST /docs/upload
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: multipart/form-data
-
-file: <PDF_DOCUMENT>
-filename: "Contract.pdf"
-```
-
-#### 2. Get User's Documents
-```http
-GET /docs
-Authorization: Bearer <JWT_TOKEN>
-```
-
-#### 3. Get Document Details
-```http
-GET /docs/:id
-Authorization: Bearer <JWT_TOKEN>
-```
-
-#### 4. Update Document
-```http
-PUT /docs/:id
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-
-{
-  "signingOrder": "Sequential",
-  "remindersEnabled": true,
-  "reminderInterval": 3,
-  "expiresAt": "2024-12-31T23:59:59.000Z"
-}
-```
-
-#### 5. Delete Document
-```http
-DELETE /docs/:id
-Authorization: Bearer <JWT_TOKEN>
-```
-
-#### 6. Archive/Unarchive Document
-```http
-PUT /docs/:id/archive
-Authorization: Bearer <JWT_TOKEN>
-```
-
-#### 7. Download Finalized Document
-```http
-GET /docs/:id/download
-Authorization: Bearer <JWT_TOKEN>
-```
-
----
-
-### Signature Field Endpoints
-
-#### 1. Create/Update Signature Fields
-```http
-PUT /docs/:id/fields
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-
-{
-  "fields": [
-    {
-      "type": "Signature",
-      "recipientEmail": "jane@example.com",
-      "xPercent": 20,
-      "yPercent": 60,
-      "widthPercent": 25,
-      "heightPercent": 10,
-      "page": 1
-    },
-    {
-      "type": "Date",
-      "recipientEmail": "jane@example.com",
-      "xPercent": 45,
-      "yPercent": 60,
-      "widthPercent": 15,
-      "heightPercent": 5,
-      "page": 1
-    }
-  ]
-}
-```
-
-#### 2. Sign Document via Public Link
-```http
-POST /signatures/:id/sign-public
-Content-Type: application/json
-x-recipient-token: <RECIPIENT_TOKEN>
-
-{
-  "value": "data:image/png;base64,...",
-  "signatureScale": 100,
-  "metadataScale": "Medium"
-}
-```
-
-#### 3. Update Signature Field Position (Public Link)
-```http
-PUT /signatures/:id/public
-Content-Type: application/json
-x-recipient-token: <RECIPIENT_TOKEN>
-
-{
-  "xPercent": 22,
-  "yPercent": 65,
-  "widthPercent": 28,
-  "heightPercent": 12
-}
-```
-
----
-
-### Public Share Link Endpoints
-
-#### 1. Get Document via Share Link
-```http
-GET /docs/:id/public
-x-recipient-token: <RECIPIENT_TOKEN>
-```
-
-#### 2. Public Document Download
-```http
-GET /docs/:id/public-download
-x-recipient-token: <RECIPIENT_TOKEN>
+# Production
+VITE_API_URL=https://your-backend-domain.com/api
 ```
 
 ---
@@ -411,118 +326,97 @@ x-recipient-token: <RECIPIENT_TOKEN>
 ## Usage Guide
 
 ### Step 1: Create an Account
-1. Open SignFlow and click "Sign Up"
-2. Fill in your name, email address, and a secure password
-3. Verify your email if required
-4. Log in to your new account
+1. Open SignFlow and click the **Sign Up** button
+2. Enter your name, email address, and a secure password
+3. Verify your email if required (depending on your configuration)
+4. Log in to your new account using your credentials
 
 ### Step 2: Upload a Document
-1. Click "Upload Document" or drag and drop a PDF into the designated area
-2. Wait for the document to process and preview to load
+1. From the dashboard, click **Upload Document**
+2. Either drag and drop a PDF file or click to browse and select one
+3. Wait for the document to upload and the preview to load
 
 ### Step 3: Add Signature Fields
-1. Use the sidebar to select the field type (Signature, Initials, Date, Text, Checkbox)
-2. Choose the recipient for the field from the dropdown
-3. Click on the document preview to place the field
-4. Resize and reposition the field as needed using drag handles
+1. Use the sidebar to select a field type (Signature, Initials, Date, Text, Checkbox)
+2. Choose a recipient from the dropdown menu
+3. Click anywhere on the document preview to place the field
+4. Resize or reposition the field by dragging its corners or edges
 5. Repeat to add all required fields
+6. Optional: Lock a field to prevent accidental changes
 
-### Step 4: Configure Recipients and Settings
-1. Go to the "Recipients" tab to add or edit signers
-2. Configure signing order (Parallel or Sequential)
-3. Optional: Set up reminders and document expiration
-4. Optional: Enable password protection for share links
+### Step 4: Configure Recipients & Settings
+1. Go to the **Recipients** tab in the sidebar
+2. Add or edit signers and viewers as needed
+3. Choose a signing order:
+   - **Parallel**: All recipients can sign at the same time
+   - **Sequential**: Recipients sign one after another in order
+4. Optional: Enable and configure email reminders
+5. Optional: Set an expiration date for the document
+6. Optional: Enable password protection for share links
 
-### Step 5: Send the Document
-1. Click "Send for Signing"
+### Step 5: Send the Document for Signing
+1. When you're ready, click **Send for Signing**
 2. SignFlow will generate secure share links for each recipient
-3. Copy and share these links, or let SignFlow send automated email invitations
+3. Copy and share these links manually, or let SignFlow send automated email invitations (if configured)
 
-### Step 6: Sign the Document
-1. As a signer, open the share link you received
-2. Complete the required fields (click on a field to start signing)
-3. Create a signature (draw, type, or upload your own)
-4. Once all fields are completed, click "Finish Signing"
+### Step 6: Sign a Document (as a Recipient)
+1. Open the share link you received
+2. Click on a required field to start signing
+3. Choose how to create your signature:
+   - **Draw**: Draw your signature using your mouse or touchscreen
+   - **Type**: Type your name and choose a font and style
+   - **Upload**: Upload an image of your signature
+4. Preview your signature and adjust scale and metadata if needed
+5. Click **Sign** to apply your signature
+6. Repeat for all required fields
+7. Click **Finish Signing** when you're done
 
-### Step 7: Download Finalized Document
-1. After all parties have signed, go to your document dashboard
-2. Click "Download" to get a PDF with embedded signatures, audit information, and signing certificates
+### Step 7: Download the Finalized Document
+1. Once all parties have signed, go back to your dashboard
+2. Find the document and click **Download**
+3. You'll get a PDF with embedded signatures, audit information, and signing certificates
 
 ---
 
 ## Contributing
-Contributions are welcome and greatly appreciated! To contribute:
+
+Contributions are welcome and greatly appreciated! Whether you're fixing bugs, adding features, or improving documentation, your help makes SignFlow better for everyone.
+
+### How to Contribute
 
 1. **Fork the repository** on GitHub
-2. **Create a feature branch**: `git checkout -b feature/AmazingFeature`
+2. **Create a new feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 3. **Make your changes** with clear, concise commit messages
-4. **Test your changes** thoroughly
-5. **Commit your changes**: `git commit -m 'Add some AmazingFeature'`
-6. **Push to the branch**: `git push origin feature/AmazingFeature`
-7. **Open a Pull Request** on GitHub
-
-For major changes, please open an issue first to discuss what you would like to change!
+4. **Test your changes** thoroughly on different screen sizes and browsers
+5. **Commit your changes**:
+   ```bash
+   git commit -m "Add your feature or fix description here"
+   ```
+6. **Push your branch**:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+7. **Open a Pull Request** on GitHub and describe your changes in detail
 
 ### Development Guidelines
+
 - Follow TypeScript best practices and maintain type safety
 - Use Tailwind CSS for styling instead of raw CSS
 - Write clear, self-documenting code with comments as needed
 - Test your changes on both desktop and mobile screen sizes
-- Update documentation if applicable
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### Backend Won't Start
-- Ensure MongoDB is running locally or MongoDB Atlas URI is correct
-- Check that all required environment variables are set in `.env`
-- Look at error messages in the terminal for more details
-
-#### Frontend Can't Connect to Backend
-- Verify `VITE_API_URL` in `frontend/.env` points to the correct backend
-- Check that the backend server is running on the expected port
-- Ensure CORS is configured correctly in the backend
-
-#### Documents Not Loading
-- Check that storage is properly configured (local or Cloudflare R2)
-- Verify MongoDB has the correct document records
-- Check browser console and network tab for errors
-
-#### Duplicate Signatures Showing
-- Clear browser cache and reload the page
-- Ensure both frontend and backend are running the latest code
-- Check backend logs for any issues with PDF generation/embedding
-
-### Getting Help
-If you're still having problems, please:
-1. Check existing GitHub issues for similar problems
-2. Open a new GitHub issue with detailed steps to reproduce
-3. Include error messages, browser info, and OS version if possible
+- Update the README.md if your changes affect functionality or configuration
+- Keep commits small and focused on a single issue or feature
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+SignFlow is licensed under the MIT License. This means you're free to use, modify, and distribute the project for personal or commercial purposes, as long as you include the original copyright and license notice.
 
----
-
-## Acknowledgments
-
-SignFlow would not be possible without these amazing open-source libraries and tools:
-
-- [React](https://react.dev/) - For building beautiful user interfaces
-- [Vite](https://vite.dev/) - For fast, modern web development
-- [Tailwind CSS](https://tailwindcss.com/) - For rapid, responsive styling
-- [PDF.js](https://mozilla.github.io/pdf.js/) - For high-quality PDF rendering
-- [pdf-lib](https://pdf-lib.js.org/) - For PDF manipulation
-- [node-signpdf](https://github.com/vbuch/node-signpdf) - For PDF digital signatures
-- [MongoDB](https://www.mongodb.com/) - For scalable data storage
-- [Express](https://expressjs.com/) - For building the backend API
-- [Lucide](https://lucide.dev/) - For beautiful, consistent icons
+See the [LICENSE](LICENSE) file for full details.
 
 ---
 
