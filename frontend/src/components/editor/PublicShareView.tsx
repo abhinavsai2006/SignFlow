@@ -191,23 +191,15 @@ export default function PublicShareView() {
     return (
       <div className="min-h-screen w-full bg-canvas flex flex-col items-center justify-center p-6">
         <div 
-          className="w-full bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl text-center space-y-6"
-          style={{
-            maxWidth: '720px',
-            minWidth: '420px',
-            flexShrink: 0,
-            wordBreak: 'normal',
-            overflowWrap: 'break-word',
-            whiteSpace: 'normal'
-          }}
+          className="w-full max-w-[720px] min-w-[420px] flex-shrink-0 bg-surface-soft border border-hairline-soft rounded-2xl p-8 shadow-2xl text-center space-y-6"
         >
           <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-ink-deep">Signing Complete!</h2>
-            <p className="text-slate text-sm mt-2">You have successfully signed</p>
-            <p className="font-bold text-ink-deep text-sm mt-1 break-words">{docData?.filename}</p>
+            <h2 className="text-2xl font-bold text-ink-deep whitespace-normal break-words">Signing Complete!</h2>
+            <p className="text-slate text-sm mt-2 whitespace-normal break-words">You have successfully signed</p>
+            <p className="font-bold text-ink-deep text-sm mt-1 whitespace-normal break-words">{docData?.filename}</p>
           </div>
           <button
             onClick={handleDownload}
