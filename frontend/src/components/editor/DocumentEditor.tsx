@@ -1163,7 +1163,7 @@ export default function DocumentEditor() {
       const backendBase = import.meta.env.VITE_API_URL || '';
       const authToken = localStorage.getItem('token') || '';
       const pdfUrl = {
-        url: `${backendBase}/docs/${docResponse.data._id}/download?token=${encodeURIComponent(authToken)}`,
+        url: `${backendBase}/docs/${docResponse.data._id}/original?token=${encodeURIComponent(authToken)}`,
         httpHeaders: {
           'Authorization': `Bearer ${authToken}`
         }

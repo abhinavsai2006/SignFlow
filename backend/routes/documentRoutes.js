@@ -302,6 +302,31 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/docs/:id/original
+// @desc    Download the original (unsigned) PDF document file for editing
+router.get('/:id/original', protect, async (req, res) => {
+  const documentId = req.params.id;
+  try {
+    const document = await Document.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const isAuthorized = await checkDocumentAccess(document, req.user._id, 'read');
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Not authorized to access this document' });
+    }
+
+    const originalPath = document.originalFileUrl || (document.versions?.[0]?.path) || document.originalPath;
+    const originalBytes = await readPdfBytes(originalPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(Buffer.from(originalBytes));
+  } catch (err) {
+    console.error('[Original Download] Error:', err);
+    res.status(500).json({ message: 'Failed to load original document' });
+  }
+});
+
 // @route   GET /api/docs/:id/download
 // @desc    Download the signed finalized PDF document file
 router.get('/:id/download', protect, async (req, res) => {
